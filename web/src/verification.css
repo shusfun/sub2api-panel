@@ -1,0 +1,28 @@
+@import "./ui/styles/tokens.css";
+@import "./ui/styles/theme.css";
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: var(--weir-space-2);
+  background: var(--weir-base);
+  color: var(--weir-ink);
+  font: var(--weir-text-control) / var(--weir-leading-control) var(--weir-font);
+}
+.verification-action {
+  min-height: var(--weir-tap);
+  padding-inline: var(--weir-space-3);
+  border: 1px solid var(--weir-line);
+  border-radius: var(--weir-radius);
+  background: var(--weir-panel);
+  color: var(--weir-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.verification-action:hover { background: var(--weir-raised); }
+.verification-action:active { background: var(--weir-fill); }
+#error { color: var(--weir-bad-ink); font-size: var(--weir-text-meta); }
+@media (pointer: coarse), (max-width: 767.98px) {
+  body { font-size: var(--weir-text-callout); line-height: var(--weir-leading-callout); }
+  .verification-action { min-height: var(--weir-tap-touch); }
+}

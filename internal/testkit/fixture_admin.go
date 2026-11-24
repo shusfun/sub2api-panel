@@ -382,8 +382,26 @@ func (f *fixture) serveAdminExtended(w http.ResponseWriter, r *http.Request, pat
 	case path == "/admin/users/2/balance-history":
 		officialPage(w, map[string]any{"id": 1, "type": "admin_balance", "value": 50.0, "status": "used", "notes": "管理员调额", "used_at": "2026-11-21T10:00:00Z", "created_at": "2026-11-21T10:00:00Z", "code": fixtureLeak})
 		return true
-	case path == "/admin/users/batch-limits" || path == "/admin/users/batch-disable":
+	case path == "/admin/users/batch-limits" || path == "/admin/users/batch-disable" || path == "/admin/users/batch-enable":
 		officialSuccess(w, map[string]any{"affected": 1})
+		return true
+	case path == "/admin/user-attributes" && r.Method == http.MethodGet:
+		officialSuccess(w, []map[string]any{
+			{"id": 1, "name": "公司", "key": "company", "label": "公司", "type": "text", "description": "所属公司", "required": false, "enabled": true, "sort_order": 1, "options": []any{}},
+		})
+		return true
+	case path == "/admin/user-attributes" && r.Method == http.MethodPost:
+		officialSuccess(w, map[string]any{"id": 2, "name": "部门", "key": "dept", "label": "部门", "type": "select", "required": true, "enabled": true, "sort_order": 2, "options": []map[string]string{{"value": "eng", "label": "eng"}}})
+		return true
+	case path == "/admin/user-attributes/reorder" && r.Method == http.MethodPut:
+		officialSuccess(w, map[string]any{})
+		return true
+	case strings.HasPrefix(path, "/admin/user-attributes/"):
+		if r.Method == http.MethodDelete {
+			officialSuccess(w, map[string]any{})
+			return true
+		}
+		officialSuccess(w, map[string]any{"id": 1, "name": "公司", "key": "company", "label": "公司", "type": "text", "required": true, "enabled": false, "sort_order": 1})
 		return true
 	case strings.HasPrefix(path, "/admin/api-keys/"):
 		officialSuccess(w, map[string]any{"secret": fixtureLeak})

@@ -4,14 +4,15 @@ import {z} from "zod";
 import {api, streamUsage} from "@/lib/http";
 import {ccSwitchImportLink, magpieImportLink} from "@/lib/client-import";
 import {compact, count, date, money, relativeUntil, smartMoney} from "@/lib/format";
-import {useAction, useResource} from "@/lib/requests";
+import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
 import {empty, grantSchema, keyGroup, keyRow, subscriptions, usageSummary, type Config} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
   Badge, BatchBar, Button, ConfirmDialog, CopyButton, CopyValue, EmptyState, ErrorLine, FilterBar,
-  Form, InlineStack, Input, Inspector, MenuItem, MeterBar, MetricStrip, MoreActions, Overlay,
-  PlanIdentity, PlanSummary, RefreshButton, RemoteTable, RowActions, SecretRevealDialog, Status,
-  Switch, WorkspaceContent, WorkspaceStage, toast, type Column,
+  FilterSlot, Form, InlineStack, Input, Inspector, MenuItem, MeterBar, MetricStrip, MoreActions,
+  Overlay, PlanIdentity, PlanSummary, QuickPills, RefreshButton, RemoteTable, RowActions,
+  SearchInput, SecretRevealDialog, Select, Status, Switch, WorkspaceContent, WorkspaceStage, toast,
+  type Column,
 } from "@/ui";
 import {CreateKeyDialog, EditKeyBatch, SubAdminCodeBox} from "./key-dialogs";
 import {KeyInspectorForm} from "./key-inspector";
@@ -28,9 +29,13 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
   const [historyOpen, setHistoryOpen] = useState(false);
   const initial = useMemo(() => new URLSearchParams(queryString), [queryString]);
   const [revision, revise] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [editingBatch, setEditingBatch] = useState(false);
+  const [batchDeleting, setBatchDeleting] = useState(false);
   const [inspected, setInspected] = useState<KeyItem>();
   const [pageRows, setPageRows] = useState<KeyItem[]>([]);
   const [deleting, setDeleting] = useState<KeyItem>();
@@ -39,6 +44,16 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
   const [redeemCode, setRedeemCode] = useState("");
   const [referral, setReferral] = useState("");
   const createButton = useRef<HTMLButtonElement>(null);
+  const debouncedSearch = useDebouncedValue(search.trim(), 240);
+
+  const keysPath = useMemo(() => {
+    const p = new URLSearchParams();
+    if (debouncedSearch) p.set("search", debouncedSearch);
+    if (statusFilter) p.set("status", statusFilter);
+    if (groupFilter) p.set("group_id", groupFilter);
+    const qs = p.toString();
+    return "/keys" + (qs ? "?" + qs : "");
+  }, [debouncedSearch, groupFilter, statusFilter]);
 
   const balance = useResource(() => api("/balance", balanceSchema), "self-balance", true, revision);
   const plans = useResource(() => api("/subscriptions", z.array(subscriptions)), "self-subs", true, revision);
@@ -291,6 +306,23 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
 
       <FilterBar sticky>
         <div className="obs-filter-row">
+          <SearchInput value={search} onChange={setSearch} placeholder="按密钥名称搜索" ariaLabel="搜索密钥名称" />
+          <QuickPills
+            label="密钥状态"
+            value={statusFilter}
+            options={[
+              {value: "", label: "全部"},
+              {value: "active", label: "启用", tone: "ok"},
+              {value: "inactive", label: "停用", tone: "bad"},
+            ]}
+            onChange={setStatusFilter}
+          />
+          <FilterSlot>
+            <Select value={groupFilter} aria-label="按分组筛选" onChange={e => setGroupFilter(e.target.value)}>
+              <option value="">全部分组</option>
+              {(groups?.value ?? []).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </Select>
+          </FilterSlot>
           <div className="obs-filter-spacer">
             {config.affiliate && (
               <Button
@@ -310,7 +342,7 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
             </Button>
           </div>
         </div>
-        <ErrorLine value={redeemAction.error || toggleAction.error || clientAction.error || referralAction.error} />
+        <ErrorLine value={redeemAction.error || toggleAction.error || clientAction.error || referralAction.error || deleteAction.error} />
         {config.custom_endpoints.map(endpoint => <CopyValue key={endpoint.endpoint} label={endpoint.name} value={endpoint.endpoint} />)}
         {referral && <CopyValue label="专属邀请注册链接" value={referral} />}
       </FilterBar>
@@ -319,6 +351,35 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
 
       <BatchBar count={selected.length} onClear={() => setSelected([])}>
         <Button size="xs" variant="outline" onClick={() => setEditingBatch(true)}>批量编辑</Button>
+        <Button
+          size="xs"
+          variant="outline"
+          busy={toggleAction.busy}
+          onClick={() => void toggleAction.run(async () => {
+            await Promise.all(selected.map(id => api(`/keys/${id}`, empty, "PUT", {status: "active"})));
+            setSelected([]);
+            toast("已批量启用所选密钥");
+            refresh();
+          })}
+        >
+          批量启用
+        </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          busy={toggleAction.busy}
+          onClick={() => void toggleAction.run(async () => {
+            await Promise.all(selected.map(id => api(`/keys/${id}`, empty, "PUT", {status: "inactive"})));
+            setSelected([]);
+            toast("已批量停用所选密钥");
+            refresh();
+          })}
+        >
+          批量停用
+        </Button>
+        <Button size="xs" variant="destructive" busy={deleteAction.busy} onClick={() => setBatchDeleting(true)}>
+          <Trash2 aria-hidden />批量删除
+        </Button>
       </BatchBar>
       {editingBatch && (
         <EditKeyBatch
@@ -334,7 +395,8 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
       )}
       <div className="swift-pane-table">
         <RemoteTable
-          path="/keys"
+          key={keysPath}
+          path={keysPath}
           schema={keyRow}
           columns={columns}
           rowID={row => row.id}
@@ -401,6 +463,23 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
             refresh();
           });
         }}
+      />
+      <ConfirmDialog
+        open={batchDeleting}
+        title="批量删除 API Key"
+        description={`确定删除已选的 ${selected.length} 个 API Key 吗？删除后使用这些密钥的客户端将立即失效。`}
+        confirm="批量删除"
+        busy={deleteAction.busy}
+        error={deleteAction.error}
+        onClose={() => setBatchDeleting(false)}
+        onConfirm={() => void deleteAction.run(async () => {
+          await Promise.all(selected.map(id => api(`/keys/${id}`, empty, "DELETE")));
+          if (inspected && selected.includes(inspected.id)) setInspected(undefined);
+          setSelected([]);
+          setBatchDeleting(false);
+          toast("已批量删除所选密钥");
+          refresh();
+        })}
       />
     </WorkspaceStage>
   );

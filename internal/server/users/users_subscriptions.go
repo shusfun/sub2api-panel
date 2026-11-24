@@ -80,7 +80,7 @@ func projectAdminSubscription(s adminSubscriptionWire) (adminSubscriptionView, e
 }
 
 func (h *handler) adminSubscriptionsList(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	page, params, err := platform.ListQuery(r, "status", "user_id", "group_id", "platform", "sort_by", "sort_order")
+	page, params, err := platform.ListQuery(r, "search", "status", "user_id", "group_id", "platform", "sort_by", "sort_order")
 	if err != nil {
 		return err
 	}

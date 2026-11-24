@@ -106,34 +106,80 @@ export function BatchUserLimitsDialog({open, userIDs, onClose, onSaved}: {open: 
   );
 }
 
-export function AssignSubscriptionDialog({open, revision, onClose, onSaved, fixedUserID}: {open: boolean; revision: number; onClose: () => void; onSaved: () => void; fixedUserID?: number}) {
-  return open ? <AssignSubscriptionForm revision={revision} fixedUserID={fixedUserID} onClose={onClose} onSaved={onSaved} /> : null;
+export function AssignSubscriptionDialog({
+  open,
+  revision,
+  onClose,
+  onSaved,
+  fixedUserID,
+  selectedUserIDs,
+}: {
+  open: boolean;
+  revision: number;
+  onClose: () => void;
+  onSaved: () => void;
+  fixedUserID?: number;
+  selectedUserIDs?: readonly number[];
+}) {
+  return open ? (
+    <AssignSubscriptionForm
+      revision={revision}
+      fixedUserID={fixedUserID}
+      selectedUserIDs={selectedUserIDs}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  ) : null;
 }
 
-function AssignSubscriptionForm({revision, onClose, onSaved, fixedUserID}: {revision: number; onClose: () => void; onSaved: () => void; fixedUserID?: number}) {
+function AssignSubscriptionForm({
+  revision,
+  onClose,
+  onSaved,
+  fixedUserID,
+  selectedUserIDs,
+}: {
+  revision: number;
+  onClose: () => void;
+  onSaved: () => void;
+  fixedUserID?: number;
+  selectedUserIDs?: readonly number[];
+}) {
   const [userID, setUserID] = useState("");
   const op = useAction();
+  const bulk = (selectedUserIDs?.length ?? 0) > 0;
   return (
     <GroupDialog
-      title="分配订阅"
+      title={bulk ? `批量分配订阅（已选 ${selectedUserIDs?.length} 位用户）` : "分配订阅"}
       source={{subscriptionOnly: true, revision}}
       activeOnly
       onClose={onClose}
-      applyLabel="开通订阅"
-      applyDisabled={!fixedUserID && !userID}
+      applyLabel={bulk ? "批量开通" : "开通订阅"}
+      applyDisabled={!bulk && !fixedUserID && !userID}
       busy={op.busy}
       error={op.error}
       onApply={([groupID], fields) => void op.run(async () => {
-        await api("/admin/subscriptions/assign", adminSubscriptionRow, "POST", {
-          user_id: fixedUserID ?? Number(userID),
-          group_id: groupID,
-          validity_days: Number(fields.get("validity_days")),
-          notes: String(fields.get("notes") ?? "").trim(),
-        });
+        const validity_days = Number(fields.get("validity_days"));
+        const notes = String(fields.get("notes") ?? "").trim();
+        if (bulk && selectedUserIDs) {
+          await api("/admin/subscriptions/bulk-assign", z.object({success_count: z.number(), failed_count: z.number()}), "POST", {
+            user_ids: selectedUserIDs,
+            group_id: groupID,
+            validity_days,
+            notes,
+          });
+        } else {
+          await api("/admin/subscriptions/assign", adminSubscriptionRow, "POST", {
+            user_id: fixedUserID ?? Number(userID),
+            group_id: groupID,
+            validity_days,
+            notes,
+          });
+        }
         onSaved();
       })}
     >
-      {!fixedUserID && <Field label="目标用户"><UserSelect value={userID} placeholder="搜索用户邮箱…" clearable={false} onChange={setUserID} /></Field>}
+      {!bulk && !fixedUserID && <Field label="目标用户"><UserSelect value={userID} placeholder="搜索用户邮箱…" clearable={false} onChange={setUserID} /></Field>}
       <FormGrid>
         <Field label="有效天数"><Input name="validity_days" type="number" min="1" max="3650" defaultValue="30" required /></Field>
         <Field label="备注（选填）"><Input name="notes" maxLength={200} /></Field>

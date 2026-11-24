@@ -1,15 +1,16 @@
 import {useMemo, useState} from "react";
-import {Download, Ticket, TimerOff, Trash2} from "lucide-react";
+import {Download, Power, Ticket, TimerOff, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {count, money} from "@/lib/format";
 import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
-import {redeemCodeRow, type Config} from "@/schemas";
+import {empty, redeemCodeRow, type Config} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
-  Badge, BatchBar, Button, CopyButton, EmptyState, EntityLink, ErrorLine, FilterBar, InlineStack,
-  MaskedSecret, MetricStrip, Panel, PlanIdentity, QuickPills, RefreshButton, RemoteTable, SearchInput,
-  Section, Segmented, Status, Toolbar, WorkspaceContent, WorkspaceStage, toast, type Column,
+  Badge, BatchBar, Button, ConfirmDialog, CopyButton, EmptyState, EntityLink, ErrorLine, FilterBar,
+  FilterSlot, InlineStack, MaskedSecret, MetricStrip, Panel, PlanIdentity, QuickPills, RefreshButton,
+  RemoteTable, SearchInput, Section, Segmented, Select, Status, Toolbar, WorkspaceContent,
+  WorkspaceStage, toast, type Column,
 } from "@/ui";
 import {EditCodesBatch, GenerateRedeemDialog, type CreatedCode} from "./code-dialogs";
 import {IssuerAuditSection} from "./issue-panel";
@@ -21,11 +22,13 @@ export function CodesWorkspace({config}: {config: Config}) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [codeType, setCodeType] = useState("");
+  const [sort, setSort] = useState("");
   const [codePoolMode, setCodePoolMode] = useState<"official" | "promo" | "issues">("official");
   const [revision, revise] = useState(0);
   const [selectedCodes, setSelectedCodes] = useState<number[]>([]);
   const [generateOpen, setGenerateOpen] = useState(false);
   const [editingCodes, editCodes] = useState(false);
+  const [deletingCode, setDeletingCode] = useState<RedeemRow>();
   const [generatedCodes, setGeneratedCodes] = useState<CreatedCode[]>([]);
 
   const debouncedSearch = useDebouncedValue(search.trim(), 240);
@@ -37,9 +40,14 @@ export function CodesWorkspace({config}: {config: Config}) {
     if (debouncedSearch) p.set("search", debouncedSearch);
     if (status) p.set("status", status);
     if (codeType) p.set("type", codeType);
+    if (sort) {
+      const [by, order] = sort.split(":");
+      if (by) p.set("sort_by", by);
+      if (order) p.set("sort_order", order);
+    }
     const qs = p.toString();
     return "/admin/redeem-codes" + (qs ? "?" + qs : "");
-  }, [codeType, debouncedSearch, status]);
+  }, [codeType, debouncedSearch, sort, status]);
 
   const exportMasked = () => void batchAction.run(async () => {
     const rows = await api(codeListPath.replace("redeem-codes", "redeem-codes/export"), z.array(redeemCodeRow));
@@ -103,25 +111,64 @@ export function CodesWorkspace({config}: {config: Config}) {
       id: "ops",
       title: "",
       align: "end",
-      render: row =>
-        row.status === "unused" || row.status === "active" ? (
+      render: row => (
+        <div className="row-actions">
+          {(row.status === "unused" || row.status === "active" || row.status === "disabled") && (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              busy={batchAction.busy}
+              title={row.status === "disabled" ? "启用兑换码" : "停用兑换码"}
+              aria-label={row.status === "disabled" ? "启用兑换码" : "停用兑换码"}
+              onClick={e => {
+                e.stopPropagation();
+                const nextStatus = row.status === "disabled" ? "unused" : "disabled";
+                void batchAction.run(async () => {
+                  await api("/admin/redeem-codes/batch-update", z.object({updated: z.number()}), "POST", {
+                    ids: [row.id],
+                    fields: {status: nextStatus},
+                  });
+                  toast(nextStatus === "disabled" ? "已停用兑换码" : "已启用兑换码");
+                  refresh();
+                });
+              }}
+            >
+              <Power aria-hidden />
+            </Button>
+          )}
+          {(row.status === "unused" || row.status === "active") && (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              busy={batchAction.busy}
+              title="设为过期"
+              aria-label="设为过期"
+              onClick={e => {
+                e.stopPropagation();
+                void batchAction.run(async () => {
+                  await api(`/admin/redeem-codes/${row.id}/expire`, redeemCodeRow, "POST", {});
+                  refresh();
+                });
+              }}
+            >
+              <TimerOff aria-hidden />
+            </Button>
+          )}
           <Button
             size="icon-sm"
             variant="ghost"
             busy={batchAction.busy}
-            title="设为过期"
-            aria-label="设为过期"
+            title="删除兑换码"
+            aria-label="删除兑换码"
             onClick={e => {
               e.stopPropagation();
-              void batchAction.run(async () => {
-                await api(`/admin/redeem-codes/${row.id}/expire`, redeemCodeRow, "POST", {});
-                refresh();
-              });
+              setDeletingCode(row);
             }}
           >
-            <TimerOff aria-hidden />
+            <Trash2 aria-hidden />
           </Button>
-        ) : null,
+        </div>
+      ),
     },
   ];
 
@@ -176,9 +223,19 @@ export function CodesWorkspace({config}: {config: Config}) {
                     {value: "unused", label: "可用", tone: "ok"},
                     {value: "used", label: "已用"},
                     {value: "expired", label: "已过期", tone: "warn"},
+                    {value: "disabled", label: "已停用", tone: "bad"},
                   ]}
                   onChange={setStatus}
                 />
+                <FilterSlot>
+                  <Select value={sort} aria-label="排序方式" onChange={e => setSort(e.target.value)}>
+                    <option value="">默认排序</option>
+                    <option value="created_at:desc">最新生成</option>
+                    <option value="created_at:asc">最早生成</option>
+                    <option value="value:desc">面值降序</option>
+                    <option value="expires_at:asc">即将到期</option>
+                  </Select>
+                </FilterSlot>
               </>
             )}
             <div className="obs-filter-spacer">
@@ -308,6 +365,21 @@ export function CodesWorkspace({config}: {config: Config}) {
           refresh();
           navigateTo("users", {inspect: uid});
         }}
+      />
+      <ConfirmDialog
+        open={!!deletingCode}
+        title="删除兑换码"
+        description={deletingCode ? `确定删除兑换码 ${deletingCode.masked} 吗？` : ""}
+        confirm="删除"
+        busy={batchAction.busy}
+        error={batchAction.error}
+        onClose={() => setDeletingCode(undefined)}
+        onConfirm={() => deletingCode && void batchAction.run(async () => {
+          await api(`/admin/redeem-codes/${deletingCode.id}`, empty, "DELETE");
+          setDeletingCode(undefined);
+          toast("兑换码已删除");
+          refresh();
+        })}
       />
     </>
   );

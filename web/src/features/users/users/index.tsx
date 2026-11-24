@@ -2,13 +2,13 @@ import {useEffect, useMemo, useState} from "react";
 import {Plus, SlidersHorizontal, UserPlus} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
-import {date, money, relativeUntil, smartMoney} from "@/lib/format";
+import {count, date, money, relativeUntil, smartMoney} from "@/lib/format";
 import {useAction, useDebouncedValue} from "@/lib/requests";
 import {adminSubscriptionRow, empty, userRow} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
-  BatchBar, Button, EmptyState, EntityLink, ErrorLine, FilterBar, FilterChips, FilterSlot,
-  GroupSelect, IdentityBadge, MeterBar, PlanIdentity, PlanSummary, QuickPills,
+  Badge, BatchBar, Button, EmptyState, EntityLink, ErrorLine, FilterBar, FilterChips, FilterSlot,
+  GroupSelect, IdentityBadge, MeterBar, MetricStrip, PlanIdentity, PlanSummary, QuickPills,
   RefreshButton, RemoteTable, SearchInput, Segmented, Select, Status, WorkspaceStage, toast,
   useGroups, type Column, type FilterChip,
 } from "@/ui";
@@ -38,6 +38,8 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
   const groupCatalog = useGroups({}, view === "users");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [selectedSubs, setSelectedSubs] = useState<number[]>([]);
+  const [loadedUsers, setLoadedUsers] = useState<UserItem[]>([]);
+  const [loadedSubs, setLoadedSubs] = useState<SubRow[]>([]);
   const standaloneID = Number(initial.get("inspect") ?? 0);
 
   const [createUserOpen, setCreateUserOpen] = useState(false);
@@ -102,6 +104,13 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
         />
       ),
     },
+    {
+      id: "role",
+      title: "角色",
+      align: "center",
+      hideWhenCompact: true,
+      render: row => <Badge variant="soft" tone={row.role === "admin" ? "info" : "neutral"}>{row.role === "admin" ? "管理员" : "普通用户"}</Badge>,
+    },
     {id: "balance", title: "可用余额", align: "number", render: row => money(row.balance)},
     {
       id: "conc",
@@ -122,6 +131,7 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
       render: row => <PlanSummary items={(groupCatalog?.value ?? []).filter(group => group.is_exclusive && row.allowed_groups.includes(group.id))} label="私有分组" empty="—" />,
     },
     {id: "active", title: "最近调用", hideWhenNarrow: true, render: row => <span className="code-mono text-fine">{row.last_used_at ? date(row.last_used_at) : "—"}</span>},
+    {id: "created", title: "注册时间", hideWhenNarrow: true, render: row => <span className="code-mono text-fine">{row.created_at ? date(row.created_at) : "—"}</span>},
     {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
   ];
 
@@ -171,9 +181,31 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
   if (role && view === "users") chips.push({id: "role", label: "角色", value: role, onRemove: () => setRole("")});
   if (groupID) chips.push({id: "group", label: "分组", value: `#${groupID}`, onRemove: () => setGroupID("")});
 
+  const activeUsers = loadedUsers.filter(u => u.status === "active").length;
+  const adminUsers = loadedUsers.filter(u => u.role === "admin").length;
+  const totalBalance = loadedUsers.reduce((sum, u) => sum + (u.balance ?? 0), 0);
+  const activeSubs = loadedSubs.filter(s => s.status === "active").length;
+
   return (
     <>
       <WorkspaceStage flush>
+        <MetricStrip
+          flush
+          items={
+            view === "users"
+              ? [
+                  {id: "u-total", label: "当前页用户", value: count.format(loadedUsers.length), hint: `管理员 ${adminUsers} 位`},
+                  {id: "u-active", label: "正常活跃", value: count.format(activeUsers), tone: "ok", onClick: () => setStatus("active")},
+                  {id: "u-disabled", label: "已停用", value: count.format(loadedUsers.length - activeUsers), tone: loadedUsers.length - activeUsers > 0 ? "warn" : "neutral", onClick: () => setStatus("disabled")},
+                  {id: "u-balance", label: "当前页合计余额", value: money(totalBalance), tone: "accent"},
+                ]
+              : [
+                  {id: "s-total", label: "当前页订阅", value: count.format(loadedSubs.length)},
+                  {id: "s-active", label: "有效订阅", value: count.format(activeSubs), tone: "ok", onClick: () => setStatus("active")},
+                  {id: "s-other", label: "过期 / 撤销", value: count.format(loadedSubs.length - activeSubs), tone: loadedSubs.length - activeSubs > 0 ? "warn" : "neutral"},
+                ]
+          }
+        />
         <FilterBar sticky>
           <div className="obs-filter-row">
             <Segmented
@@ -287,6 +319,7 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
                 rowID={row => row.id}
                 label="用户列表"
                 revision={revision}
+                onItemsLoaded={setLoadedUsers}
                 onRowClick={row => navigateTo("users", {inspect: row.id})}
                 selection={{selected: selectedUsers, onChange: setSelectedUsers}}
                 empty={
@@ -359,6 +392,7 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
                 rowID={row => row.id}
                 label="订阅总表"
                 revision={revision}
+                onItemsLoaded={setLoadedSubs}
                 selection={{selected: selectedSubs, onChange: setSelectedSubs}}
                 empty={<EmptyState title="暂无订阅记录" action={<Button size="sm" onClick={() => setBulkSubAssignOpen(true)}><Plus aria-hidden />分配订阅</Button>} />}
               />

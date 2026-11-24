@@ -343,8 +343,13 @@ export function KeysWorkspace({config, admin, queryString = ""}: {config: Config
           </div>
         </div>
         <ErrorLine value={redeemAction.error || toggleAction.error || clientAction.error || referralAction.error || deleteAction.error} />
-        {config.custom_endpoints.map(endpoint => <CopyValue key={endpoint.endpoint} label={endpoint.name} value={endpoint.endpoint} />)}
-        {referral && <CopyValue label="专属邀请注册链接" value={referral} />}
+        <InlineStack wrap>
+          {(config.api_base_url || config.official) && (
+            <CopyValue label="API 接入地址" value={config.api_base_url || config.official} />
+          )}
+          {config.custom_endpoints.map(endpoint => <CopyValue key={endpoint.endpoint} label={endpoint.name} value={endpoint.endpoint} />)}
+          {referral && <CopyValue label="专属邀请注册链接" value={referral} />}
+        </InlineStack>
       </FilterBar>
 
       <SecretRevealDialog open={Boolean(secret)} title="API Key 已创建" label="API Key" value={secret} onClose={() => setSecret("")} />

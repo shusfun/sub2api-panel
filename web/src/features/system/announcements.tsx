@@ -3,11 +3,11 @@ import {CheckCheck, Eye, Pencil, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty} from "@/schemas";
-import {date, dateTimeInputSeconds, dateTimeInputValue} from "@/lib/format";
+import {count, date, dateTimeInputSeconds, dateTimeInputValue} from "@/lib/format";
 import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
 import {
   AudienceRuleBuilder, Badge, Button, ConfirmDialog, EllipsisText, EmptyState, EntityLink, ErrorLine, Field, FilterBar, FilterSlot, Form, FormGrid,
-  InlineStack, InsetGroup, InsetRow, Input, Overlay, RefreshButton, Resource, SearchInput, Select, Stack, Status,
+  InlineStack, InsetGroup, InsetRow, Input, MetricStrip, Overlay, RefreshButton, Resource, SearchInput, Select, Stack, Status,
   Textarea, WorkspaceContent, WorkspaceStage, toast, type AudienceCondition, type Column,
 } from "@/ui";
 import {RemoteTable} from "@/ui";
@@ -50,40 +50,50 @@ export function Announcements() {
   const readAll = useAction();
   const path = "/announcements" + (unread ? "?unread_only=true" : "");
   const rows = useResource(() => api(path, userAnnouncements), path, true, revision);
-  const hasUnread = (rows?.value ?? []).some(r => !r.read_at);
-  return <WorkspaceContent>
-    <InsetGroup
-      title="站点公告"
-      actions={
-        <InlineStack density="compact">
-          {hasUnread && (
-            <Button
-              size="sm"
-              variant="outline"
-              busy={readAll.busy}
-              onClick={() => void readAll.run(async () => {
-                await api("/announcements/read-all", empty, "POST", {});
-                toast("已全部标为已读");
-                revise(v => v + 1);
-              })}
-            >
-              <CheckCheck aria-hidden />全部标为已读
-            </Button>
-          )}
-          <Select aria-label="公告筛选" value={unread ? "unread" : "all"} onChange={event => setUnread(event.target.value === "unread")}>
-            <option value="all">全部公告</option><option value="unread">未读公告</option>
-          </Select>
-        </InlineStack>
-      }
-    >
-      <Resource state={rows}>{items => items.length ? items.map(row => <InsetRow key={row.id} label={row.title} hint={date(row.created_at)}>
-        {!row.read_at && <Badge variant="soft" tone="info">未读</Badge>}
-        <Button size="sm" variant="outline" onClick={() => open(row)}>查看</Button>
-      </InsetRow>) : <EmptyState title={unread ? "没有未读公告" : "暂无公告"} />}</Resource>
-    </InsetGroup>
-    <ErrorLine value={readAll.error} />
-    {item && <NoticeDialog item={item} onClose={() => open(undefined)} onRead={() => { toast("已标为已读"); revise(value => value + 1); }} />}
-  </WorkspaceContent>;
+  const items = rows?.value ?? [];
+  const unreadCount = items.filter(r => !r.read_at).length;
+  return <WorkspaceStage flush>
+    <MetricStrip
+      flush
+      items={[
+        {id: "a-total", label: "可见公告", value: count.format(items.length)},
+        {id: "a-unread", label: "未读公告", value: count.format(unreadCount), tone: unreadCount > 0 ? "accent" : "ok"},
+        {id: "a-latest", label: "最新发布", value: items[0] ? date(items[0].created_at) : "—"},
+      ]}
+    />
+    <WorkspaceContent>
+      <InsetGroup
+        actions={
+          <InlineStack density="compact">
+            {unreadCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                busy={readAll.busy}
+                onClick={() => void readAll.run(async () => {
+                  await api("/announcements/read-all", empty, "POST", {});
+                  toast("已全部标为已读");
+                  revise(v => v + 1);
+                })}
+              >
+                <CheckCheck aria-hidden />全部标为已读
+              </Button>
+            )}
+            <Select aria-label="公告筛选" value={unread ? "unread" : "all"} onChange={event => setUnread(event.target.value === "unread")}>
+              <option value="all">全部公告</option><option value="unread">未读公告</option>
+            </Select>
+          </InlineStack>
+        }
+      >
+        <Resource state={rows}>{list => list.length ? list.map(row => <InsetRow key={row.id} label={row.title} hint={`${date(row.created_at)} · ${row.content.slice(0, 72)}${row.content.length > 72 ? "…" : ""}`}>
+          {!row.read_at && <Badge variant="soft" tone="info">未读</Badge>}
+          <Button size="sm" variant="outline" onClick={() => open(row)}>查看</Button>
+        </InsetRow>) : <EmptyState title={unread ? "没有未读公告" : "暂无公告"} />}</Resource>
+      </InsetGroup>
+      <ErrorLine value={readAll.error} />
+      {item && <NoticeDialog item={item} onClose={() => open(undefined)} onRead={() => { toast("已标为已读"); revise(value => value + 1); }} />}
+    </WorkspaceContent>
+  </WorkspaceStage>;
 }
 
 export function AnnouncementNotice({revision}: {revision: number}) {
@@ -107,6 +117,7 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
   const [editing, edit] = useState<number | null>(null);
   const [reading, read] = useState<Announcement>();
   const [removing, remove] = useState<Announcement>();
+  const [loaded, setLoaded] = useState<Announcement[]>([]);
   const removal = useAction();
   const debounced = useDebouncedValue(search.trim());
   const base = "/admin/announcements";
@@ -130,7 +141,20 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
     </div>},
   ];
 
+  const activeCount = loaded.filter(r => r.status === "active").length;
+  const popupCount = loaded.filter(r => r.notify_mode === "popup").length;
+  const draftCount = loaded.filter(r => r.status === "draft").length;
+
   return <WorkspaceStage flush>
+    <MetricStrip
+      flush
+      items={[
+        {id: "m-total", label: "当前页公告", value: count.format(loaded.length)},
+        {id: "m-active", label: "已发布", value: count.format(activeCount), tone: "ok", onClick: () => setStatus("active")},
+        {id: "m-popup", label: "登录弹窗", value: count.format(popupCount), tone: "accent"},
+        {id: "m-draft", label: "草稿", value: count.format(draftCount), onClick: () => setStatus("draft")},
+      ]}
+    />
     <FilterBar sticky>
       <div className="obs-filter-row">
         <SearchInput value={search} onChange={setSearch} placeholder="搜索公告标题" />
@@ -147,7 +171,7 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
       </div>
     </FilterBar>
     <div className="swift-pane-table">
-      <RemoteTable path={path} schema={announcement} columns={columns} rowID={row => row.id} pinActions label="公告管理" revision={revision} />
+      <RemoteTable path={path} schema={announcement} columns={columns} rowID={row => row.id} onItemsLoaded={setLoaded} pinActions label="公告管理" revision={revision} />
     </div>
     {editing !== null && <AnnouncementEditor key={editing} id={editing} onClose={() => edit(null)} onSaved={() => { edit(null); saved("公告已保存"); }} />}
     {reading && <Overlay open drawer title={reading.title + " · 阅读情况"} onClose={() => read(undefined)}>

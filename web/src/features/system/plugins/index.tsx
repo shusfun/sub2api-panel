@@ -57,8 +57,8 @@ export function PluginsWorkspace({stepUpEnabled = false}: {stepUpEnabled?: boole
             <Stack>
               <div className="auth-inline-row">
                 <InlineStack wrap>
-                  <h2>双轨扩展生态</h2>
                   <Badge variant="soft" tone="neutral">TOML 受控配置 · 凭据测完即焚</Badge>
+                  <span className="muted text-fine">编译期内置与外部沙箱双轨并行</span>
                 </InlineStack>
                 <InlineStack wrap>
                   <Button size="sm" variant="outline" onClick={() => setFolderOpen(true)}>

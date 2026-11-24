@@ -168,9 +168,15 @@ export function Purchase({enabled}: {enabled: boolean}) {
   ];
   return <WorkspaceContent>
     {enabled && <Resource state={offer}>{options => <Checkout options={options} onCreated={() => revise(value => value + 1)} />}</Resource>}
-    <InsetGroup title="我的订单" actions={<RefreshButton size="xs" variant="ghost" onClick={() => revise(v => v + 1)} />}>
+    <section className="swift-group" aria-label="我的订单">
+      <div className="swift-group-head">
+        <span className="swift-group-title">我的订单</span>
+        <div className="swift-group-actions">
+          <RefreshButton size="xs" variant="ghost" onClick={() => revise(v => v + 1)} />
+        </div>
+      </div>
       <RemoteTable path={base} schema={order} rowID={row => row.id} onRowClick={row => select(row.id)} pinActions columns={columns} label="我的订单" revision={revision} />
-    </InsetGroup>
+    </section>
     {selected !== undefined && <OrderDetail key={selected} id={selected} onClose={() => select(undefined)} onChange={() => revise(value => value + 1)} />}
   </WorkspaceContent>;
 }
@@ -205,8 +211,8 @@ function Checkout({options, onCreated}: {options: z.infer<typeof checkout>; onCr
     };
   });
 
-  return <InsetGroup title="购买订阅或充值">
-    <InsetRow label="选择项目与支付通道" vertical>
+  return (
+    <>
       <Form busy={action.busy} errors={action.fieldErrors} onSubmit={event => {
         const fields = new FormData(event.currentTarget);
         void action.run(async () => {
@@ -220,44 +226,49 @@ function Checkout({options, onCreated}: {options: z.infer<typeof checkout>; onCr
           onCreated();
         });
       }}>
-        <Field label="购买项目">
-          <ChoiceCards label="购买项目" value={product} options={productChoices} columns={3} onChange={setProduct} />
-        </Field>
-        <Field label="支付通道">
-          <ChoiceCards label="支付通道" value={method} options={methodChoices} columns={3} onChange={setMethod} />
-        </Field>
-        {product === "balance" && (
-          <Field label="充值金额" name="amount">
-            <div className="row-field">
-              <Input
-                name="amount"
-                type="number"
-                step="0.01"
-                suffix={selected.currency || "USD"}
-                min={selected.single_min || 0.01}
-                max={selected.single_max || undefined}
-                required
-              />
-            </div>
-          </Field>
-        )}
-        <ErrorLine value={action.error} />
-        <Button type="submit" busy={action.busy}>创建支付订单</Button>
-      </Form>
-    </InsetRow>
-    {created && (
-      <Overlay open title={`支付订单 #${created.order_id}`} onClose={() => create(undefined)}>
-        <InsetGroup>
-          <InsetRow label="应付金额" hint={currencyMoney(created.pay_amount, created.currency || "USD")} />
-          <InsetRow label="过期时间" hint={date(created.expires_at)} />
-          {created.pay_url && <InsetRow label="收银台"><Button render={<a href={created.pay_url} rel="noreferrer" />}>前往支付平台</Button></InsetRow>}
-          {created.qr_code && <InsetRow label="扫码支付" vertical><QrCode value={created.qr_code} alt="支付二维码" /></InsetRow>}
-          {!(created.qr_code || created.pay_url) && <Feedback>订单已创建。此支付方式未提供直接跳转入口，请在订单详情核对状态。</Feedback>}
-          <InsetRow label="订单结果"><Button variant="outline" render={<a href={"/payment/result?order_id=" + created.order_id} />}>查看支付结果</Button></InsetRow>
+        <InsetGroup title="购买订阅或充值">
+          <InsetRow label="购买项目" vertical>
+            <ChoiceCards label="购买项目" value={product} options={productChoices} columns={3} onChange={setProduct} />
+          </InsetRow>
+          <InsetRow label="支付通道" vertical>
+            <ChoiceCards label="支付通道" value={method} options={methodChoices} columns={3} onChange={setMethod} />
+          </InsetRow>
+          <InsetRow label={product === "balance" ? "充值金额" : "确认下单"} hint={product === "balance" && selected.single_max > 0 ? `单笔限额 ${selected.single_min || 0}–${selected.single_max} ${selected.currency || "USD"}` : undefined}>
+            <InlineStack>
+              {product === "balance" && (
+                <div className="row-field">
+                  <Input
+                    name="amount"
+                    aria-label="充值金额"
+                    type="number"
+                    step="0.01"
+                    suffix={selected.currency || "USD"}
+                    min={selected.single_min || 0.01}
+                    max={selected.single_max || undefined}
+                    required
+                  />
+                </div>
+              )}
+              <Button type="submit" busy={action.busy}>创建支付订单</Button>
+            </InlineStack>
+          </InsetRow>
         </InsetGroup>
-      </Overlay>
-    )}
-  </InsetGroup>;
+        <ErrorLine value={action.error} />
+      </Form>
+      {created && (
+        <Overlay open title={`支付订单 #${created.order_id}`} onClose={() => create(undefined)}>
+          <InsetGroup>
+            <InsetRow label="应付金额" hint={currencyMoney(created.pay_amount, created.currency || "USD")} />
+            <InsetRow label="过期时间" hint={date(created.expires_at)} />
+            {created.pay_url && <InsetRow label="收银台"><Button render={<a href={created.pay_url} rel="noreferrer" />}>前往支付平台</Button></InsetRow>}
+            {created.qr_code && <InsetRow label="扫码支付" vertical><QrCode value={created.qr_code} alt="支付二维码" /></InsetRow>}
+            {!(created.qr_code || created.pay_url) && <Feedback>订单已创建。此支付方式未提供直接跳转入口，请在订单详情核对状态。</Feedback>}
+            <InsetRow label="订单结果"><Button variant="outline" render={<a href={"/payment/result?order_id=" + created.order_id} />}>查看支付结果</Button></InsetRow>
+          </InsetGroup>
+        </Overlay>
+      )}
+    </>
+  );
 }
 
 function OrderDetail({id, onClose, onChange}: {id: number; onClose: () => void; onChange: () => void}) {

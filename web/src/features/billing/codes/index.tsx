@@ -9,7 +9,7 @@ import {navigateTo} from "@/app/route";
 import {
   Badge, BatchBar, Button, ConfirmDialog, CopyButton, EmptyState, EntityLink, ErrorLine, FilterBar,
   FilterSlot, InlineStack, MaskedSecret, MetricStrip, Panel, PlanIdentity, QuickPills, RefreshButton,
-  RemoteTable, SearchInput, Section, Segmented, Select, Status, Toolbar, WorkspaceContent,
+  RemoteTable, SearchInput, Section, Segmented, Select, Status, WorkspaceContent,
   WorkspaceStage, toast, type Column,
 } from "@/ui";
 import {EditCodesBatch, GenerateRedeemDialog, type CreatedCode} from "./code-dialogs";
@@ -188,6 +188,18 @@ export function CodesWorkspace({config}: {config: Config}) {
   return (
     <>
       <WorkspaceStage flush>
+        {codePoolMode !== "promo" && codeStats?.value && (
+          <MetricStrip
+            flush
+            items={[
+              {id: "active", label: "可用", value: count.format(codeStats.value.active_codes), tone: "ok"},
+              {id: "used", label: "已兑换", value: count.format(codeStats.value.used_codes), tone: "accent"},
+              {id: "expired", label: "已过期", value: count.format(codeStats.value.expired_codes), tone: "warn"},
+              {id: "total", label: "累计生成", value: count.format(codeStats.value.total_codes)},
+            ]}
+          />
+        )}
+
         <FilterBar sticky>
           <div className="obs-filter-row">
             <Segmented
@@ -239,6 +251,9 @@ export function CodesWorkspace({config}: {config: Config}) {
               </>
             )}
             <div className="obs-filter-spacer">
+              {codePoolMode === "official" && (
+                <Button variant="ghost" size="sm" busy={batchAction.busy} onClick={exportMasked}><Download aria-hidden />导出</Button>
+              )}
               {codePoolMode !== "promo" && (
                 <>
                   <RefreshButton iconOnly size="default" variant="ghost" label="刷新兑换码" onClick={refresh} />
@@ -249,18 +264,6 @@ export function CodesWorkspace({config}: {config: Config}) {
           </div>
           <ErrorLine value={batchAction.error} />
         </FilterBar>
-
-        {codePoolMode !== "promo" && codeStats?.value && (
-          <MetricStrip
-            flush
-            items={[
-              {id: "active", label: "可用", value: count.format(codeStats.value.active_codes), tone: "ok"},
-              {id: "used", label: "已兑换", value: count.format(codeStats.value.used_codes), tone: "accent"},
-              {id: "expired", label: "已过期", value: count.format(codeStats.value.expired_codes), tone: "warn"},
-              {id: "total", label: "累计生成", value: count.format(codeStats.value.total_codes)},
-            ]}
-          />
-        )}
 
         {codePoolMode === "official" && generatedCodes.length > 0 && (
           <Section className="section-divided">
@@ -306,7 +309,6 @@ export function CodesWorkspace({config}: {config: Config}) {
                 }}
               />
             )}
-            <Toolbar><Button variant="outline" size="sm" busy={batchAction.busy} onClick={exportMasked}><Download aria-hidden />导出筛选结果</Button></Toolbar>
             <BatchBar count={selectedCodes.length} onClear={() => setSelectedCodes([])}>
               <Button size="xs" variant="outline" onClick={() => editCodes(true)}>批量编辑</Button>
               <Button

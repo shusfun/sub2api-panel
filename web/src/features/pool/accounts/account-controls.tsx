@@ -25,7 +25,6 @@ import {
   Segmented,
   Select,
   Switch,
-  Toolbar,
   ViewToggle,
   toast,
   type ViewMode,
@@ -202,16 +201,15 @@ export function AccountWorkspaceHeader({
               {sortOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
             </Select>
           </FilterSlot>
+          <div className="obs-filter-spacer">
+            <Button size="sm" variant="ghost" onClick={onCRSOpen}>同步 CRS</Button>
+            <Button size="sm" variant="ghost" onClick={() => onAccountData("import")}>导入配置</Button>
+            <Button size="sm" variant="ghost" onClick={() => onAccountData("export")}>导出配置</Button>
+            <Button size="sm" variant="outline" busy={batchBusy} onClick={onBatchFiltered}>批量处理筛选结果</Button>
+          </div>
         </div>
         <ErrorLine value={batchError} />
       </FilterBar>
-
-      <Toolbar>
-        <Button size="sm" variant="outline" onClick={onCRSOpen}>同步 CRS</Button>
-        <Button size="sm" variant="outline" onClick={() => onAccountData("import")}>导入配置</Button>
-        <Button size="sm" variant="outline" onClick={() => onAccountData("export")}>导出配置</Button>
-        <Button size="sm" variant="outline" busy={batchBusy} onClick={onBatchFiltered}>批量处理筛选结果</Button>
-      </Toolbar>
 
       <BatchBar count={selected.length} onClear={onClearSelected}>
         <Button size="xs" variant="outline" onClick={onBulkBindOpen}>批量参数 / 分组</Button>

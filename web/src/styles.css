@@ -279,7 +279,7 @@ strong { font-weight: var(--weir-weight-medium); }
 .settings-layout { display: grid; grid-template-columns: var(--panel-card) minmax(0, 1fr); height: 100%; min-height: 0; }
 .settings-nav { display: grid; align-content: start; gap: var(--weir-space-4); padding: var(--weir-space-4) var(--weir-space-3); overflow-y: auto; border-inline-end: 1px solid var(--weir-line-soft); }
 .settings-body { display: flex; flex-direction: column; gap: var(--weir-space-4); padding: var(--weir-space-4) var(--weir-space-5) var(--weir-space-6); overflow-y: auto; min-width: 0; }
-.settings-body > * { min-inline-size: 0; flex: none; max-inline-size: var(--panel-settings-body); }
+.settings-body > * { min-inline-size: 0; flex: none; inline-size: 100%; }
 .settings-title { font-size: var(--weir-text-title); line-height: var(--weir-leading-title); }
 .settings-back { display: none; align-self: start; }
 .setting-preview { inline-size: 100%; block-size: 321px; border: 0; background: var(--weir-panel); }

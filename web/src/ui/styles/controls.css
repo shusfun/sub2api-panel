@@ -429,10 +429,13 @@
   cursor: pointer;
   transition: background-color var(--weir-fast) var(--weir-ease), box-shadow var(--weir-fast) var(--weir-ease);
 }
-.swift-choice-card:hover:not(:disabled) { background: var(--weir-fill-3); }
+.swift-choice-card:hover:not(:disabled) {
+  background: var(--weir-raised);
+  box-shadow: inset 0 0 0 1px var(--weir-line);
+}
 .swift-choice-card[data-selected] {
-  box-shadow: inset 0 0 0 var(--weir-selection-ring) var(--weir-accent);
-  background: var(--weir-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--weir-focus), var(--weir-shadow-card);
+  background: var(--weir-raised);
 }
 .swift-choice-card:disabled { opacity: 0.5; cursor: not-allowed; }
 .swift-choice-head { display: flex; align-items: center; justify-content: space-between; gap: var(--weir-gap-5); min-width: 0; width: 100%; }

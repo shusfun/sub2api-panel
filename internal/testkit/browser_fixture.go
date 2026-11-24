@@ -95,11 +95,15 @@ func RunBrowserFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	info, err := os.Stat("web/dist/index.html")
-	if err != nil || !info.Mode().IsRegular() {
-		t.Fatal("build the web bundle first")
+	distDir := "web/dist"
+	if info, err := os.Stat(distDir + "/index.html"); err != nil || !info.Mode().IsRegular() {
+		if info2, err2 := os.Stat("../../web/dist/index.html"); err2 == nil && info2.Mode().IsRegular() {
+			distDir = "../../web/dist"
+		} else {
+			t.Fatal("build the web bundle first")
+		}
 	}
-	files := router.SPAFileServer(os.DirFS("web/dist"))
+	files := router.SPAFileServer(os.DirFS(distDir))
 	previewFiles := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if router.IsPanelDocumentRoute(r.URL.Path) || strings.HasSuffix(r.URL.Path, ".html") {
 			w.Header().Set("Cache-Control", "no-cache")

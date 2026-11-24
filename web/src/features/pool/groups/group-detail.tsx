@@ -36,7 +36,7 @@ import {
   type Column,
 } from "@/ui";
 import {type GroupRow, type PricingRule} from "@/features/pool/shared";
-import {GroupCoreForm} from "./group-inspector";
+import {GroupCoreForm} from "./group-core-form";
 import {CompositeRoutesEditor, GroupUserRatesEditor} from "./group-routes-rates";
 
 const groupStatsSchema = z.object({

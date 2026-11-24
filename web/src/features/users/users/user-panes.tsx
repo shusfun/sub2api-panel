@@ -5,122 +5,15 @@ import {api} from "@/lib/http";
 import {cents, money, smartMoney} from "@/lib/format";
 import {useAction, useResource} from "@/lib/requests";
 import {adminSubscriptionRow, empty, grantSchema, keyRow, page, userRow} from "@/schemas";
-import {navigateTo} from "@/app/route";
 import {
   Button, ConfirmDialog, DataTable, EmptyState, ErrorLine, Feedback, Field, Form, FormActions,
-  FormSection, GroupDialog, GroupSelect, Input, InsetGroup, InsetRow, Overlay, PasswordInput,
-  PlanIdentity, RemoteTable, Resource, Select, Status, StepUpDialog, Switch, TagInput, Toolbar,
-  toast, useGroups,
+  FormSection, GroupSelect, Input, Overlay, PasswordInput,
+  PlanIdentity, RemoteTable, Resource, Select, Status, StepUpDialog, Switch, TagInput,
+  toast,
 } from "@/ui";
-import {AssignSubscriptionDialog, ExtendSubscription} from "./user-dialogs";
-import {UserAttributes} from "./user-attributes";
+import {ExtendSubscription} from "./user-dialogs";
 import {AdminEditKeyDialog} from "./user-key-edit";
-import {UserQuotas} from "./user-quotas";
 import type {SubRow, UserItem} from "./index";
-
-export function UserDetailInspector({
-  userID,
-  tab,
-  onTabChange,
-  revision,
-  onChanged,
-  onDeleted,
-}: {
-  userID: number;
-  tab: "account" | "subs" | "keys" | "grant";
-  onTabChange: (next: "account" | "subs" | "keys" | "grant") => void;
-  revision: number;
-  onChanged: () => void;
-  onDeleted: () => void;
-}) {
-  const [task, setTask] = useState<"balance" | "limits" | "quotas" | "attributes" | "groups" | "replace-group" | "assign" | "profile" | "delete">();
-  const [relatedRevision, reviseRelated] = useState(0);
-  const detail = useResource(() => api(`/admin/users/${userID}`, userRow), `usr-detail-${userID}`, true, revision);
-  const groups = useGroups({revision});
-  const subs = useResource(() => api(`/admin/users/${userID}/subscriptions?page=1`, page(adminSubscriptionRow)), `usr-subs-${userID}`, true, relatedRevision);
-  const keys = useResource(() => api(`/admin/users/${userID}/keys?page=1`, page(keyRow)), `usr-keys-${userID}`, true, relatedRevision);
-  const op = useAction();
-  const listOpen = tab !== "account";
-  const finish = (message: string, related = false) => {
-    toast(message);
-    setTask(undefined);
-    if (related) reviseRelated(n => n + 1);
-    else onChanged();
-  };
-  const open = (next: typeof task) => { op.clearError(); setTask(next); };
-  return (
-    <Resource state={detail}>
-      {usr => (
-        <>
-          <InsetGroup>
-            <InsetRow label="账号状态"><Status value={usr.status} /></InsetRow>
-            <InsetRow label="可用余额" onClick={() => open("balance")}><strong className="weir-digits">{money(usr.balance)}</strong></InsetRow>
-            <InsetRow label="并发 / RPM" onClick={() => open("limits")}><span className="weir-digits">{usr.concurrency} / {usr.rpm_limit || "不限"}</span></InsetRow>
-            <InsetRow label="平台配额" onClick={() => open("quotas")} />
-            <InsetRow label="自定义属性" onClick={() => open("attributes")} />
-          </InsetGroup>
-          <InsetGroup title="授权与分发">
-            <InsetRow label="私有分组" hint={usr.restrict_public_groups ? "公开分组受现有规则限制" : "可访问公开分组"} onClick={() => open("groups")}>
-              {(groups?.value ?? []).filter(g => g.is_exclusive && usr.allowed_groups.includes(g.id)).length || "未授权"}
-            </InsetRow>
-            <InsetRow label="替换专属分组" onClick={() => open("replace-group")} />
-            <InsetRow label="订阅" onClick={() => onTabChange("subs")}>{subs?.value ? `${subs.value.items.length}${subs.value.more ? "+" : ""}` : "未知"}</InsetRow>
-            <InsetRow label="API Key" onClick={() => onTabChange("keys")}>{keys?.value ? `${keys.value.items.length}${keys.value.more ? "+" : ""}` : "未知"}</InsetRow>
-            {usr.role !== "admin" && <InsetRow label="发码授权" onClick={() => onTabChange("grant")} />}
-          </InsetGroup>
-          <Toolbar>
-            <Button onClick={() => open("assign")}>分配订阅</Button>
-            <Button variant="outline" onClick={() => open("profile")}>编辑账号</Button>
-            <Button variant="link" onClick={() => navigateTo("usage", {user: usr.id})}>查看用量</Button>
-            <Button variant="link" onClick={() => navigateTo("ops", {tab: "errors", user_id: usr.id})}>查看报错</Button>
-          </Toolbar>
-          {usr.role !== "admin" && <InsetGroup><InsetRow label="删除用户" tone="bad" onClick={() => open("delete")} /></InsetGroup>}
-          {task === "groups" && (
-            <GroupDialog
-              title="授权私有分组"
-              source={{privateOnly: true, revision}}
-              value={usr.allowed_groups}
-              multiple
-              allowEmpty
-              activeOnly
-              busy={op.busy}
-              error={op.error}
-              onClose={() => open(undefined)}
-              onApply={ids => void op.run(async () => {
-                await api(`/admin/users/${usr.id}/private-groups`, userRow, "PUT", {group_ids: ids});
-                finish("私有分组已更新");
-              })}
-            />
-          )}
-          {task === "replace-group" && (
-            <ReplaceUserGroup user={usr} groups={groups?.value ?? []} onClose={() => open(undefined)} onSaved={message => { finish(message); reviseRelated(n => n + 1); }} />
-          )}
-          {task === "quotas" && <UserQuotas userID={usr.id} onClose={() => open(undefined)} />}
-          {task === "attributes" && <UserAttributes userID={usr.id} onClose={() => open(undefined)} />}
-          {task === "assign" && <AssignSubscriptionDialog open revision={revision} fixedUserID={usr.id} onClose={() => open(undefined)} onSaved={() => finish("已开通订阅", true)} />}
-          {(task === "balance" || task === "limits" || task === "profile") && <UserChangeDialog task={task} usr={usr} onClose={() => open(undefined)} onSaved={finish} />}
-          {listOpen && (
-            <Overlay open title={tab === "subs" ? "用户订阅" : tab === "keys" ? "用户名下 API Key" : "编辑发码授权"} onClose={() => onTabChange("account")}>
-              {tab === "subs" && <UserSubscriptionsPane userID={usr.id} revision={relatedRevision} onChanged={msg => finish(msg, true)} />}
-              {tab === "keys" && <UserKeysPane userID={usr.id} revision={relatedRevision} onChanged={msg => finish(msg, true)} />}
-              {tab === "grant" && usr.role !== "admin" && <GrantEditor user={usr.id} />}
-            </Overlay>
-          )}
-          <ConfirmDialog
-            open={task === "delete"}
-            title="删除用户"
-            description={`确定删除用户「${usr.email}」吗？`}
-            confirm="删除用户"
-            busy={op.busy}
-            error={op.error}
-            onClose={() => open(undefined)}
-            onConfirm={() => void op.run(async () => { await api(`/admin/users/${usr.id}`, empty, "DELETE"); onDeleted(); })}
-          />
-        </>
-      )}
-    </Resource>
-  );
-}
 
 export function ReplaceUserGroup({
   user,

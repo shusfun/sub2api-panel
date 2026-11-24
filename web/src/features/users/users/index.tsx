@@ -7,8 +7,8 @@ import {useAction, useDebouncedValue} from "@/lib/requests";
 import {adminSubscriptionRow, empty, userRow} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
-  Badge, BatchBar, Button, EmptyState, EntityLink, ErrorLine, FilterBar, FilterChips, FilterSlot,
-  GroupSelect, IdentityBadge, Inspector, MeterBar, PlanIdentity, PlanSummary, QuickPills,
+  BatchBar, Button, EmptyState, EntityLink, ErrorLine, FilterBar, FilterChips, FilterSlot,
+  GroupSelect, IdentityBadge, MeterBar, PlanIdentity, PlanSummary, QuickPills,
   RefreshButton, RemoteTable, SearchInput, Segmented, Select, Status, WorkspaceStage, toast,
   useGroups, type Column, type FilterChip,
 } from "@/ui";
@@ -17,7 +17,6 @@ import {
 } from "./user-dialogs";
 import {UserAttributeSchemaDialog} from "./user-attribute-schema";
 import {UserDetailWorkspace} from "./user-detail-workspace";
-import {UserDetailInspector} from "./user-inspector";
 
 export type UserItem = z.infer<typeof userRow>;
 export type SubRow = z.infer<typeof adminSubscriptionRow>;
@@ -39,10 +38,7 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
   const groupCatalog = useGroups({}, view === "users");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [selectedSubs, setSelectedSubs] = useState<number[]>([]);
-  const [userRows, setUserRows] = useState<UserItem[]>([]);
   const standaloneID = Number(initial.get("inspect") ?? 0);
-  const [inspectedUserID, setInspectedUserID] = useState<number | undefined>();
-  const [inspectorTab, setInspectorTab] = useState<"account" | "subs" | "keys" | "grant">("account");
 
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [attrSchemaOpen, setAttrSchemaOpen] = useState(false);
@@ -175,37 +171,9 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
   if (role && view === "users") chips.push({id: "role", label: "角色", value: role, onRemove: () => setRole("")});
   if (groupID) chips.push({id: "group", label: "分组", value: `#${groupID}`, onRemove: () => setGroupID("")});
 
-  const userIdx = inspectedUserID ? userRows.findIndex(u => u.id === inspectedUserID) : -1;
-
   return (
     <>
-      <WorkspaceStage
-        flush
-        inspectorOpen={!!inspectedUserID}
-        inspector={
-          <Inspector
-            open={!!inspectedUserID}
-            title={userRows[userIdx]?.email ?? "用户"}
-            subtitle={inspectedUserID ? `用户 #${inspectedUserID}` : undefined}
-            badge={userRows[userIdx]?.role === "admin" ? <Badge variant="soft" tone="info">管理员</Badge> : undefined}
-            onClose={() => setInspectedUserID(undefined)}
-            onPrev={userIdx > 0 ? () => setInspectedUserID(userRows[userIdx - 1].id) : undefined}
-            onNext={userIdx >= 0 && userIdx < userRows.length - 1 ? () => setInspectedUserID(userRows[userIdx + 1].id) : undefined}
-          >
-            {inspectedUserID && (
-              <UserDetailInspector
-                key={`usr-${inspectedUserID}`}
-                userID={inspectedUserID}
-                tab={inspectorTab}
-                onTabChange={setInspectorTab}
-                revision={revision}
-                onChanged={refresh}
-                onDeleted={() => { setInspectedUserID(undefined); refresh(); }}
-              />
-            )}
-          </Inspector>
-        }
-      >
+      <WorkspaceStage flush>
         <FilterBar sticky>
           <div className="obs-filter-row">
             <Segmented
@@ -319,10 +287,8 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
                 rowID={row => row.id}
                 label="用户列表"
                 revision={revision}
-                activeRowID={inspectedUserID}
-                onRowClick={row => setInspectedUserID(row.id)}
+                onRowClick={row => navigateTo("users", {inspect: row.id})}
                 selection={{selected: selectedUsers, onChange: setSelectedUsers}}
-                onItemsLoaded={setUserRows}
                 empty={
                   <EmptyState
                     title="未找到匹配用户"
@@ -405,7 +371,7 @@ export function UsersWorkspace({queryString = ""}: {queryString?: string}) {
         open={createUserOpen}
         revision={revision}
         onClose={() => setCreateUserOpen(false)}
-        onCreated={u => { setCreateUserOpen(false); refresh(); setInspectedUserID(u.id); }}
+        onCreated={u => { setCreateUserOpen(false); refresh(); navigateTo("users", {inspect: u.id}); }}
       />
       <BatchUserLimitsDialog
         open={batchLimitOpen}

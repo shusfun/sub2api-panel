@@ -1,15 +1,12 @@
 import {useState} from "react";
-import {Copy as DuplicateIcon} from "lucide-react";
 import {api} from "@/lib/http";
-import {adminGroupRow, empty} from "@/schemas";
-import {useAction, useResource} from "@/lib/requests";
+import {adminGroupRow} from "@/schemas";
+import {useAction} from "@/lib/requests";
 import {useModelCatalog} from "@/lib/model-catalog";
 import {
   Button,
   CollapsibleSection,
-  ConfirmDialog,
   ErrorLine,
-  Feedback,
   Field,
   Form,
   FormActions,
@@ -20,97 +17,10 @@ import {
   Input,
   InsetRow,
   MultiModelSelect,
-  Resource,
   Segmented,
   Switch,
 } from "@/ui";
 import {type GroupRow} from "@/features/pool/shared";
-import {CompositeRoutesEditor, GroupUserRatesEditor} from "./group-routes-rates";
-
-export function GroupInspector({
-  id,
-  revision,
-  onChanged,
-  onDeleted,
-}: {
-  id: number;
-  revision: number;
-  onChanged: () => void;
-  onDeleted: () => void;
-}) {
-  const [tab, setTab] = useState<"core" | "composite" | "rates">("core");
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [hint, setHint] = useState("");
-  const detail = useResource(() => api(`/admin/groups/${id}`, adminGroupRow), `grp-detail-${id}`, true, revision);
-  const dup = useAction();
-  const del = useAction();
-
-  return (
-    <Resource state={detail}>
-      {grp => (
-        <>
-          <InlineStack justify="between" wrap>
-            <Segmented
-              label="分组详情分页"
-              value={tab}
-              options={[
-                ["core", "核心与白名单"],
-                ...(grp.platform === "composite" ? ([["composite", "复合路由"]] as const) : []),
-                ["rates", "专属倍率"],
-              ]}
-              onChange={v => setTab(v as "core" | "composite" | "rates")}
-            />
-            <Button
-              size="icon-xs"
-              variant="outline"
-              title="复制分组"
-              aria-label="复制分组"
-              busy={dup.busy}
-              onClick={() => void dup.run(async () => {
-                await api(`/admin/groups/${grp.id}/duplicate`, adminGroupRow, "POST", {operation_id: crypto.randomUUID()});
-                setHint("已复制生成新分组");
-                onChanged();
-              })}
-            >
-              <DuplicateIcon />
-            </Button>
-          </InlineStack>
-
-          {hint && <Feedback tone="success">{hint}</Feedback>}
-          <ErrorLine value={dup.error} />
-
-          {tab === "core" && (
-            <GroupCoreForm
-              grp={grp}
-              revision={revision}
-              onSaved={() => { setHint("分组配置已保存"); onChanged(); }}
-              onRequestDelete={() => setConfirmDelete(true)}
-            />
-          )}
-
-          {tab === "composite" && <CompositeRoutesEditor groupID={grp.id} revision={revision} onChanged={onChanged} />}
-
-          {tab === "rates" && <GroupUserRatesEditor groupID={grp.id} revision={revision} onChanged={onChanged} />}
-
-          <ConfirmDialog
-            open={confirmDelete}
-            title="删除调度分组"
-            description={`确定删除分组「${grp.name}」吗？`}
-            confirm="删除"
-            busy={del.busy}
-            error={del.error}
-            onClose={() => setConfirmDelete(false)}
-            onConfirm={() => void del.run(async () => {
-              await api(`/admin/groups/${grp.id}`, empty, "DELETE");
-              setConfirmDelete(false);
-              onDeleted();
-            })}
-          />
-        </>
-      )}
-    </Resource>
-  );
-}
 
 export function GroupCoreForm({
   grp,

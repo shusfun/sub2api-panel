@@ -158,6 +158,9 @@ func (f *fixture) servePreview(w http.ResponseWriter, r *http.Request, path, rol
 	if role == "admin" && f.preview != nil && f.servePreviewAccountTelemetry(w, r, path) {
 		return true
 	}
+	if role == "admin" && f.preview != nil && f.servePreviewEditable(w, r, path) {
+		return true
+	}
 	if r.Method != http.MethodGet {
 		if role == "admin" && path == "/admin/subscriptions/assign" {
 			f.previewSubscribed.Store(true)
@@ -363,7 +366,7 @@ func (f *fixture) previewGroups() []map[string]any {
 		}
 		rows = append(rows, row)
 	}
-	return rows
+	return f.previewPatched("groups", rows)
 }
 
 func previewAccountKind(entry previewCatalogEntry, index int) string {
@@ -421,5 +424,5 @@ func (f *fixture) previewAccounts() []map[string]any {
 		}
 		rows = append(rows, row)
 	}
-	return rows
+	return f.previewPatched("accounts", rows)
 }

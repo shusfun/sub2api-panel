@@ -34,7 +34,6 @@ import {groupBriefSchema, type ChannelRow, type GroupRow} from "@/features/pool/
 import {ChannelInspector} from "./channel-inspector";
 import {CreateChannelDialog, CreateGroupDialog} from "./group-dialogs";
 import {GroupDetailWorkspace} from "./group-detail";
-import {GroupInspector} from "./group-inspector";
 
 type GroupView = "groups" | "pricing";
 
@@ -65,10 +64,9 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
   useEffect(() => {
     const params = new URLSearchParams(queryString);
     const id = Number(params.get("inspect") ?? 0);
-    if (id > 0) {
-      const pricing = params.get("view") === "pricing";
-      setView(pricing ? "pricing" : "groups");
-      setInspect({kind: pricing ? "channel" : "group", id});
+    if (id > 0 && params.get("view") === "pricing") {
+      setView("pricing");
+      setInspect({kind: "channel", id});
     }
   }, [queryString]);
 
@@ -91,6 +89,14 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
     });
   }
 
+  const groupQuery = useMemo(() => {
+    const p = new URLSearchParams();
+    if (debouncedSearch) p.set("search", debouncedSearch);
+    if (platform) p.set("platform", platform);
+    const qs = p.toString();
+    return "/admin/groups" + (qs ? "?" + qs : "");
+  }, [debouncedSearch, platform]);
+
   if (inspectGroupFromURL > 0) {
     return (
       <GroupDetailWorkspace
@@ -103,14 +109,6 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
       />
     );
   }
-
-  const groupQuery = useMemo(() => {
-    const p = new URLSearchParams();
-    if (debouncedSearch) p.set("search", debouncedSearch);
-    if (platform) p.set("platform", platform);
-    const qs = p.toString();
-    return "/admin/groups" + (qs ? "?" + qs : "");
-  }, [debouncedSearch, platform]);
 
   const groupCols: Column<GroupRow>[] = [
     {
@@ -212,7 +210,7 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
         <InlineStack density="compact" wrap>
           {row.group_ids.length ? row.group_ids.map(gid => {
             const g = allGroups?.value?.find(item => item.id === gid);
-            return <EntityLink key={gid} kind="group" id={gid} label={g?.name ?? `#${gid}`} onClick={() => { setView("groups"); setInspect({kind: "group", id: gid}); }} />;
+            return <EntityLink key={gid} kind="group" id={gid} label={g?.name ?? `#${gid}`} onClick={() => navigateTo("groups", {inspect: gid})} />;
           }) : <span className="muted">全部分组</span>}
         </InlineStack>
       ),
@@ -222,8 +220,6 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
     {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
   ];
 
-  const groupIndex = inspect?.kind === "group" ? groupRows.findIndex(row => row.id === inspect.id) : -1;
-
   return (
     <>
       <WorkspaceStage
@@ -232,17 +228,11 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
         inspector={
           <Inspector
             open={!!inspect}
-            title={inspect?.kind === "group" ? groupRows[groupIndex]?.name ?? "调度分组" : "调价模板"}
-            subtitle={inspect ? `${inspect.kind === "group" ? "调度分组" : "调价模板"} · #${inspect.id}` : undefined}
+            title="调价模板"
+            subtitle={inspect ? `调价模板 · #${inspect.id}` : undefined}
             onClose={() => setInspect(undefined)}
-            onPrev={groupIndex > 0 ? () => setInspect({kind: "group", id: groupRows[groupIndex - 1].id}) : undefined}
-            onNext={groupIndex >= 0 && groupIndex < groupRows.length - 1 ? () => setInspect({kind: "group", id: groupRows[groupIndex + 1].id}) : undefined}
           >
-            {inspect?.kind === "group" && (
-              <GroupInspector key={`grp-${inspect.id}`} id={inspect.id} revision={revision} onChanged={refresh}
-                onDeleted={() => { setInspect(undefined); refresh(); }} />
-            )}
-            {inspect?.kind === "channel" && (
+            {inspect && (
               <ChannelInspector key={`chn-${inspect.id}`} id={inspect.id} revision={revision} onChanged={refresh}
                 onDeleted={() => { setInspect(undefined); refresh(); }} />
             )}
@@ -272,8 +262,7 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
               rowID={row => row.id}
               label="调度分组"
               revision={revision}
-              activeRowID={inspect?.kind === "group" ? inspect.id : undefined}
-              onRowClick={row => setInspect({kind: "group", id: row.id})}
+              onRowClick={row => navigateTo("groups", {inspect: row.id})}
               onItemsLoaded={setGroupRows}
               empty={<EmptyState title="还没有调度分组" action={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus aria-hidden />新建分组</Button>} />}
             />
@@ -286,7 +275,7 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
               rowID={row => row.id}
               label="调价模板"
               revision={revision}
-              activeRowID={inspect?.kind === "channel" ? inspect.id : undefined}
+              activeRowID={inspect?.id}
               onRowClick={row => setInspect({kind: "channel", id: row.id})}
               empty={
                 <EmptyState
@@ -304,7 +293,7 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
         open={createOpen && view === "groups"}
         revision={revision}
         onClose={() => setCreateOpen(false)}
-        onCreated={grp => { setCreateOpen(false); refresh(); setInspect({kind: "group", id: grp.id}); }}
+        onCreated={grp => { setCreateOpen(false); refresh(); navigateTo("groups", {inspect: grp.id}); }}
       />
       <CreateChannelDialog
         open={createOpen && view === "pricing"}

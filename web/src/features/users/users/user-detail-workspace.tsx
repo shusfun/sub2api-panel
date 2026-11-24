@@ -12,7 +12,7 @@ import {
 import {AssignSubscriptionDialog} from "./user-dialogs";
 import {UserAttributes} from "./user-attributes";
 import {UserQuotas} from "./user-quotas";
-import {GrantEditor, ReplaceUserGroup, UserChangeDialog, UserKeysPane, UserSubscriptionsPane} from "./user-inspector";
+import {GrantEditor, ReplaceUserGroup, UserChangeDialog, UserKeysPane, UserSubscriptionsPane} from "./user-panes";
 
 type DetailTab = "overview" | "subs" | "keys" | "balance" | "extras";
 

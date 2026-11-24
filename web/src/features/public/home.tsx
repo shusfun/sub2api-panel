@@ -19,54 +19,44 @@ function GatewayTopologyDiagram({endpoint}: {endpoint: string}) {
         <span className="code-mono text-fine muted">{endpoint}</span>
       </div>
       <div className="public-terminal-body">
-        <svg viewBox="0 0 640 208" width="100%" role="img" aria-label="Client SDKs -> Panel Guard -> Sub2API Pool -> OpenAI / Anthropic / Gemini / Bedrock">
+        <svg viewBox="0 0 400 296" width="100%" role="img" aria-label="Client SDKs -> Panel Guard -> Sub2API Pool -> OpenAI / Anthropic / Gemini / Bedrock">
           <defs>
             <marker id="gw-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--weir-focus)" />
             </marker>
           </defs>
           {/* Client SDKs */}
-          <rect x="12" y="64" width="124" height="80" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
-          <text x="74" y="92" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Client SDKs</text>
-          <text x="74" y="112" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="11">OpenAI / Claude</text>
-          <text x="74" y="128" textAnchor="middle" fill="var(--weir-ink-3)" fontSize="11">Gemini / CLI</text>
-
-          {/* Arrow 1 */}
-          <line x1="136" y1="104" x2="174" y2="104" stroke="var(--weir-focus)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
+          <rect x="60" y="8" width="280" height="48" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
+          <text x="200" y="28" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Client SDKs</text>
+          <text x="200" y="46" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="12">OpenAI / Claude / Gemini / CLI</text>
+          <line x1="200" y1="56" x2="200" y2="80" stroke="var(--weir-focus)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
 
           {/* Panel Guard */}
-          <rect x="178" y="64" width="128" height="80" rx="7" fill="var(--weir-raised)" stroke="var(--weir-focus)" strokeWidth="1.4" />
-          <text x="242" y="92" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Panel Guard</text>
-          <text x="242" y="112" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="11">鉴权 · 限额 · 计费</text>
-          <text x="242" y="128" textAnchor="middle" fill="var(--weir-ink-3)" fontSize="11">审计 · 巡检门控</text>
-
-          {/* Arrow 2 */}
-          <line x1="306" y1="104" x2="344" y2="104" stroke="var(--weir-focus)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
+          <rect x="60" y="84" width="280" height="48" rx="7" fill="var(--weir-raised)" stroke="var(--weir-focus)" strokeWidth="1.4" />
+          <text x="200" y="104" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Panel Guard</text>
+          <text x="200" y="122" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="12">鉴权 · 限额 · 计费 · 审计 · 巡检门控</text>
+          <line x1="200" y1="132" x2="200" y2="156" stroke="var(--weir-focus)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
 
           {/* Sub2API Pool */}
-          <rect x="348" y="64" width="128" height="80" rx="7" fill="var(--weir-raised)" stroke="var(--weir-ok)" strokeWidth="1.3" />
-          <text x="412" y="92" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Sub2API Pool</text>
-          <text x="412" y="112" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="11">粘性调度 · 权重</text>
-          <text x="412" y="128" textAnchor="middle" fill="var(--weir-ink-3)" fontSize="11">限流自愈 · 重试</text>
+          <rect x="60" y="160" width="280" height="48" rx="7" fill="var(--weir-raised)" stroke="var(--weir-ok)" strokeWidth="1.3" />
+          <text x="200" y="180" textAnchor="middle" fill="var(--weir-ink)" fontSize="13" fontWeight="600">Sub2API Pool</text>
+          <text x="200" y="198" textAnchor="middle" fill="var(--weir-ink-2)" fontSize="12">粘性调度 · 权重 · 限流自愈 · 重试</text>
 
           {/* Fan-out arrows to Upstream Providers */}
-          <path d="M 476 84 C 498 84, 498 32, 518 32" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
-          <path d="M 476 96 C 498 96, 498 80, 518 80" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
-          <path d="M 476 112 C 498 112, 498 128, 518 128" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
-          <path d="M 476 124 C 498 124, 498 176, 518 176" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 200 208 C 200 232, 52 224, 52 250" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 200 208 C 200 232, 150 224, 150 250" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 200 208 C 200 232, 250 224, 250 250" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 200 208 C 200 232, 348 224, 348 250" fill="none" stroke="var(--weir-focus)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
 
           {/* Upstreams */}
-          <rect x="522" y="14" width="106" height="36" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
-          <text x="575" y="36" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">OpenAI</text>
-
-          <rect x="522" y="62" width="106" height="36" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
-          <text x="575" y="84" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Anthropic</text>
-
-          <rect x="522" y="110" width="106" height="36" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
-          <text x="575" y="132" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Gemini</text>
-
-          <rect x="522" y="158" width="106" height="36" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
-          <text x="575" y="180" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Bedrock</text>
+          <rect x="8" y="254" width="88" height="34" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
+          <text x="52" y="276" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">OpenAI</text>
+          <rect x="106" y="254" width="88" height="34" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
+          <text x="150" y="276" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Anthropic</text>
+          <rect x="206" y="254" width="88" height="34" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
+          <text x="250" y="276" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Gemini</text>
+          <rect x="304" y="254" width="88" height="34" rx="7" fill="var(--weir-raised)" stroke="var(--weir-line)" strokeWidth="1.2" />
+          <text x="348" y="276" textAnchor="middle" fill="var(--weir-ink)" fontSize="12" fontWeight="500">Bedrock</text>
         </svg>
       </div>
     </div>

@@ -272,6 +272,8 @@ type fixture struct {
 	previewMCPGrants  []mockMCPGrant
 	previewQuotas     map[int64][]mockPlatformQuota
 	previewAttrs      map[int64][]mockUserAttributeValue
+	previewWrites     previewWriteState
+	previewWriteMu    sync.Mutex
 	previewSubscribed atomic.Bool
 	totpFeature       atomic.Bool
 }

@@ -1,0 +1,1 @@
+平台图形取自 [Sub2API v0.2.23 的 PlatformIcon](https://github.com/Wei-Shaw/sub2api/blob/v0.2.23/frontend/src/components/common/PlatformIcon.vue)，保留仓库根目录的 LGPL-3.0 声明。TypeSafe 图形取自 [TypeSafe 官方站点的站标](https://typesafe.ai/)。这些标志用于标识平台，商标归各自权利人所有。

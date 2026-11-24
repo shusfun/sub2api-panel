@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -30,14 +31,37 @@ func loopback(name string) string {
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
-	if len(os.Args) != 2 || os.Args[1] != "serve" && os.Args[1] != "issuer" {
-		slog.Error("usage: panel serve | panel issuer")
+	if handled, code := runCLI(os.Args[1:]); handled {
+		if code != 0 {
+			os.Exit(code)
+		}
+		return
+	}
+	if os.Args[1] == "migrate" {
+		if err := migrateDatabase(context.Background(), databaseURL()); err != nil {
+			slog.Error("database migration failed", "error", err)
+			os.Exit(2)
+		}
+		return
+	}
+	secret := required("PANEL_ISSUER_SECRET")
+	if len(secret) < 32 {
+		slog.Error("invalid issuer secret")
 		os.Exit(2)
 	}
-	upstreamURL := required("PANEL_UPSTREAM")
-	secret := required("PANEL_ISSUER_SECRET")
-	if !checkOrigin(upstreamURL, false) || len(secret) < 32 {
-		slog.Error("invalid upstream origin or issuer secret")
+	db, err := openDatabase(context.Background(), databaseURL())
+	if err != nil {
+		slog.Error("cannot open PostgreSQL database", "error", err)
+		os.Exit(2)
+	}
+	defer db.Close()
+	upstreamURL, configured, err := runtimeUpstream(context.Background(), db, os.Getenv("PANEL_UPSTREAM"))
+	if err != nil {
+		slog.Error("invalid runtime upstream", "error", err)
+		os.Exit(2)
+	}
+	if os.Args[1] == "issuer" && !configured {
+		slog.Error("issuer requires a configured upstream")
 		os.Exit(2)
 	}
 	up := newClient(upstreamURL)
@@ -45,12 +69,6 @@ func main() {
 	var handler http.Handler
 	if os.Args[1] == "issuer" {
 		address = loopback("PANEL_ISSUER_ADDR")
-		db, err := openIssuerDB(required("PANEL_ISSUER_DB"))
-		if err != nil {
-			slog.Error("cannot open issuer database")
-			os.Exit(2)
-		}
-		defer db.Close()
 		handler = (&issuer{db: db, secret: secret, adminKey: required("PANEL_UPSTREAM_ADMIN_KEY"), upstream: up}).routes()
 	} else {
 		location, err := loadUsageLocation(os.Getenv("PANEL_USAGE_TIMEZONE"))
@@ -64,12 +82,31 @@ func main() {
 			slog.Error("distinct HTTPS origins are required")
 			os.Exit(2)
 		}
-		dist := os.DirFS(required("PANEL_WEB_DIST"))
+		dist, err := frontendDist(os.Getenv("PANEL_WEB_DIST"))
+		if err != nil {
+			slog.Error("frontend assets unavailable", "error", err)
+			os.Exit(2)
+		}
 		issuerClient := newClient("http://" + loopback("PANEL_ISSUER_ADDR"))
 		issuerClient.client.Timeout = 60 * time.Second
 		app := &panel{origin: origin, official: official, upstream: up, issuer: issuerClient,
-			secret: secret, sessions: newSessions(), usageLocation: location}
-		handler = app.routes(http.FileServerFS(dist))
+			secret: secret, sessions: newSessions(), usageLocation: location, database: db, dataDir: os.Getenv("PANEL_DATA_DIR"), setup: !configured}
+		if raw := os.Getenv("PANEL_OFFICIAL_DATABASE_URL"); raw != "" {
+			official, err := openOfficialDatabase(context.Background(), raw)
+			if err != nil {
+				slog.Error("official read-only database unavailable")
+				os.Exit(2)
+			}
+			app.officialDB = official
+		}
+		app.ensurePlugins()
+		app.startPatrolScheduler(context.Background())
+		app.startBalanceMonitor(context.Background())
+		app.usageHub = newUsageStreamHub(app.buildUsageStreamSnapshot)
+		app.usageHub.commit = app.commitUsageSnapshot
+		app.opsHub = newOpsStreamHub(app.buildOpsStreamSnapshot)
+		app.accountHub = newOpsStreamHub(app.buildAccountActivitySnapshot)
+		handler = app.routes(spaFileServer(dist))
 	}
 	server := &http.Server{Addr: address, Handler: handler, ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout: 20 * time.Second, WriteTimeout: 85 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}

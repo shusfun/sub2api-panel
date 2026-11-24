@@ -15,6 +15,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
@@ -27,6 +28,10 @@ const cookieName = "__Host-sub2api-panel"
 var signaturePattern = regexp.MustCompile(`^panel=\("@method" "@target-uri" "content-digest"\);created=([0-9]{1,12});nonce="([a-f0-9]{32})"$`)
 
 func verifySignature(r *http.Request, origin string, key *ecdsa.PublicKey, now time.Time) (string, error) {
+	return verifySignatureWithLimit(r, origin, key, now, maxBody)
+}
+
+func verifySignatureWithLimit(r *http.Request, origin string, key *ecdsa.PublicKey, now time.Time, limit int64) (string, error) {
 	invalid := fail(401, "invalid_proof")
 	matches := signaturePattern.FindStringSubmatch(r.Header.Get("Signature-Input"))
 	if len(matches) != 3 {
@@ -44,14 +49,8 @@ func verifySignature(r *http.Request, origin string, key *ecdsa.PublicKey, now t
 	if err != nil || len(raw) != 64 {
 		return "", invalid
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxBody+1))
-	if err != nil || len(body) > maxBody {
-		return "", fail(413, "invalid_input")
-	}
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	hash := sha256.Sum256(body)
-	digest := "sha-256=:" + base64.StdEncoding.EncodeToString(hash[:]) + ":"
-	if r.Header.Get("Content-Digest") != digest {
+	digest := r.Header.Get("Content-Digest")
+	if len(digest) != 54 {
 		return "", invalid
 	}
 	base := "\"@method\": " + r.Method + "\n\"@target-uri\": " + origin + r.URL.RequestURI() +
@@ -60,7 +59,53 @@ func verifySignature(r *http.Request, origin string, key *ecdsa.PublicKey, now t
 	if !ecdsa.Verify(key, message[:], new(big.Int).SetBytes(raw[:32]), new(big.Int).SetBytes(raw[32:])) {
 		return "", invalid
 	}
+	actual, err := digestRequestBody(r, limit)
+	if err != nil {
+		return "", err
+	}
+	if actual != digest {
+		return "", invalid
+	}
 	return matches[2], nil
+}
+
+type tempRequestBody struct{ *os.File }
+
+func (f tempRequestBody) Close() error {
+	return errors.Join(f.File.Close(), os.Remove(f.Name()))
+}
+
+func digestRequestBody(r *http.Request, limit int64) (string, error) {
+	defer r.Body.Close()
+	var hash []byte
+	if limit == maxBody {
+		body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+		if err != nil || int64(len(body)) > limit {
+			return "", fail(http.StatusRequestEntityTooLarge, "invalid_input")
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		sum := sha256.Sum256(body)
+		hash = sum[:]
+	} else {
+		file, err := os.CreateTemp("", "sub2api-panel-upload-*")
+		if err != nil {
+			return "", err
+		}
+		temp := tempRequestBody{file}
+		digest := sha256.New()
+		n, err := io.Copy(io.MultiWriter(file, digest), io.LimitReader(r.Body, limit+1))
+		if err != nil || n > limit {
+			_ = temp.Close()
+			return "", fail(http.StatusRequestEntityTooLarge, "invalid_input")
+		}
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			_ = temp.Close()
+			return "", err
+		}
+		r.Body = temp
+		hash = digest.Sum(nil)
+	}
+	return "sha-256=:" + base64.StdEncoding.EncodeToString(hash) + ":", nil
 }
 
 func parseBrowserKey(value string) (*ecdsa.PublicKey, error) {
@@ -195,6 +240,10 @@ func (s *session) valid(now time.Time) bool {
 }
 
 func (s *sessions) authenticate(r *http.Request, origin string, now time.Time) (*session, error) {
+	return s.authenticateWithLimit(r, origin, now, maxBody)
+}
+
+func (s *sessions) authenticateWithLimit(r *http.Request, origin string, now time.Time, limit int64) (*session, error) {
 	cookie, err := r.Cookie(cookieName)
 	if err != nil || len(cookie.Value) != 43 {
 		return nil, fail(401, "sign_in_required")
@@ -205,7 +254,7 @@ func (s *sessions) authenticate(r *http.Request, origin string, now time.Time) (
 	if active == nil {
 		return nil, fail(401, "sign_in_required")
 	}
-	nonce, err := verifySignature(r, origin, active.key, now)
+	nonce, err := verifySignatureWithLimit(r, origin, active.key, now, limit)
 	if err != nil {
 		return nil, err
 	}

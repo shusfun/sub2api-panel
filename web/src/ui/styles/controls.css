@@ -1,29 +1,99 @@
-/* 控件：开关、分段控件、计数器、模块卡片、滚动区、拖拽排序。全部只动 transform / opacity / 颜色。 */
+/* 控件：开关、分段控件、滚动区、按钮与输入框尺寸。全部只动 transform / opacity / 颜色。 */
 @layer components {
+  .obs-table-wrap { container: weir-table / inline-size; min-inline-size: 0; }
+  [data-slot="table"] { --weir-table-cell-padding: var(--weir-space-3); }
+  [data-slot="table"] { --table-row-surface: var(--weir-panel); }
+  [data-slot="table-header"] { --table-row-surface: var(--weir-table-header); }
+  [data-slot="table-body"] [data-slot="table-row"]:hover { --table-row-surface: var(--weir-table-hover); }
+  [data-slot="table-row"]:is([data-state="selected"], [data-state="active"]) { --table-row-surface: var(--weir-table-selected); }
+  [data-slot="table-row"]:focus-visible { outline-offset: -3px; }
+  [data-slot="table-head"], [data-slot="table-cell"] {
+    border-block-end: 1px solid var(--weir-line-soft);
+    background: var(--table-row-surface);
+  }
+  [data-slot="table-head"] { font-weight: var(--weir-weight-medium); }
+  [data-slot="table-body"] tr:last-child > td { border-block-end: 0; }
+  [data-slot="table"] [data-align="center"] { text-align: center; }
+  [data-slot="table"] :is(.swift-select-col, [data-pinned="identity"]) {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+  }
+  [data-slot="table"] [data-pinned="identity"] {
+    inline-size: var(--weir-table-identity);
+    min-inline-size: var(--weir-table-identity);
+    max-inline-size: var(--weir-table-identity);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .table-identity-content {
+    inline-size: calc(var(--weir-table-identity) - 2 * var(--weir-table-cell-padding));
+    overflow: hidden;
+  }
+  .table-identity-content > *, .table-identity-content :where(.compact-text, .muted, .swift-entity) {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+  }
+  .table-identity-content .muted, .table-identity-content > :is(a, span, strong) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  [data-slot="table"][data-selection] [data-pinned="identity"] { inset-inline-start: var(--weir-table-select); }
+  [data-slot="table"] .swift-select-col {
+    box-sizing: border-box;
+    inline-size: var(--weir-table-select);
+    min-inline-size: var(--weir-table-select);
+    max-inline-size: var(--weir-table-select);
+    padding-inline: 0;
+    text-align: center;
+  }
+  @container weir-table (min-width: 72rem) {
+    [data-slot="table"][data-compact] {
+      --weir-table-identity: var(--weir-table-identity-wide);
+    }
+  }
+  @container weir-table (48rem < width < 72rem) {
+    [data-slot="table"]:not([data-compact]) { --weir-table-identity: var(--weir-table-identity-medium); }
+  }
+  [data-slot="table"][data-compact] :is([data-slot="table-head"], [data-slot="table-cell"]):not([data-pinned="identity"]):not(.swift-select-col):not([data-grow]):not(:last-child) {
+    inline-size: 1%;
+    padding-inline: var(--weir-space-4);
+  }
+  [data-slot="table"] [data-pinned="actions"] {
+    position: sticky;
+    inset-inline-end: 0;
+    z-index: 1;
+  }
+  @container weir-table (max-width: 54rem) {
+    [data-slot="table"] [data-hide-narrow] { display: none; }
+  }
+  @container weir-table (max-width: 48rem) {
+    [data-slot="table"] {
+      --weir-table-identity: var(--weir-table-identity-compact);
+      --weir-table-select: var(--weir-table-select-compact);
+      --weir-table-cell-padding: var(--weir-gap-5);
+    }
+    [data-slot="table"] [data-hide-compact] { display: none; }
+    [data-slot="table"][data-compact] :is([data-slot="table-head"], [data-slot="table-cell"]):not([data-pinned="identity"]):not(.swift-select-col):not([data-grow]):not(:last-child) {
+      padding-inline: var(--weir-table-cell-padding);
+    }
+    .table-secondary-action { display: none; }
+  }
   .weir-input:autofill {
     -webkit-text-fill-color: var(--weir-ink);
     caret-color: var(--weir-ink);
   }
-  /* 滚动容器会裁剪子元素外扩的焦点环：四周留出焦点环宽度再用负外边距抵消，内容位置不变 */
-  .weir-focus-gutter {
-    margin: calc(var(--weir-focus-gutter) * -1);
-    padding: var(--weir-focus-gutter);
-  }
-  /* fieldset 的 legend 贴在边框顶端、不吃内边距：下移回原位，正好落进让出的 4px */
-  .weir-focus-gutter > legend {
-    position: relative;
-    top: var(--weir-focus-gutter);
-  }
 
   /*
-   * 开关：iOS UISwitch。关为灰色填充轨道，开为 systemGreen；白色圆形拨钮带投影。
-   * 尺寸桌面 40×24、触屏 51×31（iOS 原尺寸）；sm 再小一档。拨钮位移按 --weir-spring 落位，按住时向行进方向拉长。
-   * 命中区：触屏下由 .weir-hit 的 ::before 扩到 44×44。
+   * 开关：关为灰色填充轨道，开为强调色；白色圆形拨钮带投影。
+   * 桌面 33×19，sm 27×15；触屏放大。拨钮位移按 --weir-spring 落位，按住时向行进方向拉长。
+   * 命中区：触屏下由 .weir-hit 的 ::before 扩到 45×45。
    */
   .weir-switch {
-    --sw-w: 40px;
-    --sw-h: 24px;
-    --sw-pad: 2px;
+    --sw-w: 33px;
+    --sw-h: 19px;
+    --sw-pad: var(--weir-gap-1);
     --sw-knob: calc(var(--sw-h) - var(--sw-pad) * 2);
     position: relative;
     display: inline-flex;
@@ -34,15 +104,14 @@
     padding: var(--sw-pad);
     border-radius: var(--weir-radius-full);
     background: var(--weir-fill);
-    outline-offset: 2px;
     cursor: pointer;
     transition: background-color var(--weir-mid) var(--weir-ease);
   }
   .weir-switch[data-checked] { background: var(--weir-switch-on); }
-  .weir-switch[data-size="sm"] { --sw-w: 32px; --sw-h: 20px; }
+  .weir-switch[data-size="sm"] { --sw-w: 27px; --sw-h: 15px; }
   @media (pointer: coarse), (max-width: 767.98px) {
     .weir-switch { --sw-w: 51px; --sw-h: 31px; }
-    .weir-switch[data-size="sm"] { --sw-w: 40px; --sw-h: 24px; }
+    .weir-switch[data-size="sm"] { --sw-w: 41px; --sw-h: 25px; }
   }
   .weir-switch[data-disabled] { opacity: 0.5; cursor: not-allowed; }
   .weir-switch-thumb {
@@ -52,7 +121,7 @@
     height: var(--sw-knob);
     border-radius: var(--weir-radius-full);
     background: var(--weir-knob);
-    box-shadow: 0 0 0 0.5px var(--weir-shade), 0 3px 8px var(--weir-shade-strong);
+    box-shadow: 0 0 0 1px var(--weir-shade), 0 1px 3px var(--weir-shade-strong);
     /* 位移与拉伸分开：translate 管位置，scale 管形变，互不覆盖 */
     transform-origin: left center;
     transition:
@@ -70,106 +139,55 @@
   }
 
   /*
-   * 分段控件：iOS UISegmentedControl。填充底座，选中项是白色滑块（深色下为灰色）带投影；各项高度一致。
-   * 文字项与其他表单控件使用相同高度，触屏按共享控制高度扩展。
+   * 分段控件：macOS 分段。填充底座，选中项是浮起的面带极淡投影；各项高度一致。
+   * QuickPills（.obs-quick-pills）与它共用外观。
    */
-  .weir-segmented {
+  .weir-segmented, .obs-quick-pills {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--weir-gap-1);
     max-width: 100%;
     min-width: 0;
-    padding: 2px;
+    padding: var(--weir-gap-1);
     overflow-x: auto;
     scrollbar-width: none;
     border-radius: var(--weir-radius);
-    background: var(--weir-fill-3);
+    corner-shape: squircle;
+    background: var(--weir-key);
   }
-  .weir-segmented > .segmented-option {
+  .weir-segmented > .segmented-option, .obs-pill-btn {
     display: inline-flex;
     align-items: center;
-    min-height: var(--weir-control-height);
+    gap: var(--weir-gap-5);
+    min-height: calc(var(--weir-control-height) - 2 * var(--weir-gap-1));
     padding-inline: var(--weir-space-2);
+    border: 0;
+    border-radius: var(--weir-radius-sm);
+    corner-shape: squircle;
+    background: transparent;
     color: var(--weir-ink-2);
     font-size: var(--weir-text-control);
     line-height: var(--weir-leading-control);
     white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--weir-fast) var(--weir-ease), color var(--weir-fast) var(--weir-ease);
   }
-  .weir-segmented > .segmented-option[data-selected] {
+  .weir-segmented > .segmented-option[data-selected], .obs-pill-btn.is-selected {
     background: var(--weir-key-selected);
     color: var(--weir-ink);
-    font-weight: var(--weir-weight-semibold);
+    font-weight: var(--weir-weight-medium);
+    box-shadow: 0 0 0 1px var(--weir-key-selected-ring), 0 1px 3px var(--weir-key-selected-glow);
   }
-  .weir-segmented > .segmented-option:is(:hover, :focus-visible) { color: var(--weir-ink); }
+  .weir-segmented > .segmented-option:is(:hover, :focus-visible), .obs-pill-btn:hover { color: var(--weir-ink); }
   /* 不撑满时只占内容宽度：放在网格 / 纵向 flex 里也不会被拉成整行 */
-  .weir-segmented:not([data-full-width]) { justify-self: start; align-self: flex-start; }
-  .weir-segmented > .weir-key { background: transparent; border-radius: var(--weir-radius-9); }
-  .weir-segmented > .weir-key.is-pressed { background: var(--weir-key-selected); }
+  .weir-segmented { justify-self: start; align-self: flex-start; }
+  .weir-segmented > .weir-key::after { display: none; }
   /* 底座横向可滚动，外扩的焦点环会被裁：改为内描边 */
-  .weir-segmented > .weir-key:focus-visible { outline-offset: -2px; }
-  .weir-segmented[data-full-width="always"] { display: flex; width: 100%; }
-  .weir-segmented[data-full-width="always"] > .weir-key { flex: 1; }
-  @media (max-width: 767.98px) {
-    .weir-segmented[data-full-width="mobile"] { display: flex; width: 100%; }
-    .weir-segmented[data-full-width="mobile"] > .weir-key { flex: 1; }
-  }
-
-  /* 机械计数器：默认只有滚动数字，不加框；framed 时才放进填充底的窗口（仅仪表盘关键读数） */
-  .weir-counter {
-    display: inline-flex;
-    align-items: baseline;
-    font-family: var(--weir-mono);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-  }
-  .weir-counter-digit {
-    display: inline-block;
-    height: 1.2em;
-    overflow: hidden;
-    vertical-align: bottom;
-  }
-  .weir-counter-strip {
-    display: block;
-    will-change: transform;
-  }
-  .weir-counter-strip > span { display: block; height: 1.2em; text-align: center; }
-  .weir-counter-static { display: inline-block; }
-  .weir-counter[data-framed="true"] {
-    padding: var(--weir-space-1) var(--weir-space-2);
-    border-radius: var(--weir-radius-sm);
-    background: var(--weir-well);
-  }
-
-  /* 模块卡片：右上角开关，关闭后内容去色变暗 */
-  .weir-module-body {
-    transition:
-      filter var(--weir-slow) var(--weir-ease),
-      opacity var(--weir-slow) var(--weir-ease);
-  }
-  .weir-module-body[data-live="false"] {
-    filter: grayscale(1);
-    opacity: 0.55;
-  }
-  .weir-module-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--weir-space-2);
-    font-size: var(--weir-text-meta);
-    line-height: var(--weir-leading-meta);
-    color: var(--weir-ink-3);
-  }
-  .weir-module-paused {
-    margin: 0 0 var(--weir-space-3);
-    font-size: var(--weir-text-meta);
-    line-height: var(--weir-leading-meta);
-    color: var(--weir-ink-3);
-  }
+  .weir-segmented > .weir-key:focus-visible, .obs-pill-btn:focus-visible { outline-offset: -3px; }
 
   /*
-   * 自定义滚动条（scroll-area.tsx）。根定尺寸，视口在根里伸缩：
-   * 根给 max-h 时视口随内容长到上限再滚，根给 h / flex-1 时视口撑满。滚动条绝对定位在根内、盖在内容上，不占宽度。
-   * 显示：滚动中（data-scrolling）、鼠标停在滚动条上（:hover）、拖动拇指（:active）；
-   * 淡出前停留 --weir-scrollbar-linger，加上 Base UI 的 500 ms 判定，停止滚动约 600 ms 后开始淡出。
+   * 自定义滚动条（scroll-area.tsx）。根定尺寸，视口在根里伸缩。滚动条绝对定位在根内、盖在内容上，不占宽度。
+   * 显示：滚动中（data-scrolling）、鼠标停在滚动条上（:hover）、拖动拇指（:active）。
    * 触屏：overlay 恢复原生滚动条；stable 保留独立轨道，避免表单内容被覆盖。
    */
   .weir-scroll-root {
@@ -191,10 +209,10 @@
   /* 视口可用 Tab 聚焦后用方向键 / 翻页键滚动：聚焦时画一圈内描边，不占位、不被裁切 */
   .weir-scroll-viewport:focus-visible {
     outline: none;
-    box-shadow: inset 0 0 0 2px var(--weir-focus);
+    box-shadow: inset 0 0 0 3px var(--weir-focus-ring);
   }
   /* 弹层里的滚动滚到头不带动背后的页面 */
-  :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox], [data-slot=popover-content], [data-slot=drawer-content]) .weir-scroll-viewport {
+  :is([role=dialog], [role=alertdialog], [role=menu], [role=listbox]) .weir-scroll-viewport {
     overscroll-behavior: contain;
   }
   .weir-scrollbar {
@@ -237,47 +255,41 @@
     .weir-scroll-root[data-gutter="overlay"] > .weir-scroll-viewport.base-ui-disable-scrollbar { scrollbar-width: auto; }
     .weir-scroll-root[data-gutter="overlay"] > .weir-scroll-viewport.base-ui-disable-scrollbar::-webkit-scrollbar { display: initial; }
   }
-  /* 整页滚动区（PageScrollArea，只在桌面）：铺满视口；html / body 不再滚动 */
-  .weir-page-scroll { height: 100dvh; }
+  .weir-scroll-root[data-gutter="stable"]:not([data-orientation="horizontal"]) { padding-inline-end: var(--weir-scrollbar-gutter); }
+  .weir-scroll-root[data-gutter="stable"]:not([data-orientation="vertical"]) { padding-block-end: var(--weir-scrollbar-gutter); }
 
-  /*
-   * 拖拽排序（sortable-list.tsx）。外层行的 transform 由 dnd-kit 写入（让位 / 跟手），
-   * 抬起效果放在内层：放大 + 一层预先画好的阴影淡入，只动 transform / opacity。
-   */
-  .weir-sortable-list { display: grid; gap: var(--weir-space-4); min-width: 0; }
-  .weir-sortable-item { position: relative; display: flex; align-items: flex-start; gap: var(--weir-space-2); min-width: 0; }
-  .weir-sortable-item[data-dragging] { z-index: 10; }
-  .weir-sortable-handle {
-    cursor: grab;
-    /* 长按拿起时不触发文字选择与系统菜单；纵向滑动仍交给页面滚动 */
-    touch-action: manipulation;
-    -webkit-touch-callout: none;
-    user-select: none;
+  /* ---- 按钮与输入框尺寸：工具栏紧凑档 29；登录卡片与弹窗表单走舒展的标准档 37 ---- */
+  :root { --weir-control-height: var(--weir-tap); }
+  .login-panel, .stage-panel, .overlay { --weir-control-height: var(--weir-tap-lg); }
+  .weir-field-control {
+    height: var(--weir-control-height);
+    padding-inline: var(--weir-space-2);
   }
-  .weir-sortable-item[data-dragging] .weir-sortable-handle { cursor: grabbing; }
-  .weir-sortable-body {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-    transition: scale var(--weir-spring-dur) var(--weir-spring);
+  .weir-button {
+    --weir-button-height: var(--weir-control-height);
+    --weir-button-padding: var(--weir-space-3);
+    --weir-button-icon: var(--weir-icon);
+    min-height: var(--weir-button-height);
+    padding: 0 var(--weir-button-padding);
+    gap: var(--weir-gap-5);
+    font-size: var(--weir-text-control);
+    line-height: var(--weir-leading-control);
   }
-  .weir-sortable-body::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: var(--weir-radius-card);
-    box-shadow: 0 14px 30px -12px var(--weir-shade-strong);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--weir-mid) var(--weir-ease);
+  .weir-button-xs { --weir-button-height: var(--weir-tap-xs); --weir-button-padding: var(--weir-gap-7); --weir-button-icon: var(--weir-icon-sm); font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); }
+  .weir-button-sm { --weir-button-height: var(--weir-tap-sm); --weir-button-padding: var(--weir-space-2); }
+  .weir-button-lg { --weir-button-height: var(--weir-tap-lg); --weir-button-padding: var(--weir-space-5); gap: var(--weir-gap-7); font-size: var(--weir-text-subheadline); line-height: var(--weir-leading-subheadline); }
+  .weir-button-icon { width: var(--weir-button-height); height: var(--weir-button-height); padding: 0; }
+  .weir-key-link { background: transparent; }
+  .weir-key-link::after { display: none; }
+  .weir-key-link:active { scale: none; opacity: var(--weir-press-opacity); }
+  @media (pointer: coarse), (max-width: 767.98px) {
+    :root { --weir-control-height: var(--weir-tap-touch); }
+    .weir-button { --weir-button-height: var(--weir-control-height); min-width: var(--weir-control-height); }
+    .weir-button-xs, .weir-button-sm { --weir-button-height: var(--weir-control-height); }
+    .weir-field-control { height: var(--weir-control-height); min-height: var(--weir-control-height); }
   }
-  .weir-sortable-item[data-dragging] .weir-sortable-body {
-    scale: var(--weir-drag-scale);
-    transition-duration: var(--weir-mid);
-    transition-timing-function: var(--weir-ease);
-  }
-  .weir-sortable-item[data-dragging] .weir-sortable-body::after { opacity: 1; }
 }
+
 /* 减少动态效果：显隐立即切换（全局规则只压缩时长，不处理延迟） */
 @media (prefers-reduced-motion: reduce) {
   .weir-scrollbar,
@@ -287,110 +299,211 @@
   }
 }
 
-/* 页面滚动交给 PageScrollArea（桌面）：html / body 本身不滚动，不出现占位的系统滚动条。
-   不放进 @layer：要压过浏览器默认的 overflow 与各页 body 上的 min-height */
-html:has(.weir-page-scroll),
-html:has(.weir-page-scroll) body {
+.weir-badge-status { gap: var(--weir-gap-5); padding-inline: var(--weir-gap-3) var(--weir-gap-7); }
+
+/* ---- 带前后缀与内联动作的输入框外壳 ---- */
+.weir-input-shell {
+  display: flex;
+  align-items: center;
+  gap: var(--weir-gap-5);
+  min-width: 0;
+  height: var(--weir-control-height);
+  padding-inline: var(--weir-space-2);
+  border-radius: var(--weir-radius);
+  corner-shape: squircle;
+  background: var(--weir-input);
+  border: 1px solid var(--weir-input-line);
+  transition: border-color var(--weir-fast) var(--weir-ease), background-color var(--weir-fast) var(--weir-ease), box-shadow var(--weir-fast) var(--weir-ease);
+}
+.weir-input-shell:has(> input:focus) {
+  border-color: var(--weir-focus);
+  box-shadow: 0 0 0 3px var(--weir-focus-ring);
+  background: var(--weir-raised);
+}
+.weir-input-shell:has(> input[aria-invalid="true"]) {
+  border-color: var(--weir-bad-ink);
+}
+.weir-input-shell:has(> input:disabled) {
+  background: var(--weir-fill-4);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.weir-input-shell > input {
+  flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--weir-ink);
+  font: inherit;
+  font-size: var(--weir-text-control);
+  line-height: var(--weir-leading-control);
+  outline: none;
+}
+.weir-input-shell > input::placeholder { color: var(--weir-ink-3); }
+.weir-input-affix {
+  flex: none;
+  color: var(--weir-ink-3);
+  font-size: var(--weir-text-meta);
+  white-space: nowrap;
+  user-select: none;
+}
+.weir-input-addon {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-inline-end: calc(-1 * var(--weir-gap-5));
+}
+.weir-otp-input {
+  font-family: var(--weir-mono);
+  letter-spacing: 0.27em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 统一石板浮层提示（Tooltip）与单/双行截断（EllipsisText） ---- */
+.weir-tooltip-positioner { z-index: 85; pointer-events: none; }
+.weir-tooltip-popup {
+  max-inline-size: 301px;
+  padding: var(--weir-gap-5) var(--weir-gap-9);
+  border-radius: var(--weir-radius-sm);
+  corner-shape: squircle;
+  background: var(--weir-raised);
+  color: var(--weir-ink);
+  font-size: var(--weir-text-fine);
+  line-height: var(--weir-leading-meta);
+  box-shadow: var(--weir-shadow-float);
+  overflow-wrap: anywhere;
+  transition: opacity var(--weir-fast) var(--weir-ease), scale var(--weir-fast) var(--weir-ease);
+}
+.weir-tooltip-popup[data-starting-style],
+.weir-tooltip-popup[data-ending-style] {
+  opacity: 0;
+  scale: 0.97;
+}
+.weir-ellipsis-1 {
+  display: block;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weir-ellipsis-2 {
+  display: -webkit-box;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* ---- 选择卡片组（ChoiceCards）：整张可点，宫格严格等高，选中描边高亮 ---- */
+.swift-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--weir-choice-min), 100%), 1fr));
+  align-items: stretch;
+  gap: var(--weir-gap-7);
+  min-width: 0;
+}
+.swift-choice-grid[data-cols="2"] { grid-template-columns: repeat(auto-fit, minmax(min(189px, 100%), 1fr)); }
+.swift-choice-grid[data-cols="3"] { grid-template-columns: repeat(auto-fit, minmax(min(157px, 100%), 1fr)); }
+.swift-choice-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  gap: var(--weir-gap-3);
+  min-width: 0;
+  padding: var(--weir-space-2) var(--weir-space-3);
+  border-radius: var(--weir-radius-card);
+  corner-shape: squircle;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--weir-line-soft);
+  background: var(--weir-well);
+  color: var(--weir-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--weir-fast) var(--weir-ease), box-shadow var(--weir-fast) var(--weir-ease);
+}
+.swift-choice-card:hover:not(:disabled) { background: var(--weir-fill-3); }
+.swift-choice-card[data-selected] {
+  box-shadow: inset 0 0 0 var(--weir-selection-ring) var(--weir-accent);
+  background: var(--weir-accent-soft);
+}
+.swift-choice-card:disabled { opacity: 0.5; cursor: not-allowed; }
+.swift-choice-head { display: flex; align-items: center; justify-content: space-between; gap: var(--weir-gap-5); min-width: 0; width: 100%; }
+.swift-choice-head strong { font-weight: var(--weir-weight-semibold); min-width: 0; flex: 1 1 auto; }
+.swift-choice-meta { font-size: var(--weir-text-fine); font-weight: var(--weir-weight-medium); color: var(--weir-accent-text); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.swift-choice-desc { font-size: var(--weir-text-fine); line-height: var(--weir-leading-meta); min-block-size: calc(2 * var(--weir-leading-meta)); color: var(--weir-ink-3); overflow-wrap: anywhere; width: 100%; }
+
+/* ---- 高危长按 1 秒确认按钮（HoldButton） ---- */
+.weir-hold-button {
   overflow: hidden;
 }
-
-@layer components {
-  :root { --weir-control-height: var(--weir-tap); }
-  .weir-field-control {
-    height: var(--weir-control-height);
-    padding-inline: var(--weir-space-3);
-  }
-  .weir-button {
-    --weir-button-height: var(--weir-control-height);
-    --weir-button-padding: var(--weir-space-3);
-    --weir-button-icon: var(--weir-icon);
-    min-height: var(--weir-button-height);
-    padding: 0 var(--weir-button-padding);
-    gap: var(--weir-gap-7);
-    font-size: var(--weir-text-control);
-    line-height: var(--weir-leading-control);
-  }
-  .weir-button-xs { --weir-button-height: var(--weir-tap-xs); --weir-button-padding: var(--weir-space-2); --weir-button-icon: var(--weir-icon-sm); font-size: var(--weir-text-meta); line-height: var(--weir-leading-meta); }
-  .weir-button-sm { --weir-button-height: var(--weir-tap-sm); --weir-button-padding: var(--weir-space-2); }
-  .weir-button-lg { --weir-button-height: var(--weir-tap-lg); --weir-button-padding: var(--weir-space-5); gap: var(--weir-space-2); font-size: var(--weir-text-subheadline); line-height: var(--weir-leading-subheadline); }
-  .weir-button-icon { width: var(--weir-button-height); height: var(--weir-button-height); padding: 0; }
-  .weir-button-icon:enabled svg { transition: transform var(--weir-fast) var(--weir-ease); }
-  .weir-button-icon:enabled:focus-visible svg { transform: translateY(-1px); }
-  @media (hover: hover) {
-    .weir-button-icon:enabled:hover svg { transform: translateY(-1px); }
-  }
-  .weir-button-icon:enabled:active svg { transform: scale(var(--weir-press-scale)); }
-  .weir-copy-icon path { transition: d var(--weir-mid) var(--weir-ease); }
-  @media (prefers-reduced-motion: reduce) {
-    .weir-button-icon:enabled svg { transition: none; }
-    .weir-button-icon:enabled:is(:hover, :focus-visible, :active) svg { transform: none; }
-    .weir-copy-icon path { transition: none; }
-  }
-  .weir-key-link { background: transparent; }
-  .weir-key-link::after { display: none; }
-  .weir-key-link:active { scale: none; opacity: var(--weir-press-opacity); }
-  .weir-card { --weir-card-padding: var(--weir-space-4); --weir-card-block: var(--weir-space-3); --weir-card-inline: var(--weir-card-padding); }
-  .weir-card[data-size="sm"] { --weir-card-padding: var(--weir-space-3); --weir-card-block: var(--weir-space-2); }
-  .weir-card[data-size="lg"] { --weir-card-padding: var(--weir-space-6); --weir-card-block: var(--weir-space-4); }
-  .weir-card[data-variant="plain"] { --weir-card-inline: 0px; --weir-card-padding: var(--weir-space-3); }
-  .weir-card-header, .weir-card-footer { padding: var(--weir-card-block) var(--weir-card-inline); gap: var(--weir-space-3); }
-  .weir-card-content { padding: var(--weir-card-padding) var(--weir-card-inline); }
-  .weir-scroll-root[data-gutter="stable"]:not([data-orientation="horizontal"]) { padding-inline-end: var(--weir-scrollbar-gutter); }
-  .weir-scroll-root[data-gutter="stable"]:not([data-orientation="vertical"]) { padding-block-end: var(--weir-scrollbar-gutter); }
-  .weir-dialog { --weir-dialog-padding: var(--weir-space-6); }
-  .weir-dialog > [data-slot="dialog-pinned-header"] { padding-inline-end: calc(var(--weir-tap-sm) + var(--weir-space-2)); }
-  .weir-dialog-close { top: var(--weir-space-4); right: var(--weir-space-4); color: var(--weir-ink-3); }
-  .weir-dialog-footer { margin-inline: calc(-1 * var(--weir-dialog-padding)); margin-bottom: calc(-1 * var(--weir-dialog-padding)); padding: var(--weir-space-4) var(--weir-dialog-padding); }
-  .weir-module-toggle { min-height: var(--weir-tap-sm); }
-  @media (pointer: coarse), (max-width: 767.98px) {
-    :root { --weir-control-height: var(--weir-tap-touch); }
-    .weir-button { --weir-button-height: var(--weir-control-height); min-width: var(--weir-control-height); }
-    .weir-button-xs, .weir-button-sm { --weir-button-height: var(--weir-control-height); }
-    .weir-field-control { height: var(--weir-control-height); min-height: var(--weir-control-height); }
-    .weir-segmented > .segmented-option { min-height: var(--weir-control-height); }
-    .weir-module-toggle { min-height: var(--weir-tap-touch); }
-  }
-  @media (max-width: 639.98px) {
-    .weir-card[data-size="lg"] { --weir-card-padding: var(--weir-space-5); }
-    .weir-dialog { --weir-dialog-padding: var(--weir-space-5); }
-    .weir-dialog-footer { padding-block: var(--weir-space-3); }
-  }
+.weir-hold-progress {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--weir-bad);
+  opacity: 0.25;
+  transform-origin: left center;
+  scale: 0 1;
+  pointer-events: none;
 }
-.weir-tabs-list { gap: var(--weir-gap-3); }
-.weir-tabs-tab { height: var(--weir-tab-height); padding-inline: var(--weir-gap-13); }
-@media (pointer: coarse), (max-width: 767px) {
-  .weir-tabs-tab { min-height: var(--weir-tap-touch); min-width: var(--weir-tap-touch); }
+.weir-hold-button[data-holding] .weir-hold-progress {
+  scale: 1 1;
+  transition: scale var(--weir-hold-duration) linear;
+}
+.weir-hold-content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--weir-gap-5);
 }
 
-.weir-overlay-body { min-height: 0; min-width: 0; }
-.weir-action-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--weir-space-2); }
-.weir-action-group[data-align="end"] { justify-content: flex-end; }
-.weir-action-group[data-wrap="false"] { flex-wrap: nowrap; flex-shrink: 0; }
-.weir-action-group[data-wrap="false"] > .weir-button { flex-shrink: 0; }
-.weir-overlay-footer { flex-shrink: 0; border-top: 1px solid var(--weir-line-soft); padding-top: var(--weir-space-4); margin-top: var(--weir-space-4); }
-
-.weir-overlay-body[data-gutter="stable"] { margin-inline-end: calc(-1 * var(--weir-scrollbar-gutter)); }
-
-[data-slot="collapsible"][data-variant="section"] { border-top: 1px solid var(--weir-line-soft); }
-.weir-collapsible-section-trigger {
-  width: 100%; min-height: var(--weir-tap-touch); gap: var(--weir-space-3);
-  padding: var(--weir-space-3); color: var(--weir-ink);
-  transition: background-color var(--weir-fast) var(--weir-ease);
+/* ---- 视图级标签页（Tabs） ---- */
+.weir-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--weir-gap-3);
+  border-bottom: 1px solid var(--weir-line-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
 }
-.weir-collapsible-section-trigger:is(:hover, :focus-visible) { background-color: var(--weir-fill-3); }
-.weir-collapsible-section-trigger:active { background-color: var(--weir-fill-2); }
-.weir-collapsible-section-trigger [data-slot="collapsible-title"] { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
-.weir-collapsible-section-trigger [data-slot="collapsible-summary"] {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right;
-  color: var(--weir-ink-3); font-size: var(--weir-text-meta); line-height: var(--weir-leading-meta);
+.weir-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--weir-gap-5);
+  height: var(--weir-row);
+  padding-inline: var(--weir-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--weir-ink-3);
+  font: inherit;
+  font-size: var(--weir-text-body);
+  font-weight: var(--weir-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--weir-fast) var(--weir-ease);
 }
-.weir-collapsible-section-trigger [data-slot="collapsible-chevron"] {
-  order: 1; width: var(--weir-icon); height: var(--weir-icon); color: var(--weir-ink-3);
-  transition: rotate var(--weir-mid) var(--weir-ease), scale var(--weir-fast) var(--weir-ease);
+.weir-tab:is(:hover, :focus-visible) { color: var(--weir-ink); }
+.weir-tab:focus-visible { outline-offset: -3px; }
+.weir-tab[aria-selected="true"] {
+  color: var(--weir-ink);
+  font-weight: var(--weir-weight-semibold);
 }
-.weir-collapsible-section-body { display: grid; gap: var(--weir-space-2); padding: 0 var(--weir-space-3) var(--weir-space-3); min-width: 0; }
-[data-motion="lite"] [data-slot="collapsible"][data-variant="section"] :is([data-slot="collapsible-panel"], [data-slot="collapsible-chevron"]) { transition-property: none; }
-@media (prefers-reduced-motion: reduce) {
-  [data-slot="collapsible"][data-variant="section"] :is([data-slot="collapsible-panel"], [data-slot="collapsible-chevron"]) { transition-property: none; }
+.weir-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto var(--weir-space-2) 0 var(--weir-space-2);
+  height: 3px;
+  border-radius: var(--weir-radius-full);
+  background: var(--weir-accent);
 }

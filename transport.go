@@ -12,14 +12,17 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
 
 type callMeta struct {
-	Trace string
-	Span  string
-	UA    string
+	Trace   string
+	Span    string
+	UA      string
+	Referer string
 }
 
 type metaKey struct{}
@@ -36,6 +39,9 @@ func randomToken() string { return base64.RawURLEncoding.EncodeToString(randomBy
 
 func traceRequest(r *http.Request, w http.ResponseWriter, name string) (*http.Request, func()) {
 	meta := callMeta{Trace: randomHex(16), Span: randomHex(8), UA: r.UserAgent()}
+	if parent := spanHex.FindStringSubmatch(r.Header.Get("traceparent")); len(parent) == 3 && parent[1] != strings.Repeat("0", 32) && parent[2] != strings.Repeat("0", 16) {
+		meta.Trace = parent[1]
+	}
 	start := time.Now()
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Request-ID", meta.Trace)
@@ -50,22 +56,106 @@ func meta(ctx context.Context) callMeta {
 	return value
 }
 
+func callerLocation(skip int) (file string, fn string, line int) {
+	pc, rawFile, lineNo, ok := runtime.Caller(skip)
+	if !ok {
+		return "", "", 0
+	}
+	file = filepath.ToSlash(rawFile)
+	if idx := strings.LastIndex(file, "/sub2api-panel/"); idx >= 0 {
+		file = file[idx+len("/sub2api-panel/"):]
+	} else {
+		file = filepath.Base(file)
+	}
+	if f := runtime.FuncForPC(pc); f != nil {
+		fn = f.Name()
+		if idx := strings.LastIndex(fn, "/"); idx >= 0 {
+			fn = fn[idx+1:]
+		}
+	}
+	return file, fn, lineNo
+}
+
+func startFlow(ctx context.Context, flow string, attrs ...any) (context.Context, func()) {
+	current := meta(ctx)
+	parent := current.Span
+	if current.Trace == "" {
+		current.Trace = randomHex(16)
+	}
+	current.Span = randomHex(8)
+	file, fn, line := callerLocation(2)
+	start := time.Now()
+	next := context.WithValue(ctx, metaKey{}, current)
+	return next, func() {
+		base := []any{
+			"flow", flow,
+			"trace_id", current.Trace,
+			"span_id", current.Span,
+			"parent_span_id", parent,
+			"code.file.path", file,
+			"code.function.name", fn,
+			"code.line.number", line,
+			"vcs.ref.head.revision", commit,
+			"elapsed_ms", time.Since(start).Milliseconds(),
+		}
+		slog.Info("business flow", append(base, attrs...)...)
+	}
+}
+
+func backgroundContext(ctx context.Context, flow string, attrs ...any) (context.Context, func()) {
+	base := meta(ctx)
+	if base.Trace == "" {
+		ctx = context.WithValue(ctx, metaKey{}, callMeta{Trace: randomHex(16)})
+	}
+	file, fn, line := callerLocation(2)
+	current := meta(ctx)
+	current.Span = randomHex(8)
+	start := time.Now()
+	next := context.WithValue(ctx, metaKey{}, current)
+	return next, func() {
+		fields := []any{
+			"flow", flow,
+			"trace_id", current.Trace,
+			"span_id", current.Span,
+			"code.file.path", file,
+			"code.function.name", fn,
+			"code.line.number", line,
+			"vcs.ref.head.revision", commit,
+			"elapsed_ms", time.Since(start).Milliseconds(),
+		}
+		slog.Info("background flow", append(fields, attrs...)...)
+	}
+}
+
 type problem struct {
 	Status int
 	Code   string
+	Fields map[string]string
 }
 
 func (p *problem) Error() string { return p.Code }
 
-func fail(status int, code string) error { return &problem{status, code} }
+func fail(status int, code string) error { return &problem{Status: status, Code: code} }
+
+func failField(field, hint string) error {
+	return &problem{Status: http.StatusBadRequest, Code: "invalid_input", Fields: map[string]string{field: hint}}
+}
+
+func failFields(fields map[string]string) error {
+	if len(fields) == 0 {
+		return fail(http.StatusBadRequest, "invalid_input")
+	}
+	return &problem{Status: http.StatusBadRequest, Code: "invalid_input", Fields: fields}
+}
 
 var errorHints = map[string]string{
-	"official_confirmation_required": "请进入官方面板，完成该操作所需的确认。",
+	"official_confirmation_required": "请刷新管理工作区并完成管理员首次确认。",
 	"invalid_proof":                  "浏览器会话签名无效，请重新登录。",
 	"sign_in_required":               "会话已结束，请重新登录。",
 	"login_rejected":                 "登录失败，请检查账号、密码或验证码。",
 	"login_expired":                  "验证已失效，请重新输入账号和密码。",
 	"operation_rejected":             "操作未能完成，请检查填写的内容。",
+	"conflict":                       "名称或编码已被占用，或当前记录状态已变化，请刷新确认。",
 	"not_allowed":                    "你没有此操作的权限，或当前站点未启用该功能。",
 	"rate_limited":                   "操作过于频繁，请稍后再试。",
 	"grant_exhausted":                "发码权限或剩余额度不足。",
@@ -76,19 +166,29 @@ var errorHints = map[string]string{
 	"code_mismatch":                  "官方码的类型或面额与发码记录不符。",
 	"csrf_rejected":                  "请求校验失败，请刷新页面后重试。",
 	"not_found":                      "找不到该记录。",
-	"invalid_input":                  "请检查输入内容。",
+	"invalid_input":                  "请检查标红或提示的输入项。",
 	"invalid_usage_range":            "请选择有效日期，单次最多查询 90 天。",
+	"invalid_hour_range":             "按小时最多可查询 7 天。",
+	"usage_sync_pending":             "这个小时的逐笔记录正在同步。",
 	"issue_rejected":                 "Sub2API 拒绝了本次发码，已退回预扣额度。",
 	"operation_unavailable":          "当前记录无法核对，请刷新列表。",
-	"totp_required":                  "请提供主管理员的有效验证码。",
+	"totp_required":                  "此敏感操作需要有效的 6 位验证器动态码。",
 	"schedule_changed":               "调度状态已变化，请刷新确认。",
 	"agreement_required":             "请阅读并同意站点登录协议。",
 	"replayed_proof":                 "请求已处理，请重新发起操作。",
 	"json_required":                  "此操作需要 JSON 请求。",
+	"setup_required":                 "请先完成 Sub2API 连接向导。",
+}
+
+type problemResponse struct {
+	Code   string            `json:"code"`
+	Hint   string            `json:"hint"`
+	ID     string            `json:"request_id"`
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
-	p := &problem{502, "service_unavailable"}
+	p := &problem{Status: 502, Code: "service_unavailable"}
 	var known *problem
 	if errors.As(err, &known) {
 		p = known
@@ -99,11 +199,7 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	if hint == "" {
 		hint = "服务暂不可用，请稍后再试。"
 	}
-	writeJSON(w, p.Status, struct {
-		Code string `json:"code"`
-		Hint string `json:"hint"`
-		ID   string `json:"request_id"`
-	}{p.Code, hint, id})
+	writeJSON(w, p.Status, problemResponse{Code: p.Code, Hint: hint, ID: id, Fields: p.Fields})
 }
 
 func writeJSON(w http.ResponseWriter, status int, data any) {
@@ -143,20 +239,26 @@ func newClient(base string) serviceClient {
 
 func (c serviceClient) open(ctx context.Context, method, path, token, key, operation string, data any) (*http.Response, error) {
 	var body io.Reader
+	var contentType string
 	if data != nil {
 		value, err := json.Marshal(data)
 		if err != nil {
 			return nil, err
 		}
 		body = bytes.NewReader(value)
+		contentType = "application/json"
 	}
+	return c.openBody(ctx, method, path, token, key, operation, body, contentType)
+}
+
+func (c serviceClient) openBody(ctx context.Context, method, path, token, key, operation string, body io.Reader, contentType string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.base+path, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
-	if data != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -170,6 +272,9 @@ func (c serviceClient) open(ctx context.Context, method, path, token, key, opera
 	info := meta(ctx)
 	if info.UA != "" {
 		req.Header.Set("User-Agent", info.UA)
+	}
+	if info.Referer != "" {
+		req.Header.Set("Referer", info.Referer)
 	}
 	span := randomHex(8)
 	if info.Trace != "" {
@@ -198,6 +303,11 @@ func upstream[T any](ctx context.Context, c serviceClient, method, path, token, 
 		return zero, err
 	}
 	defer res.Body.Close()
+	return readUpstream[T](res)
+}
+
+func readUpstream[T any](res *http.Response) (T, error) {
+	var zero T
 	var envelope struct {
 		Code *int            `json:"code"`
 		Data json.RawMessage `json:"data"`
@@ -223,8 +333,10 @@ func translateUpstream(err error) error {
 	var e upstreamStatus
 	if errors.As(err, &e) {
 		switch e.status {
-		case 400, 409, 422:
+		case 400, 422:
 			return fail(e.status, "operation_rejected")
+		case 409:
+			return fail(409, "conflict")
 		case 401:
 			return fail(401, "sign_in_required")
 		case 403:

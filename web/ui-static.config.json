@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sources": [
+    "src"
+  ],
+  "scopeLabels": [
+    {
+      "pattern": "src/pages/ui-gallery.tsx",
+      "label": "example"
+    }
+  ],
+  "spacingTokens": [
+    "--weir-space-*",
+    "--weir-gap-*"
+  ],
+  "layoutContracts": [
+    {
+      "file": "src/ui/styles/telemetry.css",
+      "selector": ".swift-rank-sub",
+      "declarations": {
+        "white-space": "nowrap",
+        "flex-shrink": "0"
+      }
+    },
+    {
+      "file": "src/ui/styles/telemetry.css",
+      "selector": ".swift-rank-right",
+      "declarations": {
+        "white-space": "nowrap",
+        "flex-shrink": "0"
+      }
+    },
+    {
+      "file": "src/ui/styles/forms.css",
+      "selector": ".swift-group-head",
+      "declarations": {
+        "flex-wrap": "wrap"
+      }
+    },
+    {
+      "file": "src/ui/styles/forms.css",
+      "selector": ".swift-group-actions",
+      "declarations": {
+        "flex-wrap": "wrap",
+        "min-width": "0",
+        "max-width": "100%"
+      }
+    },
+    {
+      "file": "src/ui/styles/forms.css",
+      "selector": ".swift-group-actions > .inline-stack",
+      "declarations": {
+        "flex-wrap": "wrap"
+      }
+    }
+  ],
+  "components": [
+    {
+      "role": "button",
+      "file": "src/ui/button.tsx",
+      "export": "Button",
+      "sizeProp": "size",
+      "defaultSize": "default",
+      "sizeMap": {
+        "icon": "default",
+        "icon-xs": "xs",
+        "icon-sm": "sm",
+        "icon-lg": "lg"
+      },
+      "variantProp": "variant",
+      "ignoreVariants": [
+        "link"
+      ],
+      "cssTargets": [
+        ".weir-button"
+      ],
+      "heightVariables": [
+        "--weir-button-height",
+        "--weir-button-padding"
+      ],
+      "definedIn": [
+        "src/ui/button.tsx",
+        "src/ui/styles/controls.css"
+      ]
+    },
+    {
+      "role": "button",
+      "file": "src/ui/hold-button.tsx",
+      "export": "HoldButton",
+      "sizeProp": "size",
+      "defaultSize": "default",
+      "cssTargets": [
+        ".weir-hold-button"
+      ],
+      "heightVariables": [
+        "--weir-button-height",
+        "--weir-button-padding"
+      ],
+      "definedIn": [
+        "src/ui/hold-button.tsx",
+        "src/ui/styles/controls.css"
+      ]
+    },
+    {
+      "role": "button",
+      "file": "src/ui/tabs.tsx",
+      "export": "RefreshButton",
+      "sizeProp": "size",
+      "defaultSize": "sm",
+      "cssTargets": [
+        ".weir-button"
+      ],
+      "heightVariables": [
+        "--weir-button-height",
+        "--weir-button-padding"
+      ],
+      "definedIn": [
+        "src/ui/tabs.tsx",
+        "src/ui/styles/controls.css"
+      ]
+    },
+    {
+      "role": "panel",
+      "file": "src/ui/inset-group.tsx",
+      "export": "CollapsibleSection",
+      "panels": {
+        "": {
+          "trigger": ".swift-disclosure-trigger",
+          "body": ".swift-disclosure-body"
+        }
+      }
+    },
+    {
+      "role": "panel",
+      "file": "src/ui/card.tsx",
+      "export": "Panel",
+      "panels": {
+        "": {
+          "trigger": ".obs-panel-head",
+          "body": ".obs-panel-body"
+        }
+      }
+    }
+  ]
+}

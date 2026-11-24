@@ -1,12 +1,9 @@
-// Weir 表单：参照 Element Plus el-form。统一字段间距并为每个字段预留说明 / 错误行（错误出现时布局不跳动）；
-// 提交时浏览器先按控件约束校验，Field 拦下原生气泡、显示在字段下方并聚焦第一个错误；通过后才调用 onSubmit。
-// busy 时整张表单禁用；errors 按字段 name 分发到对应 Field（服务端返回的字段错误），用户改动该字段后自动隐藏；
-// 服务端字段错误返回后聚焦第一个出错的字段（提交期间表单禁用，焦点已丢失）。
-// 弹窗里的 <Form> 与 <form> 一样：DialogFooter 里的提交按钮自动关联到它。
 import { createContext, useContext, useEffect, useId, useMemo, useRef, type ComponentProps, type FormEvent, type ReactNode } from "react";
 import { cn } from "cn";
 
-type FormContextValue = { id: string; busy: boolean; errors: Partial<Record<string, ReactNode>> };
+export type FormErrors = Partial<Record<string, ReactNode>>;
+const noErrors: FormErrors = {};
+type FormContextValue = { id: string; busy: boolean; errors: FormErrors };
 const FormContext = createContext<FormContextValue | null>(null);
 
 function useFormContext() {
@@ -24,24 +21,31 @@ function Form({
   errors,
   onSubmit,
   className,
+  onInvalidCapture,
   children,
   ref: outerRef,
   ...props
 }: Omit<ComponentProps<"form">, "onSubmit"> & {
   busy?: boolean;
-  errors?: Partial<Record<string, ReactNode>>;
+  errors?: FormErrors;
   onSubmit?: (e: FormEvent<HTMLFormElement>) => void;
 }) {
   const generatedId = useId();
   const formId = id ?? generatedId;
-  const value = useMemo(() => ({ id: formId, busy, errors: errors ?? {} }), [formId, busy, errors]);
+  const value = useMemo(() => ({ id: formId, busy, errors: errors ?? noErrors }), [formId, busy, errors]);
   const ref = useRef<HTMLFormElement>(null);
-  const hasErrors = !!errors && Object.values(errors).some(Boolean);
-  // Field 的布局副作用先于此处执行，出错的控件已带 aria-invalid。
+  const invalidFrame = useRef<number>(undefined);
+  const invalidTargets = useRef(new Set<HTMLElement>());
+  useEffect(() => () => {
+    if (invalidFrame.current !== undefined) cancelAnimationFrame(invalidFrame.current);
+  }, []);
   useEffect(() => {
-    if (!hasErrors || busy) return;
-    ref.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
-  }, [errors, hasErrors, busy]);
+    if (busy || !errors || !Object.values(errors).some(Boolean)) return;
+    for (const control of ref.current?.querySelectorAll<HTMLElement>('[aria-invalid="true"]') ?? []) {
+      control.focus();
+      if (control === document.activeElement) break;
+    }
+  }, [errors, busy]);
   return (
     <FormContext.Provider value={value}>
       <form
@@ -54,13 +58,29 @@ function Form({
         data-slot="form"
         data-tour="form"
         aria-busy={busy || undefined}
+        onInvalidCapture={event => {
+          onInvalidCapture?.(event);
+          if (!(event.target instanceof HTMLElement) || !event.currentTarget.contains(event.target)) return;
+          invalidTargets.current.add(event.target);
+          if (invalidFrame.current !== undefined) return;
+          invalidFrame.current = requestAnimationFrame(() => {
+            invalidFrame.current = undefined;
+            for (const control of invalidTargets.current) {
+              if (!ref.current?.contains(control)) continue;
+              control.focus();
+              if (control === document.activeElement) break;
+            }
+            invalidTargets.current.clear();
+          });
+        }}
         onSubmit={(e) => {
           e.preventDefault();
+          if (e.target !== e.currentTarget) return;
           if (!busy) onSubmit?.(e);
         }}
         {...props}
       >
-        <fieldset disabled={busy} className={cn("m-0 grid min-w-0 gap-[var(--weir-gap-9)] border-0 p-0", className)}>
+        <fieldset disabled={busy} className={cn("form-fields", className)}>
           {children}
         </fieldset>
       </form>
@@ -68,15 +88,17 @@ function Form({
   );
 }
 
-// 表单内的多列行：窄屏单列，sm 起两列 / 三列。替代各页手写的 grid gap-* sm:grid-cols-*。
+// 根据表单所在容器选列数，弹窗和检查器与主工作区使用同一规则。
 function FormGrid({ cols = 2, className, ...props }: ComponentProps<"div"> & { cols?: 2 | 3 }) {
   return (
-    <div
-      data-slot="form-grid"
-      className={cn("grid min-w-0 gap-x-[var(--weir-space-3)] gap-y-[var(--weir-gap-9)]", cols === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3", className)}
-      {...props}
-    />
+    <div data-slot="form-grid" className="form-grid-container">
+      <div className={cn("form-grid", className)} data-columns={cols} {...props} />
+    </div>
   );
+}
+
+function FormActions({className, ...props}: ComponentProps<"div">) {
+  return <div className={cn("form-actions", className)} {...props} />;
 }
 
 // 表单内的分区（稿子 DForm 的分区小标题 + 分组内容）：长弹窗按业务拆成 2–3 段，替代从头堆到底或老式 <fieldset><legend> 线框。
@@ -84,18 +106,20 @@ function FormSection({
   title,
   description,
   actions,
+  plain,
   className,
   children,
   ...props
-}: Omit<ComponentProps<"div">, "title"> & { title?: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+}: Omit<ComponentProps<"div">, "title"> & { title?: ReactNode; description?: ReactNode; actions?: ReactNode; plain?: boolean }) {
   return (
     <div
       data-slot="form-section"
-      className={cn("grid min-w-0 gap-[var(--weir-gap-9)] not-first:border-t not-first:border-[var(--weir-line-soft)] not-first:pt-[var(--weir-space-3)]", className)}
+      data-plain={plain || undefined}
+      className={cn("form-section", className)}
       {...props}
     >
-      {(title != null || actions != null) && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      {(title != null || description != null || actions != null) && (
+        <div className="form-section-head">
           <div className="min-w-0">
             {title != null && <div className="text-fine font-semibold tracking-[0.05em] text-[var(--weir-ink-3)]">{title}</div>}
             {description != null && <div className="mt-[var(--weir-gap-3)] text-meta text-[var(--weir-ink-3)]">{description}</div>}
@@ -108,4 +132,4 @@ function FormSection({
   );
 }
 
-export { Form, FormGrid, FormSection, FormBoundary, useFormContext };
+export { Form, FormActions, FormGrid, FormSection, FormBoundary, useFormContext };

@@ -1,4 +1,4 @@
-// 来源 codedthemes/uiable button；按设计稿改为：墨色胶囊主键、卡片底描边次键、透明键，按下缩到 0.97 并叠填充色（.weir-key），松手弹簧回弹。
+// 来源 codedthemes/uiable button；控制台样式：系统蓝实心主键、白面描边次级键、透明键，按下缩到 0.97 并叠填充色（.weir-key），松手弹簧回弹。
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 import { LoaderCircle } from "lucide-react";
@@ -7,21 +7,23 @@ import { Tooltip } from "./tooltip";
 import { useFormContext } from "./form";
 import type {Ref} from "react";
 
-// 文字与图标按钮共用尺寸档位：默认 33、小号 29，触屏至少 45。尺寸与内边距统一由公共样式决定。
+// 文字与图标按钮共用尺寸档位：默认 29、小号 25、更小 21，触屏至少 45。尺寸与内边距统一由公共样式决定。
 const buttonVariants = cva(
-  "weir-key weir-button group/button inline-flex shrink-0 items-center justify-center rounded-[var(--weir-radius)] font-medium whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--weir-button-icon)]",
+  "weir-key weir-button group/button inline-flex shrink-0 items-center justify-center rounded-[var(--weir-radius)] font-normal whitespace-nowrap select-none disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--weir-button-icon)]",
   {
     variants: {
       variant: {
-        // 主按钮：墨色胶囊加投影（稿子 .v-btn.p），一个区域最多一个
-        default: "weir-key-solid bg-[var(--weir-pill)] text-[var(--weir-pill-ink)] font-semibold shadow-[var(--weir-shadow-pill)] hover:opacity-90",
-        // 次要按钮：卡片底、细描边、顶部高光（稿子 .v-btn）
-        outline: "border border-[var(--weir-line)] bg-[var(--weir-panel)] text-[var(--weir-ink)] font-semibold shadow-[var(--weir-highlight)] hover:bg-[var(--weir-raised)]",
+        // 主按钮：系统蓝实心，一个区域最多一个
+        default: "weir-key-solid bg-[var(--weir-accent)] text-[var(--weir-accent-ink)] font-medium hover:bg-[var(--weir-accent-lo)]",
+        // 次级按钮：白面加 1px 描边，悬停沉入井面色
+        outline: "bg-[var(--weir-raised)] text-[var(--weir-ink)] border-[var(--weir-line)] hover:bg-[var(--weir-well)]",
         // 选中态：分段控件同款白色滑块
         secondary: "is-pressed text-[var(--weir-ink)]",
         ghost: "weir-key-ghost text-[var(--weir-ink-2)] hover:text-[var(--weir-ink)]",
-        // 危险操作：红色描边、透明底（稿子 .v-btn.d）
-        destructive: "border border-[var(--weir-bad)] bg-transparent text-[var(--weir-bad-ink)] font-semibold hover:bg-[var(--weir-bad-soft)]",
+        // 危险操作入口：软红底配红字；常规删除确认用 danger-outline 红色描边；高危确认用 danger 实心红
+        destructive: "bg-[var(--weir-bad-soft)] text-[var(--weir-bad-ink)] hover:bg-[var(--weir-bad-soft-hi)]",
+        "danger-outline": "bg-[var(--weir-raised)] text-[var(--weir-bad-ink)] border-[var(--weir-bad)] font-medium hover:bg-[var(--weir-bad-soft)]",
+        danger: "weir-key-solid bg-[var(--weir-bad)] text-[var(--weir-accent-ink)] font-medium hover:opacity-90",
         // 文字链接：按下变淡（iOS 的 plain 按钮），不缩放、不叠填充
         link: "weir-key-link text-[var(--weir-accent-text)] underline-offset-4 hover:underline",
       },
@@ -29,7 +31,7 @@ const buttonVariants = cva(
         default: "weir-button-default",
         xs: "weir-button-xs",
         sm: "weir-button-sm",
-        lg: "weir-button-lg rounded-[var(--weir-radius-17)] font-semibold",
+        lg: "weir-button-lg rounded-[var(--weir-radius-card)] font-medium",
         icon: "weir-button-default weir-button-icon",
         "icon-xs": "weir-button-xs weir-button-icon",
         "icon-sm": "weir-button-sm weir-button-icon",
@@ -51,6 +53,7 @@ function Button({
   busy,
   busyText = "正在处理…",
   disabled,
+  title,
   ref: buttonRef,
   children,
   ...props
@@ -88,7 +91,7 @@ function Button({
       {label}
     </ButtonPrimitive>
   );
-  return iconOnly && props.title ? <Tooltip content={props.title} side="bottom">{button}</Tooltip> : button;
+  return title ? <Tooltip content={title} side="bottom">{button}</Tooltip> : button;
 }
 
 export { Button, buttonVariants };

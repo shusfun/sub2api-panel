@@ -2,12 +2,19 @@
   "name": "sub2api-panel",
   "private": true,
   "type": "module",
-  "scripts": { "check": "tsc --noEmit", "build": "tsc --noEmit && vite build" },
+  "scripts": {
+    "dev": "vite",
+    "check:ui": "node scripts/check-ui.mjs",
+    "check": "pnpm check:ui && tsc --noEmit",
+    "build": "tsc --noEmit && vite build"
+  },
   "dependencies": {
     "@base-ui/react": "1.0.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "echarts": "^6.1.0",
     "lucide-react": "0.468.0",
+    "qrcode-generator": "2.0.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "tailwind-merge": "3.3.0",

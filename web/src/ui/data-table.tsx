@@ -1,42 +1,180 @@
 import type {ReactNode} from "react";
-import {Feedback, Resource} from "./feedback";
+import {Checkbox} from "./checkbox";
+import {EmptyState, Resource, TableSkeleton} from "./feedback";
 import {Pagination} from "./pagination";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "./table";
 
 export type Column<Row> = {
   id: string;
   title: string;
-  align?: "number" | "end";
+  align?: "number" | "end" | "center";
+  grow?: boolean;
+  hideWhenNarrow?: boolean;
+  hideWhenCompact?: boolean;
   render: (row: Row) => ReactNode;
 };
 
-export function DataTable<Row>({columns, rows, rowID, label}: {
+export type TableSelection<ID extends string | number = number> = {
+  selected: readonly ID[];
+  onChange: (next: ID[]) => void;
+};
+
+export function DataTable<Row, ID extends string | number = string | number>({
+  columns,
+  rows,
+  rowID,
+  label,
+  onRowClick,
+  activeRowID,
+  selection,
+  stale,
+  empty,
+  motion = false,
+  pinActions = false,
+}: {
   columns: readonly Column<Row>[];
   rows: readonly Row[];
-  rowID: (row: Row) => string | number;
+  rowID: (row: Row) => ID;
   label: string;
+  onRowClick?: (row: Row) => void;
+  activeRowID?: string | number;
+  selection?: TableSelection<ID>;
+  stale?: boolean;
+  empty?: ReactNode;
+  motion?: boolean;
+  pinActions?: boolean;
 }) {
-  if (!rows.length) return <Feedback>暂无记录</Feedback>;
-  return <Table aria-label={label}>
-    <TableHeader><TableRow>{columns.map(column =>
-      <TableHead key={column.id} scope="col" data-align={column.align}>{column.title}</TableHead>,
-    )}</TableRow></TableHeader>
-    <TableBody>{rows.map(row => <TableRow key={rowID(row)}>{columns.map(column =>
-      <TableCell key={column.id} data-align={column.align}>{column.render(row)}</TableCell>,
-    )}</TableRow>)}</TableBody>
-  </Table>;
+  if (!rows.length) return <>{empty ?? <EmptyState title="暂无记录" />}</>;
+
+  const visibleIDs = rows.map(row => rowID(row));
+  const allVisibleSelected = selection
+    ? visibleIDs.length > 0 && visibleIDs.every(id => selection.selected.includes(id))
+    : false;
+
+  const toggleAll = (checked: boolean) => {
+    if (!selection) return;
+    if (checked) {
+      selection.onChange([...new Set([...selection.selected, ...visibleIDs])]);
+    } else {
+      selection.onChange(selection.selected.filter(id => !visibleIDs.includes(id)));
+    }
+  };
+
+  const toggleOne = (id: ID, checked: boolean) => {
+    if (!selection) return;
+    selection.onChange(
+      checked
+        ? [...new Set([...selection.selected, id])]
+        : selection.selected.filter(item => item !== id),
+    );
+  };
+
+  return (
+    <div className="obs-table-wrap" data-stale={stale || undefined}>
+      {stale && <div className="obs-loading-bar" aria-hidden />}
+      <Table aria-label={label} data-selection={!!selection || undefined} data-pin-actions={pinActions || undefined} data-compact={columns.length <= 7 || undefined}>
+        <TableHeader>
+          <TableRow>
+            {selection && (
+              <TableHead scope="col" className="swift-select-col">
+                <Checkbox checked={allVisibleSelected} onChange={toggleAll} label={`全选当前页 ${label}`} />
+              </TableHead>
+            )}
+            {columns.map((column, index) => (
+              <TableHead key={column.id} scope="col" data-align={column.align} data-grow={column.grow || undefined} data-pinned={index === 0 ? "identity" : pinActions && index === columns.length - 1 ? "actions" : undefined} data-hide-narrow={column.hideWhenNarrow || undefined} data-hide-compact={column.hideWhenCompact || undefined}>{column.title}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(row => {
+            const id = rowID(row);
+            const selected = activeRowID !== undefined && activeRowID === id;
+            const checked = selection ? selection.selected.includes(id) : false;
+            return (
+              <TableRow
+                key={id}
+                data-motion-key={motion ? id : undefined}
+                data-state={selected ? "active" : checked ? "selected" : undefined}
+                data-clickable={onRowClick ? "true" : undefined}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={onRowClick ? event => {
+                  if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
+                  event.preventDefault();
+                  onRowClick(row);
+                } : undefined}
+              >
+                {selection && (
+                  <TableCell className="swift-select-col" onClick={e => e.stopPropagation()}>
+                    <Checkbox checked={checked} onChange={next => toggleOne(id, next)} label={`选择 ${String(id)}`} />
+                  </TableCell>
+                )}
+                {columns.map((column, index) => (
+                  <TableCell key={column.id} data-align={column.align} data-grow={column.grow || undefined} data-pinned={index === 0 ? "identity" : pinActions && index === columns.length - 1 ? "actions" : undefined} data-hide-narrow={column.hideWhenNarrow || undefined} data-hide-compact={column.hideWhenCompact || undefined}>
+                    {index === 0 ? <div className="table-identity-content">{column.render(row)}</div> : column.render(row)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
 }
 
-export function PagedTable<Row>({state, columns, rowID, label, number, onChange}: {
-  state?: {value?: {items: Row[]; more: boolean}; error?: string};
+export function PagedTable<Row, ID extends string | number = string | number>({
+  state,
+  columns,
+  rowID,
+  label,
+  number,
+  onChange,
+  onRowClick,
+  activeRowID,
+  selection,
+  empty,
+  fallback,
+  pinActions,
+  renderItems,
+}: {
+  state?: {value?: {items: Row[]; more: boolean; pages?: number}; error?: string; loading?: boolean; stale?: boolean};
   columns: readonly Column<Row>[];
-  rowID: (row: Row) => string | number;
+  rowID: (row: Row) => ID;
   label: string;
   number: number;
   onChange: (page: number) => void;
+  onRowClick?: (row: Row) => void;
+  activeRowID?: string | number;
+  selection?: TableSelection<ID>;
+  empty?: ReactNode;
+  fallback?: ReactNode;
+  pinActions?: boolean;
+  renderItems?: (rows: Row[], stale: boolean) => ReactNode;
 }) {
   return <>
-    <Resource state={state}>{data => <DataTable rows={data.items} columns={columns} rowID={rowID} label={label} />}</Resource>
-    <Pagination number={number} more={state?.value?.more ?? false} onChange={onChange} label={label + "翻页"} />
+    <Resource state={state} fallback={fallback ?? <TableSkeleton rows={5} />}>
+      {(data, {stale}) => renderItems ? (data.items.length ? renderItems(data.items, stale) : <>{empty ?? <EmptyState title="暂无记录" />}</>) : (
+        <DataTable
+          rows={data.items}
+          columns={columns}
+          rowID={rowID}
+          label={label}
+          onRowClick={onRowClick}
+          activeRowID={activeRowID}
+          selection={selection}
+          stale={stale}
+          empty={empty}
+          pinActions={pinActions}
+        />
+      )}
+    </Resource>
+    <Pagination
+      number={number}
+      more={state?.value?.more ?? false}
+      pages={state?.value?.pages}
+      onChange={onChange}
+      label={label + "翻页"}
+    />
   </>;
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/subtle"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,16 +13,22 @@ import (
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	entsql "entgo.io/ent/dialect/sql"
+	"sub2api-panel/ent"
+	grantent "sub2api-panel/ent/grant"
+	issueent "sub2api-panel/ent/issue"
 )
 
 const maxCents = 100_000_000
 
-type grant struct {
+type grantWire struct {
 	Invites int64   `json:"invites"`
 	Budget  int64   `json:"budget_cents"`
 	Amounts []int64 `json:"amounts_cents"`
 }
+
+// grant is kept as the panel-facing alias used by the existing HTTP contract.
+type grant = grantWire
 
 type grantChange struct {
 	Invites int64   `json:"invites"`
@@ -59,74 +64,35 @@ type reconciliation struct {
 }
 
 type issuer struct {
-	db       *sql.DB
+	db       *ent.Client
 	upstream serviceClient
 	secret   string
 	adminKey string
 }
 
-func openIssuerDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path)
-	if err != nil {
-		return nil, err
+func grantFromEntity(row *ent.Grant) grant {
+	amounts := append([]int64(nil), row.Amounts...)
+	if amounts == nil {
+		amounts = []int64{}
 	}
-	db.SetMaxOpenConns(1)
-	_, err = db.Exec(`
-		PRAGMA journal_mode = WAL;
-		PRAGMA busy_timeout = 5000;
-		CREATE TABLE IF NOT EXISTS grants(
-			user_id INTEGER PRIMARY KEY, invites INTEGER NOT NULL CHECK(invites >= 0),
-			budget INTEGER NOT NULL CHECK(budget >= 0), amounts TEXT NOT NULL,
-			epoch INTEGER NOT NULL DEFAULT 1
-		);
-		CREATE TABLE IF NOT EXISTS issues(
-			op TEXT PRIMARY KEY, actor INTEGER NOT NULL, kind TEXT NOT NULL,
-			amount INTEGER NOT NULL, grant_epoch INTEGER NOT NULL, state TEXT NOT NULL,
-			code_id INTEGER UNIQUE, created INTEGER NOT NULL, trace TEXT NOT NULL,
-			refunded INTEGER NOT NULL DEFAULT 0
-		);
-		CREATE INDEX IF NOT EXISTS issues_actor ON issues(actor, created);
-		CREATE TABLE IF NOT EXISTS grant_audit(
-			id INTEGER PRIMARY KEY, actor INTEGER NOT NULL, target INTEGER NOT NULL,
-			invite_delta INTEGER NOT NULL, budget_delta INTEGER NOT NULL,
-			action TEXT NOT NULL, trace TEXT NOT NULL, created INTEGER NOT NULL
-		);
-	`)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-	return db, nil
+	return grant{Invites: row.Invites, Budget: row.Budget, Amounts: amounts}
 }
 
-type rowReader interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
-
-func readGrant(ctx context.Context, db rowReader, user int64) (grant, error) {
-	g := grant{Amounts: []int64{}}
-	var amounts string
-	err := db.QueryRowContext(ctx, "SELECT invites,budget,amounts FROM grants WHERE user_id=?", user).Scan(&g.Invites, &g.Budget, &amounts)
-	if errors.Is(err, sql.ErrNoRows) {
-		return g, nil
+func readGrant(ctx context.Context, query func() *ent.GrantQuery, user int64) (grant, error) {
+	row, err := query().Where(grantent.UserIDEQ(user)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return grant{Amounts: []int64{}}, nil
 	}
-	if err != nil || amounts == "" {
-		return g, err
+	if err != nil {
+		return grant{}, err
 	}
-	for _, text := range strings.Split(amounts, ",") {
-		cents, err := strconv.ParseInt(text, 10, 64)
-		if err != nil || cents < 1 || cents > maxCents {
-			return g, fail(503, "invalid_grant")
-		}
-		g.Amounts = append(g.Amounts, cents)
-	}
-	return g, nil
+	return grantFromEntity(row), nil
 }
 
 func (i *issuer) routes() http.Handler {
 	mux := http.NewServeMux()
 	i.route(mux, "GET /internal/grant", false, func(w http.ResponseWriter, r *http.Request, actor identity, _ string) error {
-		g, err := readGrant(r.Context(), i.db, actor.ID)
+		g, err := readGrant(r.Context(), i.db.Grant.Query, actor.ID)
 		if err == nil {
 			writeJSON(w, 200, g)
 		}
@@ -137,7 +103,7 @@ func (i *issuer) routes() http.Handler {
 		if err != nil {
 			return err
 		}
-		g, err := readGrant(r.Context(), i.db, id)
+		g, err := readGrant(r.Context(), i.db.Grant.Query, id)
 		if err == nil {
 			writeJSON(w, 200, g)
 		}
@@ -218,12 +184,10 @@ func (i *issuer) changeGrant(w http.ResponseWriter, r *http.Request, actor ident
 	}
 	slices.Sort(input.Amounts)
 	input.Amounts = slices.Compact(input.Amounts)
-	formatted := make([]string, 0, len(input.Amounts))
 	for _, cents := range input.Amounts {
 		if cents < 1 || cents > maxCents {
 			return fail(400, "invalid_grant")
 		}
-		formatted = append(formatted, strconv.FormatInt(cents, 10))
 	}
 	ctx := r.Context()
 	targetUser, err := upstream[identity](ctx, i.upstream, "GET", fmt.Sprintf("/admin/users/%d", target), token, "", "", nil)
@@ -244,28 +208,41 @@ func (i *issuer) changeGrant(w http.ResponseWriter, r *http.Request, actor ident
 	if !verification.Verified {
 		return fail(403, "totp_required")
 	}
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	old, err := readGrant(ctx, tx, target)
+	old, err := tx.Grant.Query().Where(grantent.UserIDEQ(target)).Only(ctx)
+	if ent.IsNotFound(err) {
+		old = nil
+	} else if err != nil {
+		return err
+	}
+	oldEpoch := int64(1)
+	if old != nil {
+		oldEpoch = old.Epoch
+	}
+	reservedInvites, reservedBudget := int64(0), int64(0)
+	reserved, err := tx.Issue.Query().Where(issueent.ActorEQ(target), issueent.GrantEpochEQ(oldEpoch), issueent.StateIn("pending", "unknown")).All(ctx)
 	if err != nil {
 		return err
 	}
-	g := grant{Invites: old.Invites + input.Invites, Budget: old.Budget + input.Budget, Amounts: input.Amounts}
-	var reservedInvites, reservedBudget int64
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(kind='invitation'),0),COALESCE(SUM(amount),0)
-		FROM issues WHERE actor=? AND grant_epoch=(SELECT epoch FROM grants WHERE user_id=?)
-		AND state IN ('pending','unknown')`, target, target).Scan(&reservedInvites, &reservedBudget); err != nil {
-		return err
+	for _, row := range reserved {
+		if row.Kind == "invitation" {
+			reservedInvites++
+		} else {
+			reservedBudget += row.Amount
+		}
 	}
-	if g.Invites+reservedInvites > 10000 || g.Budget+reservedBudget > maxCents || g.Budget+reservedBudget > 0 && len(g.Amounts) == 0 {
+	if input.Invites+reservedInvites > 10000 || input.Budget+reservedBudget > maxCents || input.Budget+reservedBudget > 0 && len(input.Amounts) == 0 {
 		return fail(400, "invalid_grant")
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO grants(user_id,invites,budget,amounts) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET invites=excluded.invites,budget=excluded.budget,amounts=excluded.amounts",
-		target, g.Invites, g.Budget, strings.Join(formatted, ","))
-	if err != nil {
+	if old == nil {
+		if _, err = tx.Grant.Create().SetUserID(target).SetInvites(input.Invites).SetBudget(input.Budget).SetAmounts(input.Amounts).Save(ctx); err != nil {
+			return err
+		}
+	} else if _, err = tx.Grant.UpdateOne(old).SetInvites(input.Invites).SetBudget(input.Budget).SetAmounts(input.Amounts).Save(ctx); err != nil {
 		return err
 	}
 	if err = auditGrant(ctx, tx, actor.ID, target, input.Invites, input.Budget, "grant"); err != nil {
@@ -278,9 +255,8 @@ func (i *issuer) changeGrant(w http.ResponseWriter, r *http.Request, actor ident
 	return nil
 }
 
-func auditGrant(ctx context.Context, tx *sql.Tx, actor, target, invites, budget int64, action string) error {
-	_, err := tx.ExecContext(ctx, "INSERT INTO grant_audit(actor,target,invite_delta,budget_delta,action,trace,created) VALUES(?,?,?,?,?,?,?)",
-		actor, target, invites, budget, action, meta(ctx).Trace, time.Now().Unix())
+func auditGrant(ctx context.Context, tx *ent.Tx, actor, target, invites, budget int64, action string) error {
+	_, err := tx.GrantAudit.Create().SetActor(actor).SetTarget(target).SetInviteDelta(invites).SetBudgetDelta(budget).SetAction(action).SetTrace(meta(ctx).Trace).SetCreated(time.Now().Unix()).Save(ctx)
 	if err == nil {
 		slog.Info("issuer grant changed", "trace_id", meta(ctx).Trace, "actor_id", actor, "target_id", target, "action", action)
 	}
@@ -293,18 +269,23 @@ func (i *issuer) revokeGrant(w http.ResponseWriter, r *http.Request, actor ident
 		return err
 	}
 	ctx := r.Context()
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	old, err := readGrant(ctx, tx, target)
-	if err != nil {
+	old, err := tx.Grant.Query().Where(grantent.UserIDEQ(target)).Only(ctx)
+	if ent.IsNotFound(err) {
+		old = nil
+	} else if err != nil {
 		return err
 	}
-	// Keep the row so a failed in-flight issue cannot resurrect a revoked grant.
-	_, err = tx.ExecContext(ctx, "UPDATE grants SET invites=0,budget=0,amounts='',epoch=epoch+1 WHERE user_id=?", target)
-	if err != nil {
+	if old == nil {
+		old, err = tx.Grant.Create().SetUserID(target).SetInvites(0).SetBudget(0).SetAmounts([]int64{}).SetEpoch(2).Save(ctx)
+		if err != nil {
+			return err
+		}
+	} else if _, err = tx.Grant.UpdateOne(old).SetInvites(0).SetBudget(0).SetAmounts([]int64{}).AddEpoch(1).Save(ctx); err != nil {
 		return err
 	}
 	if err = auditGrant(ctx, tx, actor.ID, target, -old.Invites, -old.Budget, "revoke"); err != nil {
@@ -318,88 +299,89 @@ func (i *issuer) revokeGrant(w http.ResponseWriter, r *http.Request, actor ident
 }
 
 func (i *issuer) reserve(ctx context.Context, actor identity, input issueInput) error {
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var state string
-	err = tx.QueryRowContext(ctx, "SELECT state FROM issues WHERE op=?", input.Operation).Scan(&state)
-	if err == nil {
+	if exists, err := tx.Issue.Query().Where(issueent.OpEQ(input.Operation)).Exist(ctx); err != nil {
+		return err
+	} else if exists {
 		return fail(409, "duplicate_operation")
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	var epoch int64
+	epoch := int64(0)
 	if actor.Role != "admin" {
-		g, err := readGrant(ctx, tx, actor.ID)
+		row, err := tx.Grant.Query().Where(grantent.UserIDEQ(actor.ID)).Only(ctx)
+		if ent.IsNotFound(err) {
+			return fail(403, "grant_exhausted")
+		}
 		if err != nil {
 			return err
 		}
+		epoch = row.Epoch
+		update := tx.Grant.UpdateOne(row)
 		switch input.Kind {
 		case "balance":
-			if g.Budget < input.Amount || !slices.Contains(g.Amounts, input.Amount) {
+			if row.Budget < input.Amount || !slices.Contains(row.Amounts, input.Amount) {
 				return fail(403, "grant_exhausted")
 			}
-			_, err = tx.ExecContext(ctx, "UPDATE grants SET budget=budget-? WHERE user_id=?", input.Amount, actor.ID)
+			update.AddBudget(-input.Amount).Where(grantent.BudgetGTE(input.Amount))
 		case "invitation":
-			if g.Invites < 1 {
+			if row.Invites < 1 {
 				return fail(403, "grant_exhausted")
 			}
-			_, err = tx.ExecContext(ctx, "UPDATE grants SET invites=invites-1 WHERE user_id=?", actor.ID)
+			update.AddInvites(-1).Where(grantent.InvitesGTE(1))
 		}
-		if err != nil {
-			return err
-		}
-		if err := tx.QueryRowContext(ctx, "SELECT epoch FROM grants WHERE user_id=?", actor.ID).Scan(&epoch); err != nil {
+		if _, err = update.Save(ctx); err != nil {
+			if ent.IsNotFound(err) {
+				return fail(403, "grant_exhausted")
+			}
 			return err
 		}
 	}
-	_, err = tx.ExecContext(ctx, "INSERT INTO issues(op,actor,kind,amount,grant_epoch,state,code_id,created,trace) VALUES(?,?,?,?,?,'pending',NULL,?,?)", input.Operation, actor.ID, input.Kind, input.Amount,
-		epoch, time.Now().Unix(), meta(ctx).Trace)
-	if err != nil {
+	if _, err = tx.Issue.Create().SetOp(input.Operation).SetActor(actor.ID).SetKind(input.Kind).SetAmount(input.Amount).SetGrantEpoch(epoch).SetState("pending").SetCreated(time.Now().Unix()).SetTrace(meta(ctx).Trace).Save(ctx); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 func (i *issuer) finishIssue(ctx context.Context, operation, state string, codeID *int64, reviewer int64) error {
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var event issueEvent
-	var epoch int64
-	err = tx.QueryRowContext(ctx, "SELECT actor,kind,amount,state,grant_epoch,created FROM issues WHERE op=?", operation).
-		Scan(&event.Actor, &event.Kind, &event.Amount, &event.State, &epoch, &event.Created)
-	if errors.Is(err, sql.ErrNoRows) {
+	event, err := tx.Issue.Query().Where(issueent.OpEQ(operation)).Only(ctx)
+	if ent.IsNotFound(err) {
 		return fail(404, "not_found")
 	}
 	if err != nil {
 		return err
 	}
-	if event.State != "pending" && event.State != "unknown" ||
-		reviewer != 0 && event.State == "pending" && time.Now().Unix()-event.Created < 60 {
+	if event.State != "pending" && event.State != "unknown" || reviewer != 0 && event.State == "pending" && time.Now().Unix()-event.Created < 60 {
 		return fail(409, "operation_unavailable")
 	}
 	refunded := false
-	if state == "failed" && epoch != 0 {
-		// A later revocation cancels the earlier grant, including any reserved portion.
-		result, err := tx.ExecContext(ctx, `UPDATE grants SET invites=invites+?,budget=budget+?
-			WHERE user_id=? AND epoch=?`,
-			boolInt(event.Kind == "invitation"), event.Amount, event.Actor, epoch)
+	if state == "failed" && event.GrantEpoch != 0 {
+		update := tx.Grant.Update().Where(grantent.UserIDEQ(event.Actor), grantent.EpochEQ(event.GrantEpoch))
+		if event.Kind == "invitation" {
+			update.AddInvites(1)
+		} else {
+			update.AddBudget(event.Amount)
+		}
+		count, err := update.Save(ctx)
 		if err != nil {
 			return err
 		}
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		refunded = rows == 1
+		refunded = count == 1
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE issues SET state=?,code_id=?,refunded=? WHERE op=?", state, codeID, refunded, operation); err != nil {
+	mut := tx.Issue.UpdateOne(event).SetState(state).SetRefunded(refunded)
+	if codeID == nil {
+		mut.ClearCodeID()
+	} else {
+		mut.SetCodeID(*codeID)
+	}
+	if _, err = mut.Save(ctx); err != nil {
 		return err
 	}
 	if reviewer != 0 {
@@ -417,13 +399,6 @@ func codeIDValue(id *int64) int64 {
 	return *id
 }
 
-func boolInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
-}
-
 type issuedCode struct {
 	ID    int64   `json:"id"`
 	Code  string  `json:"code"`
@@ -436,8 +411,7 @@ func (i *issuer) issue(w http.ResponseWriter, r *http.Request, actor identity, _
 	if err != nil {
 		return err
 	}
-	if !operationPattern.MatchString(input.Operation) ||
-		!(input.Kind == "invitation" && input.Amount == 0 || input.Kind == "balance" && input.Amount > 0 && input.Amount <= maxCents) {
+	if !operationPattern.MatchString(input.Operation) || !(input.Kind == "invitation" && input.Amount == 0 || input.Kind == "balance" && input.Amount > 0 && input.Amount <= maxCents) {
 		return fail(400, "invalid_input")
 	}
 	days := 30
@@ -471,11 +445,9 @@ func (i *issuer) issue(w http.ResponseWriter, r *http.Request, actor identity, _
 	var id *int64
 	var refused upstreamStatus
 	switch {
-	case err == nil && len(codes) == 1 && codes[0].ID > 0 && codes[0].Code != "" &&
-		codes[0].Kind == input.Kind && codes[0].Value == float64(input.Amount)/100:
+	case err == nil && len(codes) == 1 && codes[0].ID > 0 && codes[0].Code != "" && codes[0].Kind == input.Kind && codes[0].Value == float64(input.Amount)/100:
 		state, id = "issued", &codes[0].ID
-	case errors.As(err, &refused) && (refused.status == 400 || refused.status == 401 ||
-		refused.status == 403 || refused.status == 404 || refused.status == 423 || refused.status == 429):
+	case errors.As(err, &refused) && (refused.status == 400 || refused.status == 401 || refused.status == 403 || refused.status == 404 || refused.status == 423 || refused.status == 429):
 		state = "failed"
 	}
 	if err := i.finishIssue(ctx, input.Operation, state, id, 0); err != nil {
@@ -498,28 +470,29 @@ func (i *issuer) history(w http.ResponseWriter, r *http.Request, actor identity,
 	if err != nil {
 		return err
 	}
-	query := `SELECT op,actor,kind,amount,state,code_id,created,trace,
-		CASE WHEN grant_epoch=0 OR refunded=1 THEN 0 WHEN kind='invitation' THEN -1 ELSE -amount END
-		FROM issues WHERE actor=? OR ? ORDER BY rowid DESC LIMIT ? OFFSET ?`
-	rows, err := i.db.QueryContext(r.Context(), query, actor.ID, actor.Role == "admin", pageSize+1, (page-1)*pageSize)
+	query := i.db.Issue.Query()
+	if actor.Role != "admin" {
+		query.Where(issueent.ActorEQ(actor.ID))
+	}
+	rows, err := query.Order(issueent.ByCreated(entsql.OrderDesc())).Limit(pageSize + 1).Offset((page - 1) * pageSize).All(r.Context())
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-	items := make([]issueEvent, 0, pageSize)
-	for rows.Next() {
-		var item issueEvent
-		if err := rows.Scan(&item.Operation, &item.Actor, &item.Kind, &item.Amount, &item.State, &item.CodeID, &item.Created, &item.RequestID, &item.QuotaDelta); err != nil {
-			return err
+	items := make([]issueEvent, 0, len(rows))
+	for _, row := range rows {
+		delta := int64(0)
+		if row.GrantEpoch != 0 && !row.Refunded {
+			if row.Kind == "invitation" {
+				delta = -1
+			} else {
+				delta = -row.Amount
+			}
 		}
+		item := issueEvent{Operation: row.Op, Actor: row.Actor, Kind: row.Kind, Amount: row.Amount, State: row.State, CodeID: row.CodeID, Created: row.Created, RequestID: row.Trace, QuotaDelta: delta}
 		if actor.Role != "admin" {
-			item.Actor = 0
-			item.RequestID = ""
+			item.Actor, item.RequestID = 0, ""
 		}
 		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return err
 	}
 	writeJSON(w, 200, windowPage(items))
 	return nil
@@ -534,27 +507,28 @@ func (i *issuer) reconcile(w http.ResponseWriter, r *http.Request, actor identit
 	if err != nil {
 		return err
 	}
-	ctx := r.Context()
 	state := "failed"
 	if input.CodeID != nil {
 		if *input.CodeID <= 0 {
 			return fail(400, "invalid_input")
 		}
-		var kind string
-		var amount int64
-		if err := i.db.QueryRowContext(ctx, "SELECT kind,amount FROM issues WHERE op=?", operation).Scan(&kind, &amount); err != nil {
+		row, err := i.db.Issue.Query().Where(issueent.OpEQ(operation)).Only(r.Context())
+		if ent.IsNotFound(err) {
 			return fail(404, "not_found")
 		}
-		code, err := upstream[issuedCode](ctx, i.upstream, "GET", fmt.Sprintf("/admin/redeem-codes/%d", *input.CodeID), token, "", "", nil)
 		if err != nil {
 			return err
 		}
-		if code.ID != *input.CodeID || code.Kind != kind || code.Value != float64(amount)/100 {
+		code, err := upstream[issuedCode](r.Context(), i.upstream, "GET", fmt.Sprintf("/admin/redeem-codes/%d", *input.CodeID), token, "", "", nil)
+		if err != nil {
+			return err
+		}
+		if code.ID != *input.CodeID || code.Kind != row.Kind || code.Value != float64(row.Amount)/100 {
 			return fail(400, "code_mismatch")
 		}
 		state = "issued"
 	}
-	if err := i.finishIssue(ctx, operation, state, input.CodeID, actor.ID); err != nil {
+	if err := i.finishIssue(r.Context(), operation, state, input.CodeID, actor.ID); err != nil {
 		return err
 	}
 	writeJSON(w, 200, struct{}{})

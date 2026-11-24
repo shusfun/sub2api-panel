@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -74,51 +73,7 @@ func TestOfficialCompatibility(t *testing.T) {
 	if json.Unmarshal(call("POST", "/auth/login", "", admin, 200), &initial) != nil || initial.Access == "" {
 		t.Fatal("fixture needs a fresh official administrator")
 	}
-	var compliance struct {
-		Required bool
-		Phrase   string `json:"ack_phrase_en"`
-	}
-	if json.Unmarshal(call("GET", "/admin/compliance", initial.Access, nil, 200), &compliance) != nil || compliance.Phrase == "" {
-		t.Fatal("invalid official compliance fixture status")
-	}
-	if compliance.Required {
-		call("POST", "/admin/compliance/accept", initial.Access, map[string]string{"phrase": compliance.Phrase, "language": "en"}, 200)
-	}
-	call("PUT", "/admin/settings", initial.Access, map[string]bool{"registration_enabled": true, "totp_enabled": true, "affiliate_enabled": true, "invitation_code_enabled": false}, 200)
-	var setup struct {
-		Secret string
-		Token  string `json:"setup_token"`
-	}
-	if json.Unmarshal(call("POST", "/user/totp/setup", initial.Access, map[string]string{"password": admin.Password}, 200), &setup) != nil || setup.Secret == "" || setup.Token == "" {
-		t.Fatal("invalid TOTP setup")
-	}
-	call("POST", "/user/totp/enable", initial.Access, map[string]string{"setup_token": setup.Token, "totp_code": authenticatorCode(t, setup.Secret)}, 200)
-	var issuerSecret struct{ Key string }
-	if json.Unmarshal(call("POST", "/admin/settings/admin-api-keys", initial.Access, map[string]any{
-		"name": "panel isolated integration", "enabled": true, "policy": map[string]bool{"full_access": true}, "confirm_full_access": true,
-	}, 200), &issuerSecret) != nil || issuerSecret.Key == "" {
-		t.Fatal("could not create the official issuer key")
-	}
-	password := randomToken()
-	var registered credentials
-	userEmail := "delegate-" + randomHex(5) + "@panel.test"
-	if json.Unmarshal(call("POST", "/auth/register", "", officialLogin{Email: userEmail, Password: password}, 200), &registered) != nil {
-		t.Fatal("could not register delegate")
-	}
-	user, err := currentUser(ctx, c, registered.Access)
-	if err != nil {
-		t.Fatal(err)
-	}
-	call("PUT", "/admin/settings", initial.Access, map[string]bool{"invitation_code_enabled": true}, 200)
-	db, err := openIssuerDB(filepath.Join(t.TempDir(), "issuer.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	i := &issuer{db: db, upstream: c, adminKey: issuerSecret.Key, secret: randomToken()}
-	internal := httptest.NewServer(i.routes())
-	defer internal.Close()
-	app := &panel{origin: fixtureOrigin, official: origin, upstream: c, issuer: newClient(internal.URL), secret: i.secret, sessions: newSessions()}
+	app := &panel{origin: fixtureOrigin, official: origin, upstream: c, sessions: newSessions()}
 	web := app.routes(http.NotFoundHandler())
 	login := func(email, password, totp string) *fixtureBrowser {
 		t.Helper()
@@ -143,8 +98,117 @@ func TestOfficialCompatibility(t *testing.T) {
 		b.csrf, _ = b.expect("GET", "/session", "", 200)["csrf"].(string)
 		return b
 	}
+	firstAdmin := login(admin.Email, admin.Password, "")
+	if firstAdmin.expect("GET", "/admin/compliance", "", 200)["required"] != true {
+		t.Fatal("expected a fresh official administrator to require acknowledgement")
+	}
+	firstAdmin.expect("GET", "/admin/accounts", "", 423)
+	firstAdmin.expect("POST", "/admin/compliance/accept", `{"phrase":"incorrect"}`, 400)
+	confirmation := firstAdmin.expect("GET", "/admin/compliance", "", 200)
+	result := firstAdmin.expect("POST", "/admin/compliance/accept", fmt.Sprintf(`{"phrase":%q}`, confirmation["ack_phrase_zh"]), 200)
+	if result["required"] != false {
+		t.Fatal("official acknowledgement did not persist")
+	}
+	call("PUT", "/admin/settings", initial.Access, map[string]any{
+		"registration_enabled": true, "totp_enabled": true, "affiliate_enabled": true,
+		"affiliate_admin_recharge_enabled": true, "affiliate_rebate_freeze_hours": 0, "affiliate_rebate_rate": 10,
+		"promo_code_enabled": true, "invitation_code_enabled": false, "model_plaza_enabled": true,
+	}, 200)
+	var setup struct {
+		Secret string
+		Token  string `json:"setup_token"`
+	}
+	if json.Unmarshal(call("POST", "/user/totp/setup", initial.Access, map[string]string{"password": admin.Password}, 200), &setup) != nil || setup.Secret == "" || setup.Token == "" {
+		t.Fatal("invalid TOTP setup")
+	}
+	call("POST", "/user/totp/enable", initial.Access, map[string]string{"setup_token": setup.Token, "totp_code": authenticatorCode(t, setup.Secret)}, 200)
+	var issuerSecret struct{ Key string }
+	if json.Unmarshal(call("POST", "/admin/settings/admin-api-keys", initial.Access, map[string]any{
+		"name": "panel isolated integration", "enabled": true, "policy": map[string]bool{"full_access": true}, "confirm_full_access": true,
+	}, 200), &issuerSecret) != nil || issuerSecret.Key == "" {
+		t.Fatal("could not create the official issuer key")
+	}
+	password := randomToken()
+	var registered credentials
+	userEmail := "delegate-" + randomHex(5) + "@panel.test"
+	if json.Unmarshal(call("POST", "/auth/register", "", officialLogin{Email: userEmail, Password: password}, 200), &registered) != nil {
+		t.Fatal("could not register delegate")
+	}
+	user, err := currentUser(ctx, c, registered.Access)
+	if err != nil {
+		t.Fatal(err)
+	}
+	databaseURL := os.Getenv("PANEL_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("configure PANEL_TEST_DATABASE_URL for PostgreSQL integration tests")
+	}
+	db, err := openDatabase(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Schema.Create(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	i := &issuer{db: db, upstream: c, adminKey: issuerSecret.Key, secret: randomToken()}
+	internal := httptest.NewServer(i.routes())
+	defer internal.Close()
+	app.issuer, app.secret = newClient(internal.URL), i.secret
 	a := login(admin.Email, admin.Password, setup.Secret)
 	u := login(userEmail, password, "")
+	u.expect("GET", "/admin/compliance", "", 403)
+	u.expect("GET", "/settings/profile", "", 200)
+	testOfficialSiteContent(t, a, u, func(code, affiliateCode string) identity {
+		var signup credentials
+		response := call("POST", "/auth/register", "", map[string]any{
+			"email": "promo-" + randomHex(5) + "@panel.test", "password": password, "promo_code": code, "aff_code": affiliateCode,
+		}, 200)
+		if json.Unmarshal(response, &signup) != nil || signup.Access == "" {
+			t.Fatal("could not register a test invitee with a promotion")
+		}
+		var profile identity
+		if json.Unmarshal(call("GET", "/user/profile", signup.Access, nil, 200), &profile) != nil || profile.ID < 1 {
+			t.Fatal("could not read the promotional registration")
+		}
+		var balance struct{ Balance float64 }
+		if json.Unmarshal(call("GET", "/user/profile", signup.Access, nil, 200), &balance) != nil || balance.Balance < 3.5 {
+			t.Fatal("promotional balance was not granted at registration")
+		}
+		return profile
+	})
+	u.expect("GET", "/model-plaza", "", 200)
+	guest := httptest.NewRecorder()
+	web.ServeHTTP(guest, httptest.NewRequest("GET", "/api/public/model-plaza", nil))
+	checkResponse(t, guest, 200)
+	call("PUT", "/admin/settings", initial.Access, map[string]bool{"model_plaza_require_auth": true, "invitation_code_enabled": true}, 200)
+	checkResponse(t, u.request("GET", "/model-plaza", ""), 200)
+	guest = httptest.NewRecorder()
+	web.ServeHTTP(guest, httptest.NewRequest("GET", "/api/public/model-plaza", nil))
+	checkResponse(t, guest, 401)
+	quotaPath := fmt.Sprintf("/admin/users/%d/platform-quotas", user.ID)
+	u.expect("GET", quotaPath, "", 403)
+	quota := a.expect("PUT", quotaPath, `{"quotas":[{"platform":"openai","daily_limit_usd":10,"weekly_limit_usd":0,"monthly_limit_usd":null}]}`, 200)["platform_quotas"].([]any)
+	if len(quota) != 1 || quota[0].(map[string]any)["weekly_limit_usd"] != float64(0) {
+		t.Fatal("could not read back the saved platform quota")
+	}
+	a.expect("POST", quotaPath+"/reset", `{"platform":"openai","window":"daily"}`, 200)
+	attribute := call("POST", "/admin/user-attributes", initial.Access, map[string]any{
+		"key": "panel_" + randomHex(4), "name": "交付验收", "type": "text", "enabled": true,
+	}, 200)
+	var attributeID struct{ ID int64 }
+	if json.Unmarshal(attribute, &attributeID) != nil || attributeID.ID < 1 {
+		t.Fatal("could not create official attribute definition")
+	}
+	attributePath := fmt.Sprintf("/admin/users/%d/attributes", user.ID)
+	u.expect("GET", attributePath, "", 403)
+	checkResponse(t, a.request("GET", "/admin/user-attributes", ""), 200)
+	checkResponse(t, a.request("PUT", attributePath, fmt.Sprintf(`{"values":{"%d":"复验值"}}`, attributeID.ID)), 200)
+	attributeResponse := a.request("GET", attributePath, "")
+	checkResponse(t, attributeResponse, 200)
+	var attributes []userAttributeValue
+	if json.Unmarshal(attributeResponse.Body.Bytes(), &attributes) != nil || len(attributes) != 1 || attributes[0].Value != "复验值" {
+		t.Fatal("could not read back the saved user attribute")
+	}
 	grantPath := fmt.Sprintf("/admin/grants/%d", user.ID)
 	a.expect("PUT", grantPath, fmt.Sprintf(`{"invites":1,"budget_cents":500,"amounts_cents":[500],"totp":%q}`, authenticatorCode(t, setup.Secret)), 200)
 	newIssue := func(kind string, amount int) string {
@@ -176,6 +240,14 @@ func TestOfficialCompatibility(t *testing.T) {
 		t.Fatal("could not create disposable upstream account")
 	}
 	other := login(recipientEmail, password, "")
+	history := other.expect("GET", "/redeem/history", "", 200)["items"].([]any)
+	if len(history) == 0 || history[0].(map[string]any)["type"] != "balance" || history[0].(map[string]any)["code"] != nil {
+		t.Fatal("the recipient history did not show the balance redemption without the secret")
+	}
+	checkResponse(t, u.request("GET", "/channels/available", ""), 200)
+	if got := a.expect("GET", "/admin/settings-tools/admin-key", "", 200); got["legacy_exists"] != false {
+		t.Fatal("a fresh official instance should use scoped management keys")
+	}
 	testOfficialUsage(t, a, u, other, account.ID)
 	a.expect("GET", "/admin/accounts", "", 200)
 	schedulePath := fmt.Sprintf("/admin/accounts/%d/scheduling", account.ID)
@@ -185,7 +257,106 @@ func TestOfficialCompatibility(t *testing.T) {
 	a.expect("GET", "/issues", "", 200)
 	a.expect("DELETE", grantPath, "", 200)
 	u.expect("POST", "/issues", newIssue("balance", 500), 403)
+	u.expect("GET", "/admin/audit-logs", "", 403)
+	for _, path := range []string{"/admin/backups/s3-config", "/admin/backups/schedule"} {
+		u.expect("GET", path, "", http.StatusForbidden)
+		a.expect("GET", path, "", http.StatusOK)
+	}
+	backups := a.request(http.MethodGet, "/admin/backups", "")
+	checkResponse(t, backups, http.StatusOK)
+	if strings.TrimSpace(backups.Body.String()) != "[]" {
+		t.Fatal("the isolated official fixture should have no backups")
+	}
+	a.expect("POST", "/admin/backups", `{"expire_days":-1}`, http.StatusBadRequest)
+	a.expect("POST", "/admin/backups", `{"totp":"invalid"}`, http.StatusForbidden)
+	u.expect("GET", "/admin/plugins/upstream", "", http.StatusForbidden)
+	u.expect("GET", adminOrderPath, "", http.StatusForbidden)
+	a.expect("GET", adminOrderPath, "", http.StatusOK)
+	a.expect("GET", adminOrderPath+"/99999999", "", http.StatusNotFound)
+	a.expect("GET", "/admin/audit-logs", "", 200)
+	a.expect("POST", "/admin/audit-logs/clear", `{"totp":"invalid"}`, 400)
+	a.expect("GET", "/admin/risk-control/config", "", 200)
+	a.expect("GET", "/admin/risk-control/logs", "", 200)
+	u.expect("GET", "/admin/risk-control/logs", "", 403)
+	u.expect("GET", "/payment/orders", "", 200)
+	call("PUT", "/admin/settings", initial.Access, map[string]any{"channel_monitor_enabled": true, "channel_monitor_mode": "v1"}, 200)
+	if result := u.expect("GET", "/channel-monitor", "", 200); result["mode"] != "v1" {
+		t.Fatal("unexpected official channel monitor mode")
+	}
 	t.Logf("official compatibility finished trace=%s user=%d", trace.Trace, user.ID)
+}
+
+func testOfficialSiteContent(t *testing.T, admin, user *fixtureBrowser, register func(string, string) identity) {
+	t.Helper()
+	const announcements = "/admin/announcements"
+	const promos = "/admin/promo-codes"
+	user.expect("GET", announcements, "", 403)
+	user.expect("POST", promos, "{}", 403)
+	admin.expect("POST", announcements, `{"title":"交付验收","content":"公告正文","status":"active","notify_mode":"popup","targeting":{}}`, 200)
+	rows := admin.expect("GET", announcements, "", 200)["items"].([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["content"] != nil {
+		t.Fatal("announcement list should contain the summary")
+	}
+	id := int64(rows[0].(map[string]any)["id"].(float64))
+	detail := fmt.Sprintf("%s/%d", announcements, id)
+	if result := admin.expect("GET", detail, "", 200); result["content"] != "公告正文" || result["created_by"] != nil {
+		t.Fatal("unexpected announcement detail")
+	}
+	read := func(path string) []userAnnouncement {
+		t.Helper()
+		response := user.request("GET", path, "")
+		checkResponse(t, response, 200)
+		var list []userAnnouncement
+		if json.Unmarshal(response.Body.Bytes(), &list) != nil {
+			t.Fatal("invalid user announcements")
+		}
+		return list
+	}
+	if list := read("/announcements?unread_only=true"); len(list) != 1 || list[0].ID != id || list[0].NotifyMode != "popup" {
+		t.Fatal("published announcement was not delivered")
+	}
+	user.expect("POST", fmt.Sprintf("/announcements/%d/read", id), "", 200)
+	if list := read("/announcements"); len(list) != 1 || list[0].ReadAt == nil || len(read("/announcements?unread_only=true")) != 0 {
+		t.Fatal("announcement read state did not persist")
+	}
+	admin.expect("GET", detail+"/read-status", "", 200)
+	admin.expect("PUT", detail, `{"title":"交付验收","content":"已归档","status":"archived","notify_mode":"silent","targeting":{}}`, 200)
+	if len(read("/announcements")) != 0 {
+		t.Fatal("archived announcement is still visible")
+	}
+	admin.expect("DELETE", detail, "", 200)
+
+	response := admin.request("POST", promos, `{"bonus_amount":3.5,"max_uses":1,"notes":"登记验收"}`)
+	checkResponse(t, response, 200)
+	code := object(t, response.Body.Bytes())["code"].(string)
+	if code == "" || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("new promo code should be available in a non-cacheable creation response")
+	}
+	rows = admin.expect("GET", promos, "", 200)["items"].([]any)
+	if len(rows) != 1 {
+		t.Fatal("expected the created promo code")
+	}
+	promo := rows[0].(map[string]any)
+	if promo["masked"] != maskRedeemCode(code) || promo["code"] != nil || promo["bonus_amount"] != 3.5 {
+		t.Fatal("unexpected promo list projection")
+	}
+	detail = fmt.Sprintf("%s/%d", promos, int64(promo["id"].(float64)))
+	referral := user.expect("GET", "/affiliate", "", 200)["aff_code"].(string)
+	invitee := register(code, referral)
+	rows = admin.expect("GET", detail+"/usages", "", 200)["items"].([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["user_id"] != float64(invitee.ID) {
+		t.Fatal("promo usage did not record the recipient")
+	}
+	admin.expect("POST", fmt.Sprintf("/admin/users/%d/balance", invitee.ID), `{"balance":30,"operation":"add","notes":"referral verification"}`, 200)
+	if result := user.expect("POST", "/affiliate/transfer", "", 200); result["transferred_quota"] != float64(3) {
+		t.Fatal("unexpected transferred affiliate amount")
+	}
+	if result := user.expect("GET", "/affiliate", "", 200); result["aff_quota"] != float64(0) || result["aff_count"] != float64(1) {
+		t.Fatal("affiliate detail did not reflect the transfer and invitee")
+	}
+	admin.expect("PUT", detail, `{"status":"disabled","notes":"已验收"}`, 200)
+	admin.expect("GET", detail+"/usages", "", 200)
+	admin.expect("DELETE", detail, "", 200)
 }
 
 func testOfficialUsage(t *testing.T, admin, user, other *fixtureBrowser, account int64) {
@@ -204,6 +375,19 @@ func testOfficialUsage(t *testing.T, admin, user, other *fixtureBrowser, account
 		return ""
 	}
 	first, second, foreign := addKey(user, "Usage A"), addKey(user, "Usage B"), addKey(other, "Usage other")
+	secretPath := "/keys/" + first + "/secret"
+	secretResponse := user.request("GET", secretPath, "")
+	checkResponse(t, secretResponse, 200)
+	secret := object(t, secretResponse.Body.Bytes())["key"]
+	if secret == "" || secret == nil || secretResponse.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("could not retrieve the owner key without caching")
+	}
+	for _, reader := range []*fixtureBrowser{other, admin} {
+		response := reader.request("GET", secretPath, "")
+		if (response.Code != http.StatusForbidden && response.Code != http.StatusNotFound) || object(t, response.Body.Bytes())["key"] != nil {
+			t.Fatal("foreign session could retrieve owner key")
+		}
+	}
 	query := "?api_key_id=" + first
 	if summary := user.expect("GET", "/usage/summary"+query, "", 200); summary["totals"].(map[string]any)["requests"] != float64(0) {
 		t.Fatal(summary)

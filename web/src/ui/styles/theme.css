@@ -44,10 +44,6 @@
   --text-title--line-height: var(--weir-leading-title);
   --text-display: var(--weir-text-display);
   --text-display--line-height: var(--weir-leading-display);
-  --text-hero: var(--weir-text-hero);
-  --text-hero--line-height: var(--weir-leading-hero);
-  --text-detail: var(--weir-text-detail);
-  --text-detail--line-height: var(--weir-leading-detail);
   --text-large-title: var(--weir-text-large-title);
   --text-large-title--line-height: var(--weir-leading-large-title);
   --text-title1: var(--weir-text-title1);
@@ -62,10 +58,6 @@
   --text-callout--line-height: var(--weir-leading-callout);
   --text-subheadline: var(--weir-text-subheadline);
   --text-subheadline--line-height: var(--weir-leading-subheadline);
-  --text-lead: var(--weir-text-lead);
-  --text-lead--line-height: var(--weir-leading-lead);
-  --text-name: var(--weir-text-name);
-  --text-name--line-height: var(--weir-leading-name);
   --text-footnote: var(--weir-text-footnote);
   --text-footnote--line-height: var(--weir-leading-footnote);
   --text-caption1: var(--weir-text-caption1);
@@ -94,7 +86,6 @@
   --radius-md: var(--weir-radius);
   --radius-lg: var(--weir-radius-card);
   --radius-xl: var(--weir-radius-dialog);
-  --radius-2xl: var(--weir-radius-sheet);
 
   /* Tailwind 的 transition-* 默认时长与曲线（原为 150ms 与 ease-in-out） */
   --default-transition-duration: var(--weir-fast);
@@ -126,31 +117,12 @@
   }
   /* 键盘焦点环：主色 2px 外描边。组件可收窄间距（滚动容器内 1px），不能去掉 */
   :focus-visible {
-    outline: 2px solid var(--weir-focus);
-    outline-offset: 2px;
+    outline: 3px solid var(--weir-focus-ring);
+    outline-offset: 1px;
   }
 }
 
 @layer components {
-  /* 面板（稿子 .v-card）：卡片底、细描边、顶部高光与卡片投影 */
-  .weir-panel {
-    background: var(--weir-panel);
-    border: 1px solid var(--weir-line-soft);
-    border-radius: var(--weir-radius-surface);
-    box-shadow: var(--weir-highlight), var(--weir-shadow-card);
-    corner-shape: squircle;
-  }
-  /* 填充底：代码块、计数窗（iOS 的 tertiarySystemFill） */
-  .weir-well {
-    background: var(--weir-well);
-    border: 1px solid transparent;
-    border-radius: var(--weir-radius);
-  }
-  .weir-raised {
-    background: var(--weir-key);
-    border: 1px solid transparent;
-  }
-
   /*
    * 可按的键（按钮、分段项、标签键、导航项）。
    * 按下：缩到 --weir-press-scale，::after 叠一层 systemFill；实心键（.weir-key-solid）同时降不透明度。
@@ -189,6 +161,10 @@
       color var(--weir-press) var(--weir-ease);
   }
   .weir-key:active::after { opacity: 1; transition-duration: var(--weir-press); }
+  /* 实心键（主按钮、危险确认）：轻微外投影加上沿高光，浮起感干净不脏 */
+  .weir-key-solid {
+    box-shadow: 0 1px 2px var(--weir-shade), inset 0 1px 0 rgb(255 255 255 / 0.17);
+  }
   .weir-key-solid:active { opacity: var(--weir-press-opacity); }
   .weir-key-solid::after { display: none; }
   /* 展开中的下拉 / 菜单触发键：保持一层填充 */
@@ -201,8 +177,8 @@
   .weir-key.is-pressed {
     background: var(--weir-key-selected);
     box-shadow:
-      0 0 0 0.5px var(--weir-key-selected-ring),
-      0 3px 8px var(--weir-key-selected-glow);
+      0 0 0 1px var(--weir-key-selected-ring),
+      0 1px 3px var(--weir-key-selected-glow);
   }
   /* 幽灵键：静止时透明，悬停叠一层浅填充 */
   .weir-key-ghost {
@@ -215,40 +191,27 @@
   .weir-key[aria-disabled="true"] {
     scale: none;
   }
-  /* 输入框、下拉、可点标签：白底细边框。放在 .weir-key 之后，下拉触发键同时带这两个类时用这里的底色与边框 */
+  /* 输入框、下拉：填充底加极淡描边，聚焦时系统蓝光环。放在 .weir-key 之后，下拉触发键同时带这两个类时用这里的底色与边框 */
   .weir-input {
     background: var(--weir-input);
     border: 1px solid var(--weir-input-line);
     border-radius: var(--weir-radius);
     corner-shape: squircle;
   }
-  @media (hover: hover) {
-    .weir-input:hover:not(:disabled, [data-disabled], :focus) { border-color: var(--weir-input-line-hi); }
+  .weir-input:focus {
+    outline: 3px solid var(--weir-focus-ring);
+    outline-offset: 0;
+    border-color: var(--weir-focus);
   }
   @media (forced-colors: active) {
     .weir-key { border-color: ButtonText; }
-    .weir-key.is-pressed { border-width: 2px; }
+    .weir-key.is-pressed { border-width: var(--weir-selection-ring); }
   }
 
-  /*
-   * 其他可按元素（列表行、可点卡片、菜单项、标签页、折叠标题）：按下缩小并叠填充色。
-   * .weir-press 缩放 + 填充；.weir-press-fill 只叠填充（表格行这类不宜缩放的元素）。
-   */
-  .weir-press {
-    transition:
-      scale var(--weir-spring-dur) var(--weir-spring),
-      background-color var(--weir-fast) var(--weir-ease),
-      color var(--weir-fast) var(--weir-ease);
-  }
-  .weir-press:active {
-    scale: var(--weir-press-scale);
-    transition-duration: var(--weir-press);
-    transition-timing-function: var(--weir-ease);
-  }
+  /* 列表行、可点卡片、菜单项、折叠标题：按下叠填充色，不缩放 */
   .weir-press-fill {
     transition: background-color var(--weir-fast) var(--weir-ease);
   }
-  .weir-press:active,
   .weir-press-fill:active {
     background-color: var(--weir-fill-2);
   }
@@ -271,15 +234,7 @@
     }
   }
 
-  /* 标注：表头、分组标题的小字（iOS 分组标题用次要文字，不加粗、不全大写） */
-  .weir-engraved {
-    color: var(--weir-ink-engraved);
-    font-size: var(--weir-text-meta);
-    line-height: var(--weir-leading-meta);
-    font-weight: var(--weir-weight-medium);
-  }
   .weir-digits {
-    font-family: var(--weir-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
   }
@@ -290,7 +245,7 @@
  * 时长压到 1ms 而不是 0：transitionend / animationend 仍会触发，依赖它们的组件不卡住。
  */
 @media (prefers-reduced-motion: reduce) {
-  :root { --weir-press-scale: 1; --weir-glow: none; }
+  :root { --weir-press-scale: 1; }
   *,
   *::before,
   *::after {
@@ -304,7 +259,6 @@
 /* 省电档：与「减少动态效果」一样只留颜色变化。时长用 1ms 而不是 0，避免依赖 transitionend 的组件卡住。 */
 [data-motion="lite"] {
   --weir-press-scale: 1;
-  --weir-glow: none;
 }
 [data-motion="lite"],
 [data-motion="lite"] *,
@@ -315,3 +269,5 @@
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
 }
+
+:root { --weir-document-surface: var(--weir-swatch-day-float); }

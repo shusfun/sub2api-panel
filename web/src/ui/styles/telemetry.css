@@ -1,0 +1,201 @@
+/* ---- 图表 ---- */
+.swift-hero-chart { min-width: 0; }
+.swift-hero-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--weir-space-2); }
+.swift-hero-legend { display: flex; align-items: center; flex-wrap: wrap; gap: var(--weir-space-3); font-size: var(--weir-text-fine); color: var(--weir-ink-2); }
+.swift-hero-legend-item { display: inline-flex; align-items: center; gap: var(--weir-gap-5); }
+.swift-hero-legend-dot { width: 7px; height: 7px; border-radius: var(--weir-radius-full); flex-shrink: 0; }
+.swift-hero-plot { padding-top: var(--weir-gap-7); }
+.swift-hero-zero { color: var(--weir-ink-3); font-size: var(--weir-text-fine); }
+.metric-trend-value { font-size: var(--weir-text-display); line-height: var(--weir-leading-display); font-weight: var(--weir-weight-semibold); letter-spacing: var(--weir-track-heading); color: var(--weir-ink); }
+
+/* ---- 横向比例排行条 ---- */
+.swift-rank-list { display: grid; gap: var(--weir-gap-3); }
+.swift-rank-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--weir-space-3);
+  min-height: var(--weir-tap);
+  padding-inline: var(--weir-space-2);
+  border-radius: var(--weir-radius);
+  corner-shape: squircle;
+  background: var(--weir-fill-4);
+  border: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+.swift-rank-row[data-clickable] { cursor: pointer; }
+.swift-rank-row[data-clickable]:hover { background: var(--weir-fill-2); }
+.swift-rank-row:focus-visible { outline-offset: -3px; }
+.swift-rank-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; opacity: 0.17; pointer-events: none; }
+.swift-rank-left { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: var(--weir-space-2); min-width: 0; }
+.swift-rank-dot { width: 7px; height: 7px; border-radius: var(--weir-radius-full); flex-shrink: 0; }
+.swift-rank-name { color: var(--weir-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swift-rank-sub { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.swift-rank-right { position: relative; z-index: 1; display: inline-flex; align-items: baseline; gap: var(--weir-space-2); flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.swift-rank-val { font-weight: var(--weir-weight-medium); color: var(--weir-ink); }
+.swift-rank-share { font-size: var(--weir-text-fine); color: var(--weir-ink-3); min-width: 37px; text-align: end; }
+
+/* ---- 圆点 / 结论条 / 数字条 / 分段条 / 耗时条 ---- */
+.swift-dot { display: inline-block; width: 7px; height: 7px; border-radius: var(--weir-radius-full); background: var(--weir-ink-4); flex-shrink: 0; }
+.swift-dot[data-tone="ok"] { background: var(--weir-ok); }
+.swift-dot[data-tone="warn"] { background: var(--weir-warn); }
+.swift-dot[data-tone="bad"] { background: var(--weir-bad); }
+.swift-dot[data-tone="accent"] { background: var(--weir-accent); }
+
+.swift-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--weir-space-3);
+  min-height: 45px;
+  padding: var(--weir-gap-7) var(--weir-space-3) var(--weir-gap-7) var(--weir-space-4);
+  border-radius: var(--weir-radius-card);
+  corner-shape: squircle;
+  background: var(--weir-panel);
+  box-shadow: var(--weir-shadow-card);
+}
+.swift-banner[data-tone="warn"] { background: var(--weir-warn-soft); }
+.swift-banner[data-tone="bad"] { background: var(--weir-bad-soft); }
+.swift-banner-main { display: flex; align-items: center; gap: var(--weir-space-2); min-width: 0; }
+.swift-banner-text { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--weir-gap-3) var(--weir-space-2); min-width: 0; }
+.swift-banner-title { font-size: var(--weir-text-subheadline); line-height: var(--weir-leading-subheadline); font-weight: var(--weir-weight-semibold); color: var(--weir-ink); }
+.swift-banner-sub { color: var(--weir-ink-2); }
+.swift-banner-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--weir-gap-7); }
+
+.swift-strip {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  background: var(--weir-panel);
+  border-radius: var(--weir-radius-card);
+  corner-shape: squircle;
+  box-shadow: var(--weir-shadow-card);
+  overflow: hidden;
+}
+.swift-strip-flush { border-bottom: 1px solid var(--weir-line-soft); border-radius: 0; box-shadow: none; background: transparent; }
+.swift-strip-cells { flex: 1 1 561px; display: grid; grid-template-columns: repeat(auto-fit, minmax(151px, 1fr)); min-width: 0; }
+.swift-strip-cell {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--weir-gap-5);
+  padding: var(--weir-space-4) var(--weir-space-5);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  min-width: 0;
+}
+.swift-strip-cell + .swift-strip-cell::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 23%;
+  bottom: 23%;
+  width: 1px;
+  background: var(--weir-line-soft);
+}
+.swift-strip-clickable { cursor: pointer; }
+.swift-strip-clickable:hover { background: var(--weir-fill-4); }
+.swift-strip-clickable:focus-visible { outline-offset: -3px; }
+.swift-strip-head { display: flex; align-items: center; justify-content: space-between; gap: var(--weir-space-2); min-height: 21px; min-width: 0; }
+.swift-strip-label { font-size: var(--weir-text-fine); color: var(--weir-ink-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swift-strip-val-row { display: flex; align-items: baseline; gap: var(--weir-gap-5); min-width: 0; }
+.swift-strip-val { font-size: var(--weir-text-title2); line-height: var(--weir-leading-title2); font-weight: var(--weir-weight-semibold); letter-spacing: -0.035em; color: var(--weir-ink); min-width: 0; overflow-wrap: anywhere; }
+.swift-strip-cell[data-tone="bad"] .swift-strip-val { color: var(--weir-bad-ink); }
+.swift-strip-cell[data-tone="warn"] .swift-strip-val { color: var(--weir-warn-ink); }
+.swift-strip-unit { font-size: var(--weir-text-fine); color: var(--weir-ink-3); flex-shrink: 0; }
+.swift-strip-hint { font-size: var(--weir-text-fine); color: var(--weir-ink-3); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.swift-strip-trailing { display: flex; align-items: center; padding: var(--weir-space-3) var(--weir-space-4); border-inline-start: 1px solid var(--weir-line-soft); }
+.swift-spark { width: 85px; height: 23px; flex-shrink: 0; overflow: visible; }
+@media (max-width: 767.98px) {
+  .swift-strip-cells { flex-basis: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .swift-strip-cell { padding: var(--weir-space-3); }
+  .swift-strip-cell:nth-child(odd)::before { display: none; }
+  .swift-spark { display: none; }
+  .swift-strip-trailing { width: 100%; border-inline-start: 0; border-top: 1px solid var(--weir-line-soft); padding: var(--weir-space-3); }
+}
+
+/* ---- 60 格巡检健康柱条（QualitySparkBars） ---- */
+.swift-qbars { container: weir-quality / inline-size; display: grid; gap: var(--weir-gap-7); min-width: 0; }
+.swift-qbars-cap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--weir-space-2); font-size: var(--weir-text-fine); color: var(--weir-ink-3); min-width: 0; }
+.swift-qbars-track { display: flex; align-items: stretch; gap: var(--weir-gap-3); height: 25px; min-width: 0; }
+.swift-qbar-slot {
+  flex: 1 1 0;
+  min-width: 3px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--weir-bar-empty);
+  transition: opacity var(--weir-fast) var(--weir-ease), scale var(--weir-fast) var(--weir-ease);
+}
+.swift-qbar-slot[data-verdict="ok"] { background: var(--weir-bar-ok); cursor: pointer; }
+.swift-qbar-slot[data-verdict="degraded"] { background: var(--weir-bar-bad); cursor: pointer; }
+.swift-qbar-slot[data-verdict="failed"] { background: var(--weir-bar-skip); cursor: pointer; }
+.swift-qbar-slot[data-verdict="skipped_idle"] { background: var(--weir-bar-skip); opacity: 0.55; cursor: pointer; }
+.swift-qbar-slot[data-verdict="running"] { background: var(--weir-bar-run); }
+.swift-qbar-slot:is([data-verdict="ok"], [data-verdict="degraded"], [data-verdict="failed"], [data-verdict="skipped_idle"]):hover { opacity: 0.81; scale: 1 1.07; }
+.swift-qbars-axis { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--weir-space-2); font-size: var(--weir-text-fine); color: var(--weir-ink-3); font-variant-numeric: tabular-nums; }
+.swift-qbars-cap > span, .swift-qbars-axis > span { white-space: nowrap; }
+@container weir-quality (width < 357px) {
+  .swift-qbars-track { gap: var(--weir-gap-1); }
+  .swift-qbar-slot:nth-child(-n + 30) { display: none; }
+}
+
+/* ---- 插件沙箱帧（PluginSandboxFrame） ---- */
+.swift-plugin-frame-wrap {
+  display: grid;
+  gap: var(--weir-space-2);
+  min-width: 0;
+  border-radius: var(--weir-radius-card);
+  corner-shape: squircle;
+  background: var(--weir-panel);
+  box-shadow: var(--weir-shadow-card);
+  overflow: hidden;
+}
+.swift-plugin-frame { width: 100%; min-height: 361px; border: 0; background: transparent; display: block; }
+
+.swift-segbar { display: grid; gap: var(--weir-gap-5); min-width: 85px; }
+.swift-segbar-track { display: flex; height: 7px; gap: var(--weir-gap-1); border-radius: var(--weir-radius-full); background: var(--weir-fill-2); overflow: hidden; }
+.swift-segbar-compact .swift-segbar-track { height: 5px; width: 69px; }
+.swift-segbar-piece { height: 100%; min-width: 3px; }
+.swift-segbar-legend { display: flex; flex-wrap: wrap; gap: var(--weir-space-2); font-size: var(--weir-text-fine); color: var(--weir-ink-2); }
+.swift-segbar-key { display: inline-flex; align-items: center; gap: var(--weir-gap-5); }
+.swift-segbar-key i { width: 7px; height: 7px; border-radius: var(--weir-radius-full); display: inline-block; }
+
+.swift-timing { display: grid; gap: var(--weir-space-2); }
+.swift-timing-track { display: flex; height: 9px; gap: var(--weir-gap-1); border-radius: var(--weir-radius-full); background: var(--weir-fill-2); overflow: hidden; }
+.swift-timing-piece { height: 100%; min-width: 5px; }
+.swift-timing-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--weir-gap-5) var(--weir-space-3); }
+.swift-timing-item { display: flex; align-items: center; justify-content: space-between; gap: var(--weir-space-2); font-size: var(--weir-text-fine); }
+.swift-timing-name { display: inline-flex; align-items: center; gap: var(--weir-gap-5); color: var(--weir-ink-2); }
+.swift-timing-name i { width: 7px; height: 7px; border-radius: var(--weir-radius-full); display: inline-block; }
+
+@media (max-width: 767.98px) {
+  .swift-strip-cell + .swift-strip-cell::before { display: none; }
+  .swift-strip-cell + .swift-strip-cell { border-top: 1px solid var(--weir-line-soft); }
+  .swift-strip-trailing { width: 100%; border-inline-start: 0; border-top: 1px solid var(--weir-line-soft); }
+}
+.usage-section-heading, .usage-live {
+  display: flex;
+  align-items: center;
+  gap: var(--weir-space-2);
+  flex-wrap: wrap;
+}
+.usage-section-heading { justify-content: space-between; }
+.usage-live { color: var(--weir-ink-2); font-size: var(--weir-text-fine); }
+.patrol-legend-swatch { inline-size: var(--weir-gap-7); block-size: var(--weir-gap-7); border-radius: var(--weir-radius-full); flex: none; background: var(--weir-bar-skip); }
+.patrol-legend-swatch[data-tone="ok"] { background: var(--weir-bar-ok); }
+.patrol-legend-swatch[data-tone="bad"] { background: var(--weir-bar-bad); }
+.patrol-legend-swatch[data-tone="skipped"] { background: color-mix(in srgb, var(--weir-bar-skip) 55%, transparent); }
+.terminal-comment { color: var(--weir-terminal-muted); }
+.terminal-success { color: var(--weir-terminal-ok); }

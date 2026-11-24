@@ -1,44 +1,155 @@
 package pool
 
 import (
-	"bufio"
-	"context"
 	"encoding/json"
-	"fmt"
-	"log/slog"
-	"net/http"
 	"strings"
-	"time"
 
 	"sub2api-panel/internal/platform"
 	"sub2api-panel/internal/server/core"
 )
 
+var validAccountPlatforms = map[string]bool{
+	"openai": true, "anthropic": true, "gemini": true, "antigravity": true,
+	"grok": true, "deepseek": true, "kimi": true, "zhipu": true,
+	"minimax": true, "opencode_go": true, "command_code": true, "cline": true,
+}
+
+var validAccountTypes = map[string]bool{
+	"oauth": true, "setup-token": true, "apikey": true,
+	"upstream": true, "bedrock": true, "service_account": true,
+}
+
+func validAccountPlatform(p string) bool { return validAccountPlatforms[p] }
+func validAccountType(t string) bool     { return validAccountTypes[t] }
+
+type AccountExtraView struct {
+	WindowCostLimit         *float64 `json:"window_cost_limit,omitempty"`
+	WindowCostStickyReserve *float64 `json:"window_cost_sticky_reserve,omitempty"`
+	DailyQuota              *float64 `json:"daily_quota,omitempty"`
+	TotalQuota              *float64 `json:"total_quota,omitempty"`
+	MaxSessions             *int     `json:"max_sessions,omitempty"`
+	RPMLimit                *int     `json:"rpm_limit,omitempty"`
+	CodexCLIOnly            bool     `json:"codex_cli_only,omitempty"`
+	TLSFingerprint          bool     `json:"tls_fingerprint,omitempty"`
+	InterceptWarmup         bool     `json:"intercept_warmup,omitempty"`
+	ModelAllowlist          []string `json:"model_allowlist,omitempty"`
+}
+
+type AccountExtraInput struct {
+	WindowCostLimit         *float64  `json:"window_cost_limit,omitempty"`
+	WindowCostStickyReserve *float64  `json:"window_cost_sticky_reserve,omitempty"`
+	DailyQuota              *float64  `json:"daily_quota,omitempty"`
+	TotalQuota              *float64  `json:"total_quota,omitempty"`
+	MaxSessions             *int      `json:"max_sessions,omitempty"`
+	RPMLimit                *int      `json:"rpm_limit,omitempty"`
+	CodexCLIOnly            *bool     `json:"codex_cli_only,omitempty"`
+	TLSFingerprint          *bool     `json:"tls_fingerprint,omitempty"`
+	InterceptWarmup         *bool     `json:"intercept_warmup,omitempty"`
+	ModelAllowlist          *[]string `json:"model_allowlist,omitempty"`
+}
+
+func (in AccountExtraInput) valid() bool {
+	if in.WindowCostLimit != nil && *in.WindowCostLimit < 0 ||
+		in.WindowCostStickyReserve != nil && *in.WindowCostStickyReserve < 0 ||
+		in.DailyQuota != nil && *in.DailyQuota < 0 ||
+		in.TotalQuota != nil && *in.TotalQuota < 0 ||
+		in.MaxSessions != nil && *in.MaxSessions < 0 ||
+		in.RPMLimit != nil && *in.RPMLimit < 0 {
+		return false
+	}
+	return true
+}
+
+func (in AccountExtraInput) applyTo(dst map[string]any) {
+	if in.WindowCostLimit != nil {
+		dst["window_cost_limit"] = *in.WindowCostLimit
+	}
+	if in.WindowCostStickyReserve != nil {
+		dst["window_cost_sticky_reserve"] = *in.WindowCostStickyReserve
+	}
+	if in.DailyQuota != nil {
+		dst["daily_quota"] = *in.DailyQuota
+	}
+	if in.TotalQuota != nil {
+		dst["total_quota"] = *in.TotalQuota
+	}
+	if in.MaxSessions != nil {
+		dst["max_sessions"] = *in.MaxSessions
+	}
+	if in.RPMLimit != nil {
+		dst["rpm_limit"] = *in.RPMLimit
+	}
+	if in.CodexCLIOnly != nil {
+		dst["codex_cli_only"] = *in.CodexCLIOnly
+	}
+	if in.TLSFingerprint != nil {
+		dst["tls_fingerprint"] = *in.TLSFingerprint
+	}
+	if in.InterceptWarmup != nil {
+		dst["intercept_warmup"] = *in.InterceptWarmup
+	}
+	if in.ModelAllowlist != nil {
+		dst["model_allowlist"] = *in.ModelAllowlist
+	}
+}
+
 type AccountExtraWire struct {
-	Codex5h           *float64                  `json:"codex_5h_used_percent"`
-	Codex5hReset      *string                   `json:"codex_5h_reset_at"`
-	Codex7d           *float64                  `json:"codex_7d_used_percent"`
-	Codex7dReset      *string                   `json:"codex_7d_reset_at"`
-	Kimi5h            *float64                  `json:"kimi_5h_used_percent"`
-	Kimi5hReset       *string                   `json:"kimi_5h_reset_at"`
-	KimiWeek          *float64                  `json:"kimi_weekly_used_percent"`
-	KimiWeekReset     *string                   `json:"kimi_weekly_reset_at"`
-	Zhipu5h           *float64                  `json:"zhipu_5h_used_percent"`
-	Zhipu5hReset      *string                   `json:"zhipu_5h_reset_at"`
-	ZhipuWeek         *float64                  `json:"zhipu_weekly_used_percent"`
-	ZhipuWeekReset    *string                   `json:"zhipu_weekly_reset_at"`
-	MiniMax5h         *float64                  `json:"minimax_5h_used_percent"`
-	MiniMax5hReset    *string                   `json:"minimax_5h_reset_at"`
-	MiniMaxWeek       *float64                  `json:"minimax_weekly_used_percent"`
-	MiniMaxWeekReset  *string                   `json:"minimax_weekly_reset_at"`
-	DeepseekBalance   *float64                  `json:"deepseek_balance"`
-	DeepseekCurrency  string                    `json:"deepseek_balance_currency"`
-	DeepseekAvailable *bool                     `json:"deepseek_balance_available"`
-	DeepseekBalances  []core.AccountBalanceItem `json:"deepseek_balances"`
-	KimiBalance       *float64                  `json:"kimi_balance"`
-	KimiCurrency      string                    `json:"kimi_balance_currency"`
-	KimiAvailable     *bool                     `json:"kimi_balance_available"`
-	KimiBalances      []core.AccountBalanceItem `json:"kimi_balances"`
+	Codex5h                 *float64                  `json:"codex_5h_used_percent"`
+	Codex5hReset            *string                   `json:"codex_5h_reset_at"`
+	Codex7d                 *float64                  `json:"codex_7d_used_percent"`
+	Codex7dReset            *string                   `json:"codex_7d_reset_at"`
+	Kimi5h                  *float64                  `json:"kimi_5h_used_percent"`
+	Kimi5hReset             *string                   `json:"kimi_5h_reset_at"`
+	KimiWeek                *float64                  `json:"kimi_weekly_used_percent"`
+	KimiWeekReset           *string                   `json:"kimi_weekly_reset_at"`
+	Zhipu5h                 *float64                  `json:"zhipu_5h_used_percent"`
+	Zhipu5hReset            *string                   `json:"zhipu_5h_reset_at"`
+	ZhipuWeek               *float64                  `json:"zhipu_weekly_used_percent"`
+	ZhipuWeekReset          *string                   `json:"zhipu_weekly_reset_at"`
+	MiniMax5h               *float64                  `json:"minimax_5h_used_percent"`
+	MiniMax5hReset          *string                   `json:"minimax_5h_reset_at"`
+	MiniMaxWeek             *float64                  `json:"minimax_weekly_used_percent"`
+	MiniMaxWeekReset        *string                   `json:"minimax_weekly_reset_at"`
+	DeepseekBalance         *float64                  `json:"deepseek_balance"`
+	DeepseekCurrency        string                    `json:"deepseek_balance_currency"`
+	DeepseekAvailable       *bool                     `json:"deepseek_balance_available"`
+	DeepseekBalances        []core.AccountBalanceItem `json:"deepseek_balances"`
+	KimiBalance             *float64                  `json:"kimi_balance"`
+	KimiCurrency            string                    `json:"kimi_balance_currency"`
+	KimiAvailable           *bool                     `json:"kimi_balance_available"`
+	KimiBalances            []core.AccountBalanceItem `json:"kimi_balances"`
+	WindowCostLimit         *float64                  `json:"window_cost_limit"`
+	WindowCostStickyReserve *float64                  `json:"window_cost_sticky_reserve"`
+	DailyQuota              *float64                  `json:"daily_quota"`
+	TotalQuota              *float64                  `json:"total_quota"`
+	MaxSessions             *int                      `json:"max_sessions"`
+	RPMLimit                *int                      `json:"rpm_limit"`
+	CodexCLIOnly            bool                      `json:"codex_cli_only"`
+	TLSFingerprint          bool                      `json:"tls_fingerprint"`
+	InterceptWarmup         bool                      `json:"intercept_warmup"`
+	ModelAllowlist          []string                  `json:"model_allowlist"`
+}
+
+func projectAccountExtra(e AccountExtraWire) *AccountExtraView {
+	if e.WindowCostLimit == nil && e.WindowCostStickyReserve == nil &&
+		e.DailyQuota == nil && e.TotalQuota == nil &&
+		e.MaxSessions == nil && e.RPMLimit == nil &&
+		!e.CodexCLIOnly && !e.TLSFingerprint && !e.InterceptWarmup &&
+		len(e.ModelAllowlist) == 0 {
+		return nil
+	}
+	return &AccountExtraView{
+		WindowCostLimit:         e.WindowCostLimit,
+		WindowCostStickyReserve: e.WindowCostStickyReserve,
+		DailyQuota:              e.DailyQuota,
+		TotalQuota:              e.TotalQuota,
+		MaxSessions:             e.MaxSessions,
+		RPMLimit:                e.RPMLimit,
+		CodexCLIOnly:            e.CodexCLIOnly,
+		TLSFingerprint:          e.TLSFingerprint,
+		InterceptWarmup:         e.InterceptWarmup,
+		ModelAllowlist:          e.ModelAllowlist,
+	}
 }
 
 type AccountDetailWire struct {
@@ -70,6 +181,9 @@ type AccountDetailWire struct {
 	RateLimitResetAt       *string              `json:"rate_limit_reset_at"`
 	OverloadUntil          *string              `json:"overload_until"`
 	TempUnschedulableUntil *string              `json:"temp_unschedulable_until"`
+	LastErrorCode          string               `json:"last_error_code"`
+	LastErrorKind          string               `json:"last_error_kind"`
+	ErrorMessage           *string              `json:"error_message"`
 	LastUsedAt             *string              `json:"last_used_at"`
 	ExpiresAt              *int64               `json:"expires_at"`
 	AutoPauseOnExpired     bool                 `json:"auto_pause_on_expired"`
@@ -81,6 +195,13 @@ type AccountDetailWire struct {
 type AccountAdminView struct {
 	BaseURL                string                   `json:"base_url,omitempty"`
 	ModelMapping           map[string]string        `json:"model_mapping,omitempty"`
+	CustomHeaders          map[string]bool          `json:"custom_headers,omitempty"`
+	Organization           string                   `json:"organization,omitempty"`
+	Project                string                   `json:"project,omitempty"`
+	Region                 string                   `json:"region,omitempty"`
+	AccessKeyID            string                   `json:"access_key_id,omitempty"`
+	ProjectID              string                   `json:"project_id,omitempty"`
+	Location               string                   `json:"location,omitempty"`
 	ID                     int64                    `json:"id"`
 	Name                   string                   `json:"name"`
 	Notes                  string                   `json:"notes"`
@@ -103,12 +224,16 @@ type AccountAdminView struct {
 	FiveResetAt            *string                  `json:"five_hours_reset_at,omitempty"`
 	Week                   *float64                 `json:"week_used"`
 	WeekResetAt            *string                  `json:"week_reset_at,omitempty"`
+	RateLimitedAt          *string                  `json:"rate_limited_at,omitempty"`
 	RateLimitResetAt       *string                  `json:"rate_limit_reset_at,omitempty"`
 	OverloadUntil          *string                  `json:"overload_until,omitempty"`
 	TempUnschedulableUntil *string                  `json:"temp_unschedulable_until,omitempty"`
+	LastErrorCode          string                   `json:"last_error_code,omitempty"`
+	LastErrorKind          string                   `json:"last_error_kind,omitempty"`
 	LastUsedAt             *string                  `json:"last_used_at,omitempty"`
 	ExpiresAt              *int64                   `json:"expires_at,omitempty"`
 	AutoPauseOnExpired     bool                     `json:"auto_pause_on_expired"`
+	Extra                  *AccountExtraView        `json:"extra,omitempty"`
 	CreatedAt              string                   `json:"created_at"`
 	UpdatedAt              string                   `json:"updated_at"`
 	TodayRequests          *int64                   `json:"today_requests,omitempty"`
@@ -158,13 +283,53 @@ func projectExtraBalance(plat string, extra AccountExtraWire) *core.AccountBalan
 	}
 }
 
+func redactAccountError(a AccountDetailWire) (code, kind string) {
+	code = strings.TrimSpace(a.LastErrorCode)
+	kind = strings.TrimSpace(a.LastErrorKind)
+	if code == "" && kind == "" && a.ErrorMessage != nil && strings.TrimSpace(*a.ErrorMessage) != "" {
+		msg := strings.ToLower(*a.ErrorMessage)
+		switch {
+		case strings.Contains(msg, "429") || strings.Contains(msg, "rate limit"):
+			code, kind = "429", "rate_limit"
+		case strings.Contains(msg, "401") || strings.Contains(msg, "unauthorized") || strings.Contains(msg, "invalid_api_key"):
+			code, kind = "401", "auth_failed"
+		case strings.Contains(msg, "403") || strings.Contains(msg, "forbidden"):
+			code, kind = "403", "forbidden"
+		case strings.Contains(msg, "529") || strings.Contains(msg, "overload"):
+			code, kind = "529", "overloaded"
+		case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline"):
+			code, kind = "504", "timeout"
+		default:
+			code, kind = "upstream_error", "error"
+		}
+	}
+	return code, kind
+}
+
 func ProjectAdminAccount(a AccountDetailWire) (AccountAdminView, error) {
-	var baseURL string
+	var baseURL, org, proj, region, accessKeyID, projectID, location string
 	var modelMapping map[string]string
+	var rawHeaders map[string]string
 	_ = json.Unmarshal(a.Credentials["base_url"], &baseURL)
 	_ = json.Unmarshal(a.Credentials["model_mapping"], &modelMapping)
+	_ = json.Unmarshal(a.Credentials["custom_headers"], &rawHeaders)
+	_ = json.Unmarshal(a.Credentials["organization"], &org)
+	_ = json.Unmarshal(a.Credentials["project"], &proj)
+	_ = json.Unmarshal(a.Credentials["region"], &region)
+	_ = json.Unmarshal(a.Credentials["access_key_id"], &accessKeyID)
+	_ = json.Unmarshal(a.Credentials["project_id"], &projectID)
+	_ = json.Unmarshal(a.Credentials["location"], &location)
 	if u, ok := platform.ExternalLink(baseURL); !ok || u.RawQuery != "" || u.Fragment != "" {
 		baseURL = ""
+	}
+	var customHeaders map[string]bool
+	if len(rawHeaders) > 0 {
+		customHeaders = make(map[string]bool, len(rawHeaders))
+		for k := range rawHeaders {
+			if strings.TrimSpace(k) != "" {
+				customHeaders[k] = true
+			}
+		}
 	}
 	if a.ID < 1 || a.Name == "" || a.Schedulable == nil {
 		return AccountAdminView{}, platform.Fail(502, "invalid_upstream")
@@ -202,55 +367,63 @@ func ProjectAdminAccount(a AccountDetailWire) (AccountAdminView, error) {
 	fiveReset := platform.FirstNonNil(a.Extra.Codex5hReset, a.Extra.Kimi5hReset, a.Extra.Zhipu5hReset, a.Extra.MiniMax5hReset)
 	week := platform.FirstNonNil(a.Extra.Codex7d, a.Extra.KimiWeek, a.Extra.ZhipuWeek, a.Extra.MiniMaxWeek)
 	weekReset := platform.FirstNonNil(a.Extra.Codex7dReset, a.Extra.KimiWeekReset, a.Extra.ZhipuWeekReset, a.Extra.MiniMaxWeekReset)
+	errCode, errKind := redactAccountError(a)
 	return AccountAdminView{
-		ID: a.ID, Name: a.Name, Notes: notes, Platform: a.Platform, Type: accType, BaseURL: baseURL, ModelMapping: modelMapping,
+		ID: a.ID, Name: a.Name, Notes: notes, Platform: a.Platform, Type: accType,
+		BaseURL: baseURL, ModelMapping: modelMapping, CustomHeaders: customHeaders,
+		Organization: org, Project: proj, Region: region, AccessKeyID: accessKeyID,
+		ProjectID: projectID, Location: location,
 		CredentialsStatus: credStatus, ProxyFallbackID: a.ProxyFallbackID, ProxyID: a.ProxyID, ProxyName: proxyName,
 		GroupIDs: groupIDs, Groups: groups,
 		Concurrency: a.Concurrency, CurrentConcurrency: a.CurrentConcurrency,
 		Priority: a.Priority, RateMultiplier: a.RateMultiplier,
 		Status: a.Status, Schedulable: *a.Schedulable,
 		Five: five, FiveResetAt: fiveReset, Week: week, WeekResetAt: weekReset,
-		RateLimitResetAt: a.RateLimitResetAt, OverloadUntil: a.OverloadUntil,
-		TempUnschedulableUntil: a.TempUnschedulableUntil,
-		LastUsedAt:             a.LastUsedAt, ExpiresAt: a.ExpiresAt,
+		RateLimitedAt: a.RateLimitedAt, RateLimitResetAt: a.RateLimitResetAt,
+		OverloadUntil: a.OverloadUntil, TempUnschedulableUntil: a.TempUnschedulableUntil,
+		LastErrorCode: errCode, LastErrorKind: errKind,
+		LastUsedAt: a.LastUsedAt, ExpiresAt: a.ExpiresAt,
 		AutoPauseOnExpired: a.AutoPauseOnExpired,
+		Extra:              projectAccountExtra(a.Extra),
 		CreatedAt:          a.CreatedAt, UpdatedAt: a.UpdatedAt,
 		Balance: projectExtraBalance(a.Platform, a.Extra),
 	}, nil
 }
 
 type accountWriteInput struct {
-	Name               string         `json:"name,omitempty"`
-	Notes              *string        `json:"notes,omitempty"`
-	Platform           string         `json:"platform,omitempty"`
-	Type               string         `json:"type,omitempty"`
-	Credentials        map[string]any `json:"credentials,omitempty"`
-	ProxyID            *int64         `json:"proxy_id,omitempty"`
-	ClearProxy         bool           `json:"clear_proxy,omitempty"`
-	Concurrency        *int           `json:"concurrency,omitempty"`
-	Priority           *int           `json:"priority,omitempty"`
-	RateMultiplier     *float64       `json:"rate_multiplier,omitempty"`
-	Status             string         `json:"status,omitempty"`
-	Schedulable        *bool          `json:"schedulable,omitempty"`
-	GroupIDs           *[]int64       `json:"group_ids,omitempty"`
-	ExpiresAt          *int64         `json:"expires_at,omitempty"`
-	ClearExpires       bool           `json:"clear_expires,omitempty"`
-	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired,omitempty"`
-	ConfirmMixedRisk   bool           `json:"confirm_mixed_channel_risk,omitempty"`
+	Name               string             `json:"name,omitempty"`
+	Notes              *string            `json:"notes,omitempty"`
+	Platform           string             `json:"platform,omitempty"`
+	Type               string             `json:"type,omitempty"`
+	Credentials        map[string]any     `json:"credentials,omitempty"`
+	Extra              *AccountExtraInput `json:"extra,omitempty"`
+	ProxyID            *int64             `json:"proxy_id,omitempty"`
+	ClearProxy         bool               `json:"clear_proxy,omitempty"`
+	Concurrency        *int               `json:"concurrency,omitempty"`
+	Priority           *int               `json:"priority,omitempty"`
+	RateMultiplier     *float64           `json:"rate_multiplier,omitempty"`
+	Status             string             `json:"status,omitempty"`
+	Schedulable        *bool              `json:"schedulable,omitempty"`
+	GroupIDs           *[]int64           `json:"group_ids,omitempty"`
+	ExpiresAt          *int64             `json:"expires_at,omitempty"`
+	ClearExpires       bool               `json:"clear_expires,omitempty"`
+	AutoPauseOnExpired *bool              `json:"auto_pause_on_expired,omitempty"`
+	ConfirmMixedRisk   bool               `json:"confirm_mixed_channel_risk,omitempty"`
 }
 
 func (in accountWriteInput) toBody(create bool) (map[string]any, error) {
-	if create && (strings.TrimSpace(in.Name) == "" || len(in.Name) > 100 || strings.TrimSpace(in.Platform) == "" || strings.TrimSpace(in.Type) == "" || len(in.Credentials) == 0) {
+	if create && (strings.TrimSpace(in.Name) == "" || len(in.Name) > 100 || !validAccountPlatform(in.Platform) || !validAccountType(in.Type) || len(in.Credentials) == 0) {
 		return nil, platform.Fail(400, "invalid_input")
 	}
 	if in.Name != "" && (strings.TrimSpace(in.Name) == "" || len(in.Name) > 100) ||
-		in.Platform != "" && len(in.Platform) > 50 ||
-		in.Type != "" && len(in.Type) > 40 ||
+		in.Platform != "" && !validAccountPlatform(in.Platform) ||
+		in.Type != "" && !validAccountType(in.Type) ||
 		in.Status != "" && in.Status != "active" && in.Status != "inactive" ||
 		in.Concurrency != nil && (*in.Concurrency < 0 || *in.Concurrency > 10000) ||
 		in.Priority != nil && (*in.Priority < -1000 || *in.Priority > 10000) ||
 		in.RateMultiplier != nil && *in.RateMultiplier < 0 ||
-		in.ProxyID != nil && *in.ProxyID < 1 {
+		in.ProxyID != nil && *in.ProxyID < 1 ||
+		in.Extra != nil && !in.Extra.valid() {
 		return nil, platform.Fail(400, "invalid_input")
 	}
 	body := map[string]any{}
@@ -268,6 +441,13 @@ func (in accountWriteInput) toBody(create bool) (map[string]any, error) {
 	}
 	if len(in.Credentials) > 0 {
 		body["credentials"] = in.Credentials
+	}
+	if in.Extra != nil {
+		extraMap := map[string]any{}
+		in.Extra.applyTo(extraMap)
+		if len(extraMap) > 0 {
+			body["extra"] = extraMap
+		}
 	}
 	if in.ClearProxy {
 		body["proxy_id"] = nil
@@ -307,186 +487,4 @@ func (in accountWriteInput) toBody(create bool) (map[string]any, error) {
 		return nil, platform.Fail(400, "invalid_input")
 	}
 	return body, nil
-}
-
-type quotaWire struct {
-	Usage   *float64   `json:"utilization"`
-	Unknown bool       `json:"utilization_unknown"`
-	Reset   *time.Time `json:"resets_at"`
-}
-
-type quotaView struct {
-	Usage *float64   `json:"percent_used"`
-	Reset *time.Time `json:"resets_at"`
-}
-
-type accountQuotaWire struct {
-	Five             *quotaWire `json:"five_hour"`
-	Week             *quotaWire `json:"seven_day"`
-	SonnetWeek       *quotaWire `json:"seven_day_sonnet"`
-	GeminiDaily      *quotaWire `json:"gemini_shared_daily"`
-	GeminiProDaily   *quotaWire `json:"gemini_pro_daily"`
-	GeminiFlashDaily *quotaWire `json:"gemini_flash_daily"`
-	ThirtyDay        *quotaWire `json:"thirty_day"`
-	SubscriptionTier string     `json:"subscription_tier"`
-	NeedsReauth      bool       `json:"needs_reauth"`
-	IsBanned         bool       `json:"is_banned"`
-	NeedsVerify      bool       `json:"needs_verify"`
-}
-
-type accountQuotaView struct {
-	Five             *quotaView `json:"five_hours"`
-	Week             *quotaView `json:"week"`
-	SonnetWeek       *quotaView `json:"sonnet_week,omitempty"`
-	GeminiDaily      *quotaView `json:"gemini_daily,omitempty"`
-	GeminiProDaily   *quotaView `json:"gemini_pro_daily,omitempty"`
-	GeminiFlashDaily *quotaView `json:"gemini_flash_daily,omitempty"`
-	ThirtyDay        *quotaView `json:"thirty_day,omitempty"`
-	SubscriptionTier string     `json:"subscription_tier,omitempty"`
-	NeedsReauth      bool       `json:"needs_reauth,omitempty"`
-	IsBanned         bool       `json:"is_banned,omitempty"`
-	NeedsVerify      bool       `json:"needs_verify,omitempty"`
-}
-
-type accountWire struct {
-	platform.NamedItem
-	Platform    string `json:"platform"`
-	Status      string `json:"status"`
-	Schedulable *bool  `json:"schedulable"`
-}
-
-func projectQuotaInfo(raw accountQuotaWire) accountQuotaView {
-	project := func(window *quotaWire) *quotaView {
-		if window == nil {
-			return nil
-		}
-		usage := window.Usage
-		if window.Unknown {
-			usage = nil
-		}
-		return &quotaView{Usage: usage, Reset: window.Reset}
-	}
-	return accountQuotaView{
-		Five: project(raw.Five), Week: project(raw.Week),
-		SonnetWeek: project(raw.SonnetWeek), GeminiDaily: project(raw.GeminiDaily),
-		GeminiProDaily: project(raw.GeminiProDaily), GeminiFlashDaily: project(raw.GeminiFlashDaily),
-		ThirtyDay:        project(raw.ThirtyDay),
-		SubscriptionTier: raw.SubscriptionTier, NeedsReauth: raw.NeedsReauth,
-		IsBanned: raw.IsBanned, NeedsVerify: raw.NeedsVerify,
-	}
-}
-
-func (h *handler) accountQuota(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	id, err := platform.PathID(r, "id")
-	if err != nil {
-		return err
-	}
-	source := "passive"
-	if r.URL.Query().Get("source") == "active" {
-		source = "active"
-	}
-	raw, err := platform.Upstream[accountQuotaWire](r.Context(), h.s.Upstream, "GET", fmt.Sprintf("/admin/accounts/%d/usage?source=%s", id, source), a.Tokens.Access, "", "", nil)
-	if err != nil {
-		return err
-	}
-	platform.WriteJSON(w, 200, projectQuotaInfo(raw))
-	return nil
-}
-
-func (h *handler) scheduleAccount(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	id, err := platform.PathID(r, "id")
-	if err != nil {
-		return err
-	}
-	input, err := platform.DecodeBody[struct {
-		On *bool `json:"schedulable"`
-	}](r)
-	if err != nil {
-		return err
-	}
-	if input.On == nil {
-		return platform.Fail(400, "invalid_input")
-	}
-	path := fmt.Sprintf("/admin/accounts/%d", id)
-	_, err = platform.Upstream[struct{}](r.Context(), h.s.Upstream, "POST", path+"/schedulable", a.Tokens.Access, "", "", input)
-	if err != nil {
-		return err
-	}
-	data, err := platform.Upstream[accountWire](r.Context(), h.s.Upstream, "GET", path, a.Tokens.Access, "", "", nil)
-	if err != nil {
-		return err
-	}
-	if data.ID != id || data.Schedulable == nil {
-		return platform.Fail(502, "invalid_upstream")
-	}
-	if *data.Schedulable != *input.On {
-		return platform.Fail(409, "schedule_changed")
-	}
-	platform.WriteJSON(w, 200, struct{}{})
-	return nil
-}
-
-func (h *handler) testAccount(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	id, err := platform.PathID(r, "id")
-	if err != nil {
-		return err
-	}
-	input, err := platform.DecodeBody[struct {
-		Model string `json:"model_id,omitempty"`
-	}](r)
-	if err != nil || len(input.Model) > 128 {
-		return platform.Fail(400, "invalid_input")
-	}
-	stream := h.s.Upstream.WithTimeout(70 * time.Second)
-	res, err := stream.Open(r.Context(), "POST", fmt.Sprintf("/api/v1/admin/accounts/%d/test", id), a.Tokens.Access, "", "", input)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return platform.UpstreamStatus{Status: res.StatusCode}
-	}
-	if !strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
-		return platform.Fail(502, "invalid_upstream")
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("X-Accel-Buffering", "no")
-	w.WriteHeader(200)
-	scanner := bufio.NewScanner(res.Body)
-	scanner.Buffer(make([]byte, 2048), 256<<10)
-	start := time.Now()
-	emitAccountTest(w, "running")
-	for scanner.Scan() {
-		frame, ok := strings.CutPrefix(scanner.Text(), "data:")
-		if !ok {
-			continue
-		}
-		var evt struct {
-			Type    string `json:"type"`
-			Success bool   `json:"success"`
-		}
-		if json.Unmarshal([]byte(frame), &evt) == nil {
-			if evt.Type == "test_complete" && evt.Success {
-				emitAccountTest(w, "passed")
-				slogAccountResult(r.Context(), id, true, start)
-				return nil
-			}
-			if evt.Type == "error" || evt.Type == "test_complete" {
-				break
-			}
-		}
-	}
-	emitAccountTest(w, "failed")
-	slogAccountResult(r.Context(), id, false, start)
-	return nil
-}
-
-func emitAccountTest(w http.ResponseWriter, state string) {
-	fmt.Fprintf(w, "data: {\"state\":\"%s\"}\n\n", state)
-	_ = http.NewResponseController(w).Flush()
-}
-
-func slogAccountResult(ctx context.Context, id int64, passed bool, start time.Time) {
-	slog.Info("account test finished", "trace_id", platform.Meta(ctx).Trace, "account_id", id,
-		"passed", passed, "elapsed_ms", time.Since(start).Milliseconds())
 }

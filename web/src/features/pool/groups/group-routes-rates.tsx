@@ -23,6 +23,7 @@ import {
   Resource,
   Select,
   Stack,
+  Switch,
   UserSelect,
 } from "@/ui";
 import {type CompositeRoute} from "@/features/pool/shared";
@@ -151,6 +152,31 @@ export function CompositeRoutesEditor({groupID, revision, onChanged}: {groupID: 
               },
               {id: "prio", title: "优先级", align: "number", render: r => r.priority},
               {
+                id: "enabled",
+                title: "启用",
+                align: "center",
+                render: r => (
+                  <Switch
+                    label={`启用路由 ${r.public_model}`}
+                    checked={r.enabled}
+                    onChange={next => void op.run(async () => {
+                      await api(`/admin/groups/${groupID}/composite-routes/${r.id}`, compositeRouteSchema, "PUT", {
+                        public_model: r.public_model,
+                        match_type: r.match_type,
+                        target_platform: r.target_platform,
+                        upstream_model: r.upstream_model,
+                        endpoint: r.endpoint,
+                        priority: r.priority,
+                        enabled: next,
+                        notes: r.notes,
+                      });
+                      setLocalRev(v => v + 1);
+                      onChanged();
+                    })}
+                  />
+                ),
+              },
+              {
                 id: "del",
                 title: "",
                 align: "end",
@@ -182,37 +208,57 @@ const groupRateRowSchema = z.object({
   user_id: z.number(),
   user_email: z.string(),
   rate_multiplier: z.number().nullable(),
+  rpm_override: z.number().nullable().optional(),
 });
 
 export function GroupUserRatesEditor({groupID, revision, onChanged}: {groupID: number; revision: number; onChanged: () => void}) {
   const [localRev, setLocalRev] = useState(0);
   const [targetUser, setTargetUser] = useState("");
   const [rateVal, setRateVal] = useState("1");
+  const [rpmVal, setRpmVal] = useState("");
   const rows = useResource(() => api(`/admin/groups/${groupID}/rate-multipliers`, z.array(groupRateRowSchema)), `grp-rates-${groupID}`, true, revision + localRev);
   const op = useAction();
 
   return (
     <>
-      <FormSection title="设置单用户专属分组倍率">
-        <FormSection title="选择用户与覆写倍率">
+      <FormSection title="设置单用户专属分组倍率与限流">
+        <FormSection title="选择用户与覆写参数">
           <Stack>
             <Field label="搜索并选择用户…"><UserSelect value={targetUser} placeholder="搜索并选择用户…" onChange={v => setTargetUser(v)} /></Field>
-            <InlineStack>
+            <InlineStack wrap>
               <Field label="专属倍率"><Input type="number" min="0" step="0.01" value={rateVal} onChange={e => setRateVal(e.target.value)} aria-label="专属倍率" /></Field>
+              <Field label="RPM 覆写（可选）"><Input type="number" min="0" value={rpmVal} onChange={e => setRpmVal(e.target.value)} placeholder="留空沿用组配置" aria-label="RPM 覆写" /></Field>
               <Button
                 size="sm"
                 disabled={!targetUser}
                 busy={op.busy}
                 onClick={() => void op.run(async () => {
                   await api(`/admin/groups/${groupID}/rate-multipliers`, empty, "PUT", {
-                    entries: [{user_id: Number(targetUser), rate_multiplier: Number(rateVal || 1)}],
+                    entries: [{
+                      user_id: Number(targetUser),
+                      rate_multiplier: Number(rateVal || 1),
+                      ...(rpmVal.trim() !== "" ? {rpm_override: Number(rpmVal)} : {}),
+                    }],
                   });
                   setTargetUser("");
+                  setRpmVal("");
                   setLocalRev(v => v + 1);
                   onChanged();
                 })}
               >
                 应用倍率
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                busy={op.busy}
+                onClick={() => void op.run(async () => {
+                  await api(`/admin/groups/${groupID}/rate-multipliers`, empty, "DELETE");
+                  setLocalRev(v => v + 1);
+                  onChanged();
+                })}
+              >
+                清空全部覆写
               </Button>
             </InlineStack>
           </Stack>
@@ -229,6 +275,7 @@ export function GroupUserRatesEditor({groupID, revision, onChanged}: {groupID: n
             columns={[
               {id: "user", title: "用户", render: r => <EntityLink kind="user" id={r.user_id} label={r.user_email || `#${r.user_id}`} />},
               {id: "rate", title: "专属倍率", align: "number", render: r => r.rate_multiplier !== null ? `${r.rate_multiplier}×` : "默认"},
+              {id: "rpm", title: "RPM 覆写", align: "number", render: r => r.rpm_override != null ? `${r.rpm_override}` : "默认"},
             ]}
           />
         )}

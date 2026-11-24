@@ -7,6 +7,7 @@ import {
   EntityLink,
   EntityMeters,
   EntityMetrics,
+  MeterBar,
   MiniPills,
   PlanSummary,
   PlatformBadge,
@@ -124,9 +125,20 @@ export function AccountCardItem({
 
   const requests = statBusy ? "…" : cachedWin ? count.format(cachedWin.requests) : "未知";
   const errors = win === "1" && (row.today_errors ?? 0) > 0 ? " · 错 " + row.today_errors : "";
+  const windowCostLimit = row.extra?.window_cost_limit;
+  const stickyReserve = row.extra?.window_cost_sticky_reserve;
   const panelBody =
     mode === "quota" ? (
-      <EntityMeters items={buildQuotaMeters(row, quota, quotaDisplay)} />
+      <>
+        <EntityMeters items={buildQuotaMeters(row, quota, quotaDisplay)} />
+        {windowCostLimit != null && windowCostLimit > 0 && (
+          <MeterBar
+            size="sm"
+            value={Math.min(100, Math.round(((row.today_cost ?? 0) / windowCostLimit) * 100))}
+            label={`窗口限额 ${smartMoney(row.today_cost ?? 0)}/${smartMoney(windowCostLimit)}${stickyReserve ? ` (预留 ${smartMoney(stickyReserve)})` : ""}`}
+          />
+        )}
+      </>
     ) : (
       <EntityMetrics
         items={[
@@ -161,6 +173,9 @@ export function AccountCardItem({
           <>
             <PlatformBadge platform={row.platform} type={row.type} />
             {row.status !== "active" && <Status value={row.status} />}
+            {(row.last_error_code || row.last_error_kind) && (
+              <Badge variant="soft" tone="bad">{row.last_error_code || row.last_error_kind}</Badge>
+            )}
             {balance && hasQuota && (
               <Tooltip content={balanceHint(balance)} side="top">
                 <Badge variant="tag">{balanceText(balance)}</Badge>

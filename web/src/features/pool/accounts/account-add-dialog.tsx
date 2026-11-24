@@ -5,17 +5,18 @@ import {account, adminGroupRow, proxyRow} from "@/schemas";
 import {useAction} from "@/lib/requests";
 import {
   Button,
-  ChoiceCards,
   CollapsibleSection,
   ErrorLine,
   Field,
   Form,
+  FormGrid,
   FormSection,
   Input,
   InsetRow,
   MultiGroupSelect,
   Overlay,
   PasswordInput,
+  PlatformSelect,
   ProxySelect,
   Segmented,
   Select,
@@ -46,14 +47,28 @@ export function AddAccountDialog({
 }) {
   const formID = useId();
   const [platform, setPlatform] = useState(reauthAccount?.platform || "openai");
-  const [mode, setMode] = useState<"oauth" | "apikey" | "import">(reauthAccount ? "oauth" : "oauth");
+  const [mode, setMode] = useState<"oauth" | "token" | "cookie" | "apikey" | "import">(reauthAccount ? "oauth" : "oauth");
+  const [accountType, setAccountType] = useState<"apikey" | "upstream" | "bedrock" | "service_account">("apikey");
   const [name, setName] = useState(reauthAccount?.name || "");
   const [proxyID, setProxyID] = useState(reauthAccount?.proxy_id ? String(reauthAccount.proxy_id) : defaultProxyID ? String(defaultProxyID) : "");
   const [groupIDs, setGroupIDs] = useState<number[]>(reauthAccount?.group_ids ?? (defaultGroupID ? [defaultGroupID] : []));
   const [apiKeyVal, setApiKeyVal] = useState("");
   const [baseUrlVal, setBaseUrlVal] = useState("");
+  const [regionVal, setRegionVal] = useState("us-east-1");
+  const [accessKeyIDVal, setAccessKeyIDVal] = useState("");
+  const [secretAccessKeyVal, setSecretAccessKeyVal] = useState("");
+  const [gcpProjectIDVal, setGcpProjectIDVal] = useState("");
+  const [gcpLocationVal, setGcpLocationVal] = useState("us-central1");
+  const [saJsonVal, setSaJsonVal] = useState("");
+  const [refreshTokenVal, setRefreshTokenVal] = useState("");
+  const [accessTokenVal, setAccessTokenVal] = useState("");
+  const [cookieSessionKey, setCookieSessionKey] = useState("");
   const [oauthSession, setOauthSession] = useState<{auth_url: string; session_id: string; state: string}>();
   const [oauthCode, setOauthCode] = useState("");
+  const [oauthProjectID, setOauthProjectID] = useState("");
+  const [oauthType, setOauthType] = useState("");
+  const [oauthTierID, setOauthTierID] = useState("");
+  const [oauthRedirectURI, setOauthRedirectURI] = useState("");
   const [claudeMode, setClaudeMode] = useState<"oauth" | "setup-token">("oauth");
   const [importKind, setImportKind] = useState<"codex-session" | "codex-pat" | "grok-sso">("codex-session");
   const [importLines, setImportLines] = useState("");
@@ -87,8 +102,13 @@ export function AddAccountDialog({
             </Button>
           )}
           {mode === "apikey" && !reauthAccount && (
-            <Button type="submit" form={formID} busy={op.busy} disabled={!name.trim() || !apiKeyVal.trim()}>
+            <Button type="submit" form={formID} busy={op.busy} disabled={!name.trim()}>
               保存账号
+            </Button>
+          )}
+          {(mode === "token" || mode === "cookie") && !reauthAccount && (
+            <Button type="submit" form={formID} busy={op.busy} disabled={!name.trim()}>
+              创建账号
             </Button>
           )}
           {mode === "import" && !reauthAccount && (
@@ -100,23 +120,17 @@ export function AddAccountDialog({
       }
     >
       {!reauthAccount && (
-        <ChoiceCards
-          label="选择上游平台"
-          value={platform}
-          options={[
-            {value: "openai", title: "OpenAI", description: "Codex OAuth / Key / PAT"},
-            {value: "anthropic", title: "Anthropic", description: "Claude OAuth / Key"},
-            {value: "gemini", title: "Gemini", description: "Google OAuth / Key"},
-            {value: "antigravity", title: "Antigravity", description: "Companion OAuth"},
-            {value: "grok", title: "Grok", description: "xAI OAuth / SSO"},
-            {value: "deepseek", title: "DeepSeek", description: "API Key 直连"},
-          ]}
-          onChange={val => {
-            if (val !== platform) setGroupIDs([]);
-            setPlatform(val);
-            setOauthSession(undefined);
-          }}
-        />
+        <Field label="选择上游平台">
+          <PlatformSelect
+            value={platform}
+            clearable={false}
+            onChange={val => {
+              if (val !== platform) setGroupIDs([]);
+              setPlatform(val);
+              setOauthSession(undefined);
+            }}
+          />
+        </Field>
       )}
 
       {!reauthAccount && (
@@ -124,11 +138,13 @@ export function AddAccountDialog({
           label="接入方式"
           value={mode}
           options={[
-            ...(oauthSupported ? ([["oauth", "OAuth 服务端闭环授权"]] as const) : []),
-            ["apikey", "API Key 凭据"],
-            ["import", "Session / PAT / SSO 批量导入"],
+            ...(oauthSupported ? ([["oauth", "OAuth 授权"]] as const) : []),
+            ["token", "Token 直连"],
+            ...(platform === "anthropic" ? ([["cookie", "Claude Cookie"]] as const) : []),
+            ["apikey", "Key / 云凭据"],
+            ["import", "批量导入"],
           ]}
-          onChange={v => setMode(v as "oauth" | "apikey" | "import")}
+          onChange={v => setMode(v as "oauth" | "token" | "cookie" | "apikey" | "import")}
         />
       )}
 
@@ -221,6 +237,10 @@ export function AddAccountDialog({
                 session_id: oauthSession.session_id,
                 state: oauthSession.state,
                 code: oauthCode.trim(),
+                ...(oauthProjectID.trim() ? {project_id: oauthProjectID.trim()} : {}),
+                ...(oauthType.trim() ? {oauth_type: oauthType.trim()} : {}),
+                ...(oauthTierID.trim() ? {tier_id: oauthTierID.trim()} : {}),
+                ...(oauthRedirectURI.trim() ? {redirect_uri: oauthRedirectURI.trim()} : {}),
                 ...(reauthAccount ? {account_id: reauthAccount.id} : {name: name.trim(), group_ids: groupIDs}),
                 ...(proxyID ? {proxy_id: Number(proxyID)} : {}),
               });
@@ -242,6 +262,14 @@ export function AddAccountDialog({
                 />
               </Field>
             )}
+            <CollapsibleSection title="高级 OAuth 参数（可选）" summary="project_id / oauth_type / tier_id / redirect_uri">
+              <FormGrid>
+                <Field label="Project ID"><Input value={oauthProjectID} onChange={e => setOauthProjectID(e.target.value)} placeholder="可选" /></Field>
+                <Field label="OAuth Type"><Input value={oauthType} onChange={e => setOauthType(e.target.value)} placeholder="可选" /></Field>
+                <Field label="Tier ID"><Input value={oauthTierID} onChange={e => setOauthTierID(e.target.value)} placeholder="可选" /></Field>
+                <Field label="Redirect URI"><Input value={oauthRedirectURI} onChange={e => setOauthRedirectURI(e.target.value)} placeholder="可选" /></Field>
+              </FormGrid>
+            </CollapsibleSection>
             <InsetRow label="第 1 步：生成官方授权链接">
               <Button
                 type="button"
@@ -258,6 +286,10 @@ export function AddAccountDialog({
                         platform,
                         mode: platform === "anthropic" ? claudeMode : undefined,
                         ...(proxyID ? {proxy_id: Number(proxyID)} : {}),
+                        ...(oauthProjectID.trim() ? {project_id: oauthProjectID.trim()} : {}),
+                        ...(oauthType.trim() ? {oauth_type: oauthType.trim()} : {}),
+                        ...(oauthTierID.trim() ? {tier_id: oauthTierID.trim()} : {}),
+                        ...(oauthRedirectURI.trim() ? {redirect_uri: oauthRedirectURI.trim()} : {}),
                       },
                     );
                     setOauthSession(res);
@@ -278,20 +310,76 @@ export function AddAccountDialog({
         </Form>
       )}
 
+      {mode === "token" && !reauthAccount && (
+        <Form
+          id={formID}
+          busy={op.busy}
+          onSubmit={() => void op.run(async () => {
+            const credentials: Record<string, string> = {};
+            if (refreshTokenVal.trim()) credentials.refresh_token = refreshTokenVal.trim();
+            if (accessTokenVal.trim()) credentials.access_token = accessTokenVal.trim();
+            const created = await api("/admin/accounts", account, "POST", {
+              name: name.trim(),
+              platform,
+              type: "oauth",
+              credentials,
+              ...(proxyID ? {proxy_id: Number(proxyID)} : {}),
+              group_ids: groupIDs,
+            });
+            onCreated(created.id);
+          })}
+        >
+          <FormSection title="直接录入 Refresh / Access Token">
+            <Field label="Refresh Token"><PasswordInput toggleLabel="Refresh Token" autoComplete="new-password" value={refreshTokenVal} onChange={e => setRefreshTokenVal(e.target.value)} placeholder="rt_..." /></Field>
+            <Field label="Access Token（可选）"><PasswordInput toggleLabel="Access Token" autoComplete="new-password" value={accessTokenVal} onChange={e => setAccessTokenVal(e.target.value)} placeholder="eyJ..." /></Field>
+          </FormSection>
+          <ErrorLine value={op.error} />
+        </Form>
+      )}
+
+      {mode === "cookie" && !reauthAccount && (
+        <Form
+          id={formID}
+          busy={op.busy}
+          onSubmit={() => void op.run(async () => {
+            const created = await api("/admin/accounts/oauth/cookie-auth", account, "POST", {
+              name: name.trim(),
+              session_key: cookieSessionKey.trim(),
+              mode: claudeMode,
+              ...(proxyID ? {proxy_id: Number(proxyID)} : {}),
+              group_ids: groupIDs,
+            });
+            onCreated(created.id);
+          })}
+        >
+          <FormSection title="Claude Cookie / SessionKey 授权">
+            <Field label="SessionKey">
+              <PasswordInput required toggleLabel="SessionKey" autoComplete="new-password" value={cookieSessionKey} onChange={e => setCookieSessionKey(e.target.value)} placeholder="sk-ant-sid01-..." />
+            </Field>
+          </FormSection>
+          <ErrorLine value={op.error} />
+        </Form>
+      )}
+
       {mode === "apikey" && !reauthAccount && (
         <Form
           id={formID}
           busy={op.busy}
           onSubmit={() =>
             void op.run(async () => {
+              let credentials: Record<string, string> = {};
+              if (accountType === "bedrock") {
+                credentials = {region: regionVal.trim(), access_key_id: accessKeyIDVal.trim(), secret_access_key: secretAccessKeyVal.trim()};
+              } else if (accountType === "service_account") {
+                credentials = {project_id: gcpProjectIDVal.trim(), location: gcpLocationVal.trim(), service_account_json: saJsonVal.trim()};
+              } else {
+                credentials = {api_key: apiKeyVal.trim(), ...(baseUrlVal.trim() ? {base_url: baseUrlVal.trim()} : {})};
+              }
               const created = await api("/admin/accounts", account, "POST", {
                 name: name.trim(),
                 platform,
-                type: "apikey",
-                credentials: {
-                  api_key: apiKeyVal.trim(),
-                  ...(baseUrlVal.trim() ? {base_url: baseUrlVal.trim()} : {}),
-                },
+                type: accountType,
+                credentials,
                 ...(proxyID ? {proxy_id: Number(proxyID)} : {}),
                 group_ids: groupIDs,
               });
@@ -299,13 +387,37 @@ export function AddAccountDialog({
             })
           }
         >
-          <FormSection title="API Key 凭据录入">
-            <Field label="上游 API Key">
-              <PasswordInput required toggleLabel="API Key" autoComplete="new-password" value={apiKeyVal} onChange={e => setApiKeyVal(e.target.value)} placeholder="sk-..." />
+          <FormSection title="凭据类型与密钥录入">
+            <Field label="账号类型">
+              <Select value={accountType} onChange={e => setAccountType(e.target.value as "apikey" | "upstream" | "bedrock" | "service_account")}>
+                <option value="apikey">API Key (apikey)</option>
+                <option value="upstream">上游中转 (upstream)</option>
+                <option value="bedrock">AWS Bedrock (bedrock)</option>
+                <option value="service_account">GCP Service Account (service_account)</option>
+              </Select>
             </Field>
-            <Field label="自定义 Base URL（可选）">
-              <Input value={baseUrlVal} onChange={e => setBaseUrlVal(e.target.value)} placeholder="留空使用平台官方网关" />
-            </Field>
+            {(accountType === "apikey" || accountType === "upstream") && <>
+              <Field label="上游 API Key">
+                <PasswordInput required toggleLabel="API Key" autoComplete="new-password" value={apiKeyVal} onChange={e => setApiKeyVal(e.target.value)} placeholder="sk-..." />
+              </Field>
+              <Field label="自定义 Base URL（可选）">
+                <Input value={baseUrlVal} onChange={e => setBaseUrlVal(e.target.value)} placeholder="留空使用平台官方网关" />
+              </Field>
+            </>}
+            {accountType === "bedrock" && (
+              <FormGrid>
+                <Field label="AWS Region"><Input required value={regionVal} onChange={e => setRegionVal(e.target.value)} /></Field>
+                <Field label="Access Key ID"><Input required value={accessKeyIDVal} onChange={e => setAccessKeyIDVal(e.target.value)} /></Field>
+                <Field label="Secret Access Key"><PasswordInput required toggleLabel="Secret Access Key" autoComplete="new-password" value={secretAccessKeyVal} onChange={e => setSecretAccessKeyVal(e.target.value)} /></Field>
+              </FormGrid>
+            )}
+            {accountType === "service_account" && (
+              <FormGrid>
+                <Field label="GCP Project ID"><Input required value={gcpProjectIDVal} onChange={e => setGcpProjectIDVal(e.target.value)} /></Field>
+                <Field label="GCP Location"><Input required value={gcpLocationVal} onChange={e => setGcpLocationVal(e.target.value)} /></Field>
+                <Field label="Service Account JSON"><Textarea rows={3} required value={saJsonVal} onChange={e => setSaJsonVal(e.target.value)} /></Field>
+              </FormGrid>
+            )}
           </FormSection>
           <ErrorLine value={op.error} />
         </Form>

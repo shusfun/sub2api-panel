@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -65,6 +66,7 @@ func (h *handler) registerAccountRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "POST /api/admin/accounts/batch-refresh", true, h.batchAccountIDsAction("/admin/accounts/batch-refresh"))
 	h.s.Route(mux, "POST /api/admin/accounts/oauth/start", true, h.oauthStart)
 	h.s.Route(mux, "POST /api/admin/accounts/oauth/complete", true, h.oauthComplete)
+	h.s.Route(mux, "POST /api/admin/accounts/oauth/cookie-auth", true, h.oauthCookieAuth)
 	h.s.Route(mux, "POST /api/admin/accounts/import", true, h.importAccounts)
 }
 
@@ -164,22 +166,29 @@ func (h *handler) updateAdminAccount(w http.ResponseWriter, r *http.Request, a c
 	if err != nil {
 		return err
 	}
-	if len(input.Credentials) > 0 {
-		current, err := platform.Upstream[AccountDetailWire](r.Context(), h.s.Upstream, "GET", fmt.Sprintf("/admin/accounts/%d", id), a.Tokens.Access, "", "", nil)
+	if len(input.Credentials) > 0 || input.Extra != nil {
+		current, err := platform.Upstream[struct {
+			ID          int64                      `json:"id"`
+			Credentials map[string]json.RawMessage `json:"credentials"`
+			Extra       map[string]json.RawMessage `json:"extra"`
+		}](r.Context(), h.s.Upstream, "GET", fmt.Sprintf("/admin/accounts/%d", id), a.Tokens.Access, "", "", nil)
 		if err != nil {
 			return err
 		}
 		if current.ID != id {
 			return platform.Fail(502, "invalid_upstream")
 		}
-		merged := make(map[string]any, len(current.Credentials)+len(input.Credentials))
-		for key, value := range current.Credentials {
-			merged[key] = value
+		if len(input.Credentials) > 0 {
+			body["credentials"] = mergeAccountCredentials(current.Credentials, input.Credentials)
 		}
-		for key, value := range input.Credentials {
-			merged[key] = value
+		if input.Extra != nil {
+			mergedExtra := make(map[string]any, len(current.Extra)+10)
+			for key, value := range current.Extra {
+				mergedExtra[key] = value
+			}
+			input.Extra.applyTo(mergedExtra)
+			body["extra"] = mergedExtra
 		}
-		body["credentials"] = merged
 	}
 	raw, err := platform.Upstream[AccountDetailWire](r.Context(), h.s.Upstream, "PUT", fmt.Sprintf("/admin/accounts/%d", id), a.Tokens.Access, "", "", body)
 	if err != nil {
@@ -265,6 +274,47 @@ func (h *handler) refreshAdminAccount(w http.ResponseWriter, r *http.Request, a 
 	return platform.Send(w, 200, view, err)
 }
 
+func mergeAccountCredentials(current map[string]json.RawMessage, patch map[string]any) map[string]any {
+	secretKeys := map[string]bool{
+		"api_key": true, "secret_access_key": true, "session_token": true,
+		"service_account_json": true, "refresh_token": true, "access_token": true,
+	}
+	merged := make(map[string]any, len(current)+len(patch))
+	for key, value := range current {
+		merged[key] = value
+	}
+	for key, value := range patch {
+		if key == "custom_headers" {
+			var existing map[string]string
+			_ = json.Unmarshal(current["custom_headers"], &existing)
+			if incoming, ok := value.(map[string]any); ok {
+				next := make(map[string]string, len(incoming))
+				for hk, hv := range incoming {
+					s, _ := hv.(string)
+					if s == "" && existing != nil {
+						if prev, exists := existing[hk]; exists {
+							next[hk] = prev
+							continue
+						}
+					}
+					if s != "" {
+						next[hk] = s
+					}
+				}
+				merged["custom_headers"] = next
+				continue
+			}
+		}
+		if secretKeys[key] {
+			if s, ok := value.(string); ok && strings.TrimSpace(s) == "" {
+				continue
+			}
+		}
+		merged[key] = value
+	}
+	return merged
+}
+
 func (h *handler) clearTempUnschedulable(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
 	id, err := platform.PathID(r, "id")
 	if err != nil {
@@ -272,48 +322,6 @@ func (h *handler) clearTempUnschedulable(w http.ResponseWriter, r *http.Request,
 	}
 	_, err = platform.Upstream[struct{}](r.Context(), h.s.Upstream, "DELETE", fmt.Sprintf("/admin/accounts/%d/temp-unschedulable", id), a.Tokens.Access, "", "", nil)
 	return platform.Send(w, 200, struct{}{}, err)
-}
-
-func (h *handler) batchAccountQuota(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	input, err := platform.DecodeBody[struct {
-		AccountIDs []int64 `json:"account_ids"`
-		Force      bool    `json:"force,omitempty"`
-	}](r)
-	if err != nil || len(input.AccountIDs) == 0 || len(input.AccountIDs) > 100 {
-		return platform.Fail(400, "invalid_input")
-	}
-	for _, id := range input.AccountIDs {
-		if id < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-	}
-	raw, err := platform.Upstream[struct {
-		Usage  map[string]accountQuotaWire `json:"usage"`
-		Errors map[string]string           `json:"errors"`
-	}](r.Context(), h.s.Upstream, "POST", "/admin/accounts/usage/batch", a.Tokens.Access, "", "", map[string]any{
-		"account_ids": input.AccountIDs,
-		"force":       input.Force,
-	})
-	if err != nil {
-		return err
-	}
-	quotas := make(map[string]accountQuotaView, len(raw.Usage))
-	for id, item := range raw.Usage {
-		if parsed, pErr := strconv.ParseInt(id, 10, 64); pErr == nil && parsed > 0 {
-			quotas[id] = projectQuotaInfo(item)
-		}
-	}
-	unavailable := make([]int64, 0, len(raw.Errors))
-	for id := range raw.Errors {
-		if parsed, pErr := strconv.ParseInt(id, 10, 64); pErr == nil && parsed > 0 {
-			unavailable = append(unavailable, parsed)
-		}
-	}
-	platform.WriteJSON(w, 200, struct {
-		Quotas      map[string]accountQuotaView `json:"quotas"`
-		Unavailable []int64                     `json:"unavailable"`
-	}{Quotas: quotas, Unavailable: unavailable})
-	return nil
 }
 
 func (h *handler) refreshAccountBalance(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
@@ -414,109 +422,4 @@ func (h *handler) syncAdminAccountModels(w http.ResponseWriter, r *http.Request,
 		res.Models = []string{}
 	}
 	return platform.Send(w, 200, res, err)
-}
-
-func (h *handler) bulkUpdateAccounts(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	input, err := platform.DecodeBody[struct {
-		AccountIDs     []int64  `json:"account_ids"`
-		GroupIDs       *[]int64 `json:"group_ids,omitempty"`
-		ProxyID        *int64   `json:"proxy_id,omitempty"`
-		ClearProxy     bool     `json:"clear_proxy,omitempty"`
-		Concurrency    *int     `json:"concurrency,omitempty"`
-		Priority       *int     `json:"priority,omitempty"`
-		RateMultiplier *float64 `json:"rate_multiplier,omitempty"`
-		Schedulable    *bool    `json:"schedulable,omitempty"`
-		Status         string   `json:"status,omitempty"`
-	}](r)
-	if err != nil || len(input.AccountIDs) == 0 || len(input.AccountIDs) > 200 {
-		return platform.Fail(400, "invalid_input")
-	}
-	for _, id := range input.AccountIDs {
-		if id < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-	}
-	body := map[string]any{"account_ids": input.AccountIDs}
-	if input.GroupIDs != nil {
-		body["group_ids"] = *input.GroupIDs
-	}
-	if input.ClearProxy {
-		body["proxy_id"] = nil
-	} else if input.ProxyID != nil {
-		if *input.ProxyID < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-		body["proxy_id"] = *input.ProxyID
-	}
-	if input.Concurrency != nil {
-		if *input.Concurrency < 0 || *input.Concurrency > 10000 {
-			return platform.Fail(400, "invalid_input")
-		}
-		body["concurrency"] = *input.Concurrency
-	}
-	if input.Priority != nil {
-		body["priority"] = *input.Priority
-	}
-	if input.RateMultiplier != nil {
-		if *input.RateMultiplier < 0 {
-			return platform.Fail(400, "invalid_input")
-		}
-		body["rate_multiplier"] = *input.RateMultiplier
-	}
-	if input.Schedulable != nil {
-		body["schedulable"] = *input.Schedulable
-	}
-	if input.Status != "" {
-		if input.Status != "active" && input.Status != "inactive" {
-			return platform.Fail(400, "invalid_input")
-		}
-		body["status"] = input.Status
-	}
-	if len(body) == 1 {
-		return platform.Fail(400, "invalid_input")
-	}
-	res, err := platform.Upstream[struct {
-		Success int `json:"success"`
-		Failed  int `json:"failed"`
-	}](r.Context(), h.s.Upstream, "POST", "/admin/accounts/bulk-update", a.Tokens.Access, "", "", body)
-	return platform.Send(w, 200, res, err)
-}
-
-func (h *handler) batchDeleteAccounts(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	input, err := platform.DecodeBody[struct {
-		IDs []int64 `json:"ids"`
-	}](r)
-	if err != nil || len(input.IDs) == 0 || len(input.IDs) > 200 {
-		return platform.Fail(400, "invalid_input")
-	}
-	for _, id := range input.IDs {
-		if id < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-	}
-	res, err := platform.Upstream[struct {
-		Deleted int `json:"deleted"`
-	}](r.Context(), h.s.Upstream, "POST", "/admin/accounts/batch-delete", a.Tokens.Access, "", "", map[string]any{"account_ids": input.IDs, "ids": input.IDs})
-	return platform.Send(w, 200, res, err)
-}
-
-func (h *handler) batchAccountIDsAction(path string) core.Task {
-	return func(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-		input, err := platform.DecodeBody[struct {
-			IDs []int64 `json:"ids"`
-		}](r)
-		if err != nil || len(input.IDs) == 0 || len(input.IDs) > 200 {
-			return platform.Fail(400, "invalid_input")
-		}
-		for _, id := range input.IDs {
-			if id < 1 {
-				return platform.Fail(400, "invalid_input")
-			}
-		}
-		res, err := platform.Upstream[struct {
-			Success int `json:"success"`
-			Failed  int `json:"failed"`
-		}](r.Context(), h.s.Upstream, "POST", path, a.Tokens.Access, "", "", map[string]any{"account_ids": input.IDs, "ids": input.IDs})
-		return platform.Send(w, 200, res, err)
-	}
 }

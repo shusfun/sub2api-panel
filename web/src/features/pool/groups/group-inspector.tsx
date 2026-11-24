@@ -112,7 +112,7 @@ export function GroupInspector({
   );
 }
 
-function GroupCoreForm({
+export function GroupCoreForm({
   grp,
   revision,
   onSaved,
@@ -132,6 +132,14 @@ function GroupCoreForm({
   const [exclusive, setExclusive] = useState(grp.is_exclusive);
   const [active, setActive] = useState(grp.status === "active");
   const [fallbackID, setFallbackID] = useState(grp.fallback_group_id ? String(grp.fallback_group_id) : "");
+  const [invalidFallbackID, setInvalidFallbackID] = useState(grp.fallback_group_id_on_invalid_request ? String(grp.fallback_group_id_on_invalid_request) : "");
+  const [claudeCodeOnly, setClaudeCodeOnly] = useState(grp.claude_code_only);
+  const [requireOAuthOnly, setRequireOAuthOnly] = useState(grp.require_oauth_only);
+  const [allowMessagesDispatch, setAllowMessagesDispatch] = useState(grp.allow_messages_dispatch);
+  const [allowBatchImage, setAllowBatchImage] = useState(grp.allow_batch_image_generation);
+  const [longContext, setLongContext] = useState(grp.long_context_pricing_enabled);
+  const [defaultMappedModel, setDefaultMappedModel] = useState(grp.default_mapped_model || "");
+  const [maxReasoningEffort, setMaxReasoningEffort] = useState(grp.max_reasoning_effort || "");
   const [allowlistOn, setAllowlistOn] = useState(grp.model_allowlist.enabled);
   const [models, setModels] = useState<string[]>(grp.model_allowlist.models);
   const [dailyLimit, setDailyLimit] = useState(grp.daily_limit_usd !== null ? String(grp.daily_limit_usd) : "");
@@ -157,6 +165,14 @@ function GroupCoreForm({
           rate_multiplier: Number(rate || 1),
           rpm_limit: Number(rpm || 0),
           ...(fallbackID ? {fallback_group_id: Number(fallbackID)} : {clear_fallback_group: true}),
+          ...(invalidFallbackID ? {fallback_group_id_on_invalid_request: Number(invalidFallbackID)} : {clear_invalid_fallback_group: true}),
+          claude_code_only: claudeCodeOnly,
+          require_oauth_only: requireOAuthOnly,
+          allow_messages_dispatch: allowMessagesDispatch,
+          allow_batch_image_generation: allowBatchImage,
+          long_context_pricing_enabled: longContext,
+          default_mapped_model: defaultMappedModel.trim(),
+          max_reasoning_effort: maxReasoningEffort.trim(),
           model_allowlist: {enabled: allowlistOn, models},
           ...(subType === "subscription" ? {
             ...(dailyLimit ? {daily_limit_usd: Number(dailyLimit)} : {clear_daily_limit: true}),
@@ -186,9 +202,26 @@ function GroupCoreForm({
         <InsetRow label="专属分组（仅授权用户可见）">
           <Switch label="专属分组" checked={exclusive} onChange={setExclusive} />
         </InsetRow>
-        <Field label="故障兜底分组">
-          <GroupSelect value={fallbackID} placeholder="不配置兜底" onChange={setFallbackID} />
-        </Field>
+        <FormGrid>
+          <Field label="故障兜底分组">
+            <GroupSelect value={fallbackID} placeholder="不配置兜底" onChange={setFallbackID} />
+          </Field>
+          <Field label="无效请求兜底分组">
+            <GroupSelect value={invalidFallbackID} placeholder="不配置无效兜底" onChange={setInvalidFallbackID} />
+          </Field>
+        </FormGrid>
+      </FormSection>
+
+      <FormSection title="调度约束与协议控制">
+        <InsetRow label="仅允许 Claude Code 客户端"><Switch label="仅 Claude Code" checked={claudeCodeOnly} onChange={setClaudeCodeOnly} /></InsetRow>
+        <InsetRow label="仅调度 OAuth 账号"><Switch label="仅 OAuth" checked={requireOAuthOnly} onChange={setRequireOAuthOnly} /></InsetRow>
+        <InsetRow label="允许 /v1/messages 协议分发"><Switch label="允许 Messages 分发" checked={allowMessagesDispatch} onChange={setAllowMessagesDispatch} /></InsetRow>
+        <InsetRow label="允许批量图像生成 (Batch Image)"><Switch label="允许批量生图" checked={allowBatchImage} onChange={setAllowBatchImage} /></InsetRow>
+        <InsetRow label="启用长上下文阶梯计费"><Switch label="长上下文计费" checked={longContext} onChange={setLongContext} /></InsetRow>
+        <FormGrid>
+          <Field label="默认映射模型"><Input value={defaultMappedModel} onChange={e => setDefaultMappedModel(e.target.value)} placeholder="留空不映射" /></Field>
+          <Field label="最大推理强度 (max_reasoning_effort)"><Input value={maxReasoningEffort} onChange={e => setMaxReasoningEffort(e.target.value)} placeholder="low / medium / high" /></Field>
+        </FormGrid>
       </FormSection>
 
       <FormSection title="模型访问白名单">

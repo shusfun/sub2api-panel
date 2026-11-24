@@ -1,10 +1,10 @@
 import {useEffect, useMemo, useState} from "react";
-import {Plus} from "lucide-react";
+import {ArrowDown, ArrowUp, Plus} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
-import {adminGroupRow, channelRowSchema} from "@/schemas";
+import {adminGroupRow, channelRowSchema, empty} from "@/schemas";
 import {count, smartMoney} from "@/lib/format";
-import {useDebouncedValue, useResource} from "@/lib/requests";
+import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
 import {navigateTo} from "@/app/route";
 import {
   Badge,
@@ -15,20 +15,25 @@ import {
   FilterSlot,
   InlineStack,
   Inspector,
+  MeterBar,
   PlatformBadge,
   PlatformSelect,
   RefreshButton,
   RemoteTable,
+  RouteChain,
+  RowActions,
   SearchInput,
   SegmentBar,
   Segmented,
   Status,
   WorkspaceStage,
+  toast,
   type Column,
 } from "@/ui";
 import {groupBriefSchema, type ChannelRow, type GroupRow} from "@/features/pool/shared";
 import {ChannelInspector} from "./channel-inspector";
 import {CreateChannelDialog, CreateGroupDialog} from "./group-dialogs";
+import {GroupDetailWorkspace} from "./group-detail";
 import {GroupInspector} from "./group-inspector";
 
 type GroupView = "groups" | "pricing";
@@ -48,6 +53,14 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
 
   const debouncedSearch = useDebouncedValue(search.trim(), 240);
   const refresh = () => revise(v => v + 1);
+  const reorderOp = useAction();
+
+  const inspectGroupFromURL = useMemo(() => {
+    const params = new URLSearchParams(queryString);
+    if (params.get("view") === "pricing") return 0;
+    const id = Number(params.get("inspect") ?? 0);
+    return id > 0 ? id : 0;
+  }, [queryString]);
 
   useEffect(() => {
     const params = new URLSearchParams(queryString);
@@ -59,7 +72,37 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
     }
   }, [queryString]);
 
-  const allGroups = useResource(() => api("/admin/groups/all", z.array(groupBriefSchema)), "group-names", view === "pricing", revision);
+  const allGroups = useResource(() => api("/admin/groups/all", z.array(groupBriefSchema)), "group-names", true, revision);
+  const groupNameByID = useMemo(() => new Map((allGroups?.value ?? []).map(g => [g.id, g.name])), [allGroups?.value]);
+
+  async function moveGroup(rowID: number, dir: -1 | 1) {
+    const idx = groupRows.findIndex(r => r.id === rowID);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= groupRows.length) return;
+    const next = [...groupRows];
+    const [moved] = next.splice(idx, 1);
+    next.splice(swapIdx, 0, moved);
+    await reorderOp.run(async () => {
+      await api("/admin/groups/sort-order", empty, "PUT", {
+        updates: next.map((g, i) => ({id: g.id, sort_order: i + 1})),
+      });
+      toast("分组排序已更新");
+      refresh();
+    });
+  }
+
+  if (inspectGroupFromURL > 0) {
+    return (
+      <GroupDetailWorkspace
+        key={`grp-page-${inspectGroupFromURL}`}
+        id={inspectGroupFromURL}
+        revision={revision}
+        onBack={() => navigateTo("groups")}
+        onChanged={refresh}
+        onDeleted={() => { navigateTo("groups"); refresh(); }}
+      />
+    );
+  }
 
   const groupQuery = useMemo(() => {
     const p = new URLSearchParams();
@@ -112,8 +155,41 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
         ? <Badge variant="soft" tone={row.health === "healthy" ? "ok" : row.health === "critical" ? "bad" : row.health === "warning" ? "warn" : "neutral"}>{Math.round(row.health_score)} 分</Badge>
         : <span className="muted">无样本</span>,
     },
+    {
+      id: "route",
+      title: "调度兜底链",
+      hideWhenNarrow: true,
+      render: row => {
+        const nodes: string[] = [row.name];
+        if (row.fallback_group_id) nodes.push(groupNameByID.get(row.fallback_group_id) ?? `#${row.fallback_group_id}`);
+        if (row.fallback_group_id_on_invalid_request) nodes.push(`无效:${groupNameByID.get(row.fallback_group_id_on_invalid_request) ?? `#${row.fallback_group_id_on_invalid_request}`}`);
+        return nodes.length > 1 ? <RouteChain nodes={nodes} /> : <span className="muted">直出</span>;
+      },
+    },
+    {
+      id: "load",
+      title: "并发 / RPM",
+      hideWhenCompact: true,
+      render: row => (
+        <div className="meter-col">
+          <MeterBar label={`并发 ${row.concurrency_used}/${row.concurrency_max}`} value={row.concurrency_max > 0 ? Math.min(100, Math.round((row.concurrency_used / row.concurrency_max) * 100)) : 0} />
+          {row.rpm_max > 0 && <MeterBar label={`RPM ${row.rpm_used}/${row.rpm_max}`} value={Math.min(100, Math.round((row.rpm_used / row.rpm_max) * 100))} />}
+        </div>
+      ),
+    },
     {id: "cost", title: "今日 / 累计", align: "number", hideWhenCompact: true, render: row => `${smartMoney(row.today_cost)} / ${smartMoney(row.total_cost)}`},
     {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
+    {
+      id: "sort",
+      title: "排序",
+      align: "end",
+      render: row => (
+        <RowActions>
+          <Button size="icon-xs" variant="ghost" title="上移" aria-label={`上移 ${row.name}`} busy={reorderOp.busy} onClick={() => void moveGroup(row.id, -1)}><ArrowUp /></Button>
+          <Button size="icon-xs" variant="ghost" title="下移" aria-label={`下移 ${row.name}`} busy={reorderOp.busy} onClick={() => void moveGroup(row.id, 1)}><ArrowDown /></Button>
+        </RowActions>
+      ),
+    },
   ];
 
   const channelCols: Column<ChannelRow>[] = [
@@ -226,6 +302,7 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
 
       <CreateGroupDialog
         open={createOpen && view === "groups"}
+        revision={revision}
         onClose={() => setCreateOpen(false)}
         onCreated={grp => { setCreateOpen(false); refresh(); setInspect({kind: "group", id: grp.id}); }}
       />

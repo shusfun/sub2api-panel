@@ -9,6 +9,7 @@ import {
   Button,
   ConfirmDialog,
   CopyButton,
+  CronField,
   ErrorLine,
   Feedback,
   Field,
@@ -229,11 +230,13 @@ export function AccountScheduledTests({accountID}: {accountID: number}) {
   const results = useResource(() => api(path + "/" + resultsID + "/results", scheduledResults), path + "/" + resultsID, !!resultsID);
   const action = useAction();
   const [model, setModel] = useState("");
+  const [cronExpr, setCronExpr] = useState("0 */6 * * *");
   const [planEnabled, setPlanEnabled] = useState(true);
   const [autoRecover, setAutoRecover] = useState(false);
   const openEditor = (plan?: z.infer<typeof scheduledTest>) => {
     action.clearError();
     setModel(plan?.model_id ?? "");
+    setCronExpr(plan?.cron_expression ?? "0 */6 * * *");
     setPlanEnabled(plan?.enabled ?? true);
     setAutoRecover(plan?.auto_recover ?? false);
     setEditing(plan ?? {id: 0, model_id: "", cron_expression: "0 */6 * * *", enabled: true, auto_recover: false, next_run_at: null});
@@ -256,18 +259,17 @@ export function AccountScheduledTests({accountID}: {accountID: number}) {
       <Button variant="outline" onClick={() => setEditing(undefined)}>取消</Button>
       <Button type="submit" form={formID} busy={action.busy}>保存计划</Button>
     </>}>
-      <Form id={formID} onSubmit={event => {
-        const values = new FormData(event.currentTarget);
+      <Form id={formID} onSubmit={() => {
         void action.run(async () => {
           await api(editing.id ? path + "/" + editing.id : path, scheduledTest, editing.id ? "PUT" : "POST", {
-            model_id: model, cron_expression: String(values.get("cron")), enabled: planEnabled, auto_recover: autoRecover,
+            model_id: model, cron_expression: cronExpr.trim(), enabled: planEnabled, auto_recover: autoRecover,
           });
           setEditing(undefined);
           revise(value => value + 1);
         });
       }}>
         <Field label="测活模型"><Input value={model} onChange={event => setModel(event.target.value)} maxLength={200} placeholder="留空使用默认模型" /></Field>
-        <Field label="Cron 表达式"><Input name="cron" defaultValue={editing.cron_expression} required maxLength={100} /></Field>
+        <Field label="执行周期 (Cron)"><CronField value={cronExpr} onChange={setCronExpr} /></Field>
         <InsetRow label="启用计划"><Switch label="启用计划" checked={planEnabled} onChange={setPlanEnabled} /></InsetRow>
         <InsetRow label="成功后自动恢复"><Switch label="成功后自动恢复" checked={autoRecover} onChange={setAutoRecover} /></InsetRow>
         <ErrorLine value={action.error} />

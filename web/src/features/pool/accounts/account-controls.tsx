@@ -30,7 +30,28 @@ import {
   toast,
   type ViewMode,
 } from "@/ui";
-import {statusPills, type AccountRow} from "@/features/pool/shared";
+import {type AccountRow} from "@/features/pool/shared";
+
+const accountStatusPills = [
+  {value: "", label: "全部"},
+  {value: "active", label: "正常"},
+  {value: "rate_limited", label: "限流"},
+  {value: "overloaded", label: "过载"},
+  {value: "unschedulable", label: "不可调度"},
+  {value: "expired", label: "已到期"},
+  {value: "error", label: "异常"},
+  {value: "inactive", label: "已停用"},
+];
+
+const accountTypeOptions = [
+  {value: "", label: "全部类型"},
+  {value: "oauth", label: "OAuth"},
+  {value: "setup-token", label: "Setup Token"},
+  {value: "apikey", label: "API Key"},
+  {value: "upstream", label: "上游中转"},
+  {value: "bedrock", label: "AWS Bedrock"},
+  {value: "service_account", label: "GCP SA"},
+];
 import {
   accountProblem,
   canRefreshBalance,
@@ -50,6 +71,7 @@ export function AccountWorkspaceHeader({
   platform,
   providerPills,
   status,
+  typeFilter = "",
   view,
   defaultWindow,
   quotaDisplay,
@@ -83,6 +105,7 @@ export function AccountWorkspaceHeader({
   platform: string;
   providerPills: {value: string; label: string}[];
   status: string;
+  typeFilter?: string;
   view: ViewMode;
   defaultWindow: UsageWindow;
   quotaDisplay: QuotaDisplay;
@@ -123,7 +146,7 @@ export function AccountWorkspaceHeader({
             ? [
                 {id: "limited", label: "限流中", value: count.format(totals.rate_limited), tone: (totals.rate_limited ? "warn" : "neutral") as "warn" | "neutral", onClick: () => onSetStatus("rate_limited")},
                 {id: "error", label: "异常", value: count.format(totals.error), tone: (totals.error ? "bad" : "neutral") as "bad" | "neutral", onClick: () => onSetStatus("error")},
-                {id: "overloaded", label: "过载", value: count.format(totals.overloaded), tone: (totals.overloaded ? "warn" : "neutral") as "warn" | "neutral"},
+                {id: "overloaded", label: "过载", value: count.format(totals.overloaded), tone: (totals.overloaded ? "warn" : "neutral") as "warn" | "neutral", onClick: () => onSetStatus("overloaded")},
               ]
             : [
                 {id: "health", label: "异常与限流", value: totals ? "无异常" : null, hint: totals ? "限流 · 报错 · 过载均为 0" : undefined, tone: "ok" as const},
@@ -133,7 +156,7 @@ export function AccountWorkspaceHeader({
       <FilterBar sticky>
         <div className="obs-filter-row">
           <QuickPills label="上游平台" value={platform} options={providerPills} onChange={value => onUpdateQuery({platform: value})} />
-          <QuickPills label="状态筛选" value={status} options={statusPills} onChange={value => onUpdateQuery({status: value})} />
+          <QuickPills label="状态筛选" value={status} options={accountStatusPills} onChange={value => onUpdateQuery({status: value})} />
           <div className="obs-filter-spacer">
             {view === "card" && (
               <>
@@ -170,6 +193,11 @@ export function AccountWorkspaceHeader({
           <FilterSlot><GroupSelect value={groupFilter} placeholder="全部分组" onChange={value => onUpdateQuery({group: value})} /></FilterSlot>
           <FilterSlot><ProxySelect value={proxyFilter} placeholder="全部代理" onChange={value => onUpdateQuery({proxy: value})} /></FilterSlot>
           <FilterSlot>
+            <Select aria-label="账号类型" value={typeFilter} onChange={event => onUpdateQuery({type: event.target.value})}>
+              {accountTypeOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </Select>
+          </FilterSlot>
+          <FilterSlot>
             <Select aria-label="账号排序" value={sort} onChange={event => onUpdateQuery({sort: event.target.value})}>
               {sortOptions.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
             </Select>
@@ -186,16 +214,19 @@ export function AccountWorkspaceHeader({
       </Toolbar>
 
       <BatchBar count={selected.length} onClear={onClearSelected}>
-        <Button size="xs" variant="outline" onClick={onBulkBindOpen}>改分组 / 代理</Button>
+        <Button size="xs" variant="outline" onClick={onBulkBindOpen}>批量参数 / 分组</Button>
         {(
           [
             ["batch-clear-error", "清错", {ids: selected}, "已清错"],
             ["batch-refresh", "刷新凭据", {ids: selected}, "已刷新凭据"],
             ["bulk-update", "暂停调度", {account_ids: selected, schedulable: false}, "已暂停调度"],
+            ["bulk-update", "恢复调度", {account_ids: selected, schedulable: true}, "已恢复调度"],
+            ["bulk-update", "批量启用", {account_ids: selected, status: "active"}, "已启用"],
+            ["bulk-update", "批量停用", {account_ids: selected, status: "inactive"}, "已停用"],
           ] as const
         ).map(([path, label, body, done]) => (
           <Button
-            key={path}
+            key={label}
             size="xs"
             variant="outline"
             busy={batchBusy}

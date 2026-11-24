@@ -13,10 +13,30 @@ export const accountBalance = z.object({
   billing: z.object({effective_multiplier: z.number(), observed_at: z.string(), stale: z.boolean().optional()}).optional(),
 });
 
+export const accountExtraSchema = z.object({
+  window_cost_limit: z.number().nullable().optional(),
+  window_cost_sticky_reserve: z.number().nullable().optional(),
+  daily_quota: z.number().nullable().optional(),
+  total_quota: z.number().nullable().optional(),
+  max_sessions: z.number().nullable().optional(),
+  rpm_limit: z.number().nullable().optional(),
+  codex_cli_only: z.boolean().optional().default(false),
+  tls_fingerprint: z.boolean().optional().default(false),
+  intercept_warmup: z.boolean().optional().default(false),
+  model_allowlist: z.array(z.string()).optional().default([]),
+});
+
 export const account = named.extend({
   proxy_fallback_origin_id: id.nullish(),
   base_url: z.string().optional(),
   model_mapping: z.record(z.string()).optional(),
+  custom_headers: z.record(z.string(), z.boolean()).optional(),
+  organization: z.string().optional(),
+  project: z.string().optional(),
+  region: z.string().optional(),
+  access_key_id: z.string().optional(),
+  project_id: z.string().optional(),
+  location: z.string().optional(),
   notes: z.string().optional().default(""),
   platform: z.string(),
   type: z.string().optional().default("apikey"),
@@ -36,12 +56,16 @@ export const account = named.extend({
   five_hours_reset_at: z.string().nullable().optional(),
   week_used: z.number().nullable(),
   week_reset_at: z.string().nullable().optional(),
+  rate_limited_at: z.string().nullable().optional(),
   rate_limit_reset_at: z.string().nullable().optional(),
   overload_until: z.string().nullable().optional(),
   temp_unschedulable_until: z.string().nullable().optional(),
+  last_error_code: z.string().optional(),
+  last_error_kind: z.string().optional(),
   last_used_at: z.string().nullable().optional(),
   expires_at: z.number().nullable().optional(),
   auto_pause_on_expired: z.boolean().optional().default(false),
+  extra: accountExtraSchema.optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
   today_requests: z.number().optional(),
@@ -75,6 +99,33 @@ export const accountStatsSummary = z.object({
   summary: z.object({total_requests: z.number(), total_tokens: z.number(), total_cost: z.number()}),
 });
 
+export const channelPricingIntervalSchema = z.object({
+  id: z.number().optional(),
+  min_tokens: z.number(),
+  max_tokens: z.number().nullable().optional(),
+  tier_label: z.string().optional(),
+  input_price: z.number().nullable().optional(),
+  output_price: z.number().nullable().optional(),
+  cache_write_price: z.number().nullable().optional(),
+  cache_read_price: z.number().nullable().optional(),
+  input_multiplier: z.number().nullable().optional(),
+  output_multiplier: z.number().nullable().optional(),
+  cache_write_multiplier: z.number().nullable().optional(),
+  cache_read_multiplier: z.number().nullable().optional(),
+  per_request_price: z.number().nullable().optional(),
+  sort_order: z.number().optional().default(0),
+});
+
+export const channelTimePricingSchema = z.object({
+  timezone: z.string(),
+  weekdays_only: z.boolean().optional(),
+  periods: z.array(z.object({
+    start_time: z.string(),
+    end_time: z.string(),
+    multiplier: z.number(),
+  })),
+});
+
 export const channelModelPricingSchema = z.object({
   id: z.number().optional(),
   platform: z.string(),
@@ -87,6 +138,8 @@ export const channelModelPricingSchema = z.object({
   image_input_price: z.number().nullable().optional(),
   image_output_price: z.number().nullable().optional(),
   per_request_price: z.number().nullable().optional(),
+  intervals: z.array(channelPricingIntervalSchema).optional(),
+  time_pricing: channelTimePricingSchema.nullable().optional(),
 });
 
 export const adminGroupRow = z.object({
@@ -112,6 +165,7 @@ export const adminGroupRow = z.object({
   claude_code_only: z.boolean(),
   require_oauth_only: z.boolean(),
   allow_messages_dispatch: z.boolean(),
+  allow_batch_image_generation: z.boolean().optional().default(false),
   default_mapped_model: z.string(),
   max_reasoning_effort: z.string(),
   model_allowlist: z.object({enabled: z.boolean(), models: z.array(z.string())}),

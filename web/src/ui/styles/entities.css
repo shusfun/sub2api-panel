@@ -38,6 +38,87 @@
 .swift-entity-meta { color: var(--weir-ink-3); min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .swift-trace { display: inline-flex; align-items: center; gap: var(--weir-gap-3); }
 
+/* ---- 精密调度微图形：拓扑链、出口地理胶囊、首字母石板铭牌、Cron 预设器 ---- */
+.weir-route-chain {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--weir-gap-3);
+  padding: var(--weir-gap-1) var(--weir-gap-5);
+  border-radius: var(--weir-radius-sm);
+  corner-shape: squircle;
+  background: var(--weir-well);
+  box-shadow: var(--weir-shadow-well);
+  font-size: var(--weir-text-fine);
+  line-height: var(--weir-leading-fine);
+  color: var(--weir-ink-2);
+  max-width: 100%;
+  min-width: 0;
+}
+.weir-route-chain-step { display: inline-flex; align-items: center; gap: var(--weir-gap-3); min-width: 0; }
+.weir-route-chain-node { font-family: var(--weir-mono); color: var(--weir-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weir-route-chain-arrow { color: var(--weir-ink-3); flex-shrink: 0; }
+
+.weir-geo-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--weir-gap-5);
+  font-size: var(--weir-text-fine);
+  color: var(--weir-ink-2);
+  min-width: 0;
+}
+.weir-geo-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 19px;
+  padding-inline: var(--weir-gap-5);
+  border-radius: var(--weir-radius-xs);
+  corner-shape: squircle;
+  background: var(--weir-well);
+  box-shadow: var(--weir-shadow-well);
+  font-family: var(--weir-mono);
+  font-weight: var(--weir-weight-semibold);
+  color: var(--weir-ink);
+  letter-spacing: 0.03em;
+}
+.weir-geo-loc { color: var(--weir-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weir-geo-ip { display: inline-flex; align-items: center; gap: var(--weir-gap-1); color: var(--weir-ink-3); font-variant-numeric: tabular-nums slashed-zero; }
+
+.weir-identity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--weir-gap-7);
+  min-width: 0;
+  max-width: 100%;
+}
+.weir-identity-plate {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 25px;
+  height: 25px;
+  border-radius: var(--weir-radius);
+  corner-shape: squircle;
+  background: var(--weir-well);
+  border: 1px solid var(--weir-line);
+  color: var(--weir-ink);
+  font-size: var(--weir-text-fine);
+  font-weight: var(--weir-weight-semibold);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+.weir-identity-plate[data-tone="accent"] { background: var(--weir-accent); border-color: transparent; color: var(--weir-accent-ink); }
+.weir-identity-plate[data-tone="ok"] { background: var(--weir-ok-soft); border-color: transparent; color: var(--weir-ok-ink); }
+.weir-identity-plate[data-tone="warn"] { background: var(--weir-warn-soft); border-color: transparent; color: var(--weir-warn-ink); }
+.weir-identity-plate[data-tone="bad"] { background: var(--weir-bad-soft); border-color: transparent; color: var(--weir-bad-ink); }
+.weir-identity-copy { display: grid; gap: var(--weir-gap-1); min-width: 0; }
+.weir-identity-name { font-weight: var(--weir-weight-medium); color: var(--weir-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.weir-identity-meta { font-size: var(--weir-text-fine); color: var(--weir-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.weir-cron-field { display: grid; gap: var(--weir-gap-7); min-width: 0; }
+.weir-cron-presets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--weir-gap-5); }
+
 .swift-batch-bar {
   display: flex;
   align-items: center;

@@ -197,6 +197,7 @@
     border: 1px solid var(--weir-input-line);
     border-radius: var(--weir-radius);
     corner-shape: squircle;
+    box-shadow: var(--weir-shadow-well);
   }
   .weir-input:focus {
     outline: 3px solid var(--weir-focus-ring);
@@ -235,7 +236,7 @@
   }
 
   .weir-digits {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums slashed-zero;
     letter-spacing: 0;
   }
 }

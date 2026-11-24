@@ -24,6 +24,7 @@ function report(file, line, message) {
 }
 
 const rawHtmlControls = new Set(["button", "details", "fieldset", "dialog", "table", "select", "textarea"]);
+const MAX_FEATURE_LINES = 600;
 
 for (const {file, text} of sources) {
   for (const match of text.matchAll(/var\(\s*(--(?:weir|panel)-[\w-]+)/g)) {
@@ -32,6 +33,31 @@ for (const {file, text} of sources) {
   if (file.endsWith(".tsx") && /<select[\s>]/.test(text)) {
     report(file, 1, "禁止使用原生 <select>，请统一使用基于 Base UI 的自定义 Select 组件");
   }
+
+  // 检查 src/ui/ 严禁反向导入 features/ 或 app/
+  if (file.startsWith("src/ui/") && /\.(tsx?)$/.test(file)) {
+    const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+    const checkUiImport = node => {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+        const spec = node.moduleSpecifier.text;
+        if (/^@\/(?:features|app)(?:\/|$)/.test(spec) || /(?:^|\/)(?:features|app)(?:\/|$)/.test(spec)) {
+          const line = ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1;
+          report(file, line, `src/ui/ 禁止反向导入 ${spec}`);
+        }
+      }
+      ts.forEachChild(node, checkUiImport);
+    };
+    checkUiImport(ast);
+  }
+
+  // 检查 src/features/ 下单个 .tsx 文件行数 <= 600
+  if (file.startsWith("src/features/") && file.endsWith(".tsx")) {
+    const lineCount = text.split(/\r?\n/).length;
+    if (lineCount > MAX_FEATURE_LINES) {
+      report(file, lineCount, `业务组件文件共 ${lineCount} 行，超过上限 ${MAX_FEATURE_LINES} 行，请按职责拆分子文件`);
+    }
+  }
+
   if (!file.endsWith(".tsx") || file.startsWith("src/ui/")) continue;
   const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const fail = (node, message) => report(file, ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1, message);

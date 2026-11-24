@@ -82,8 +82,66 @@
 [data-slot="table-container"] { min-width: 0; }
 [data-slot="table"] .row-actions { flex-wrap: nowrap; }
 .pagination { justify-content: flex-end; }
-[data-slot="table-cell"][data-align="number"], [data-slot="table-head"][data-align="number"] { text-align: end; font-variant-numeric: tabular-nums; }
+[data-slot="table-cell"][data-align="number"], [data-slot="table-head"][data-align="number"] { text-align: end; font-variant-numeric: tabular-nums slashed-zero; }
 [data-slot="table-cell"][data-align="end"], [data-slot="table-head"][data-align="end"] { text-align: end; }
+.weir-table-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--weir-gap-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.weir-table-sort-btn[data-align="number"],
+.weir-table-sort-btn[data-align="end"] { flex-direction: row-reverse; }
+.weir-table-sort-btn:hover { color: var(--weir-ink); }
+
+/* ---- 45px 紧凑情境舱头（StageHeader） ---- */
+.weir-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--weir-space-3);
+  min-height: var(--weir-stage-header-height);
+  padding-inline: var(--weir-space-4);
+  border-bottom: 1px solid var(--weir-line-soft);
+  background: var(--weir-panel);
+  box-shadow: inset 0 1px 0 var(--weir-highlight-top);
+  min-width: 0;
+  flex-shrink: 0;
+}
+.weir-stage-header-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--weir-space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.weir-stage-header-title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--weir-text-subheadline);
+  line-height: var(--weir-leading-subheadline);
+  font-weight: var(--weir-weight-semibold);
+  letter-spacing: var(--weir-track-heading);
+}
+.weir-stage-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--weir-gap-5);
+  color: var(--weir-ink-3);
+  font-size: var(--weir-text-fine);
+  min-width: 0;
+}
+.weir-stage-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--weir-gap-5);
+  flex-shrink: 0;
+}
 @media (max-width: 1200.98px) {
   .swift-stage.has-inspector { grid-template-columns: minmax(0, 1fr); }
 }

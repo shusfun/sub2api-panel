@@ -1,9 +1,11 @@
 /*
- * 图标形变与按压反馈：复制变对勾、主题图标、汉堡变叉、折叠箭头、按钮图标 hover。
+ * 图标形变与按压反馈：复制变对勾、主题图标、汉堡变叉、折叠箭头、排序翻转、启停形变、加号变叉、筛选形变与 hover 几何反馈。
  * 只动 transform / opacity / 路径；不做常驻循环动画。减少动态效果由 theme.css 的全局规则统一压到 1ms。
  */
 @layer components {
-  .weir-copy-icon path, .weir-theme-icon path, .weir-morph-icon path, .weir-eye-icon path { transition: d var(--weir-mid) var(--weir-ease); }
+  .weir-copy-icon path, .weir-theme-icon path, .weir-morph-icon path, .weir-eye-icon path {
+    transition: d var(--weir-mid) var(--weir-ease);
+  }
   .weir-eye-icon circle {
     transform-box: fill-box;
     transform-origin: center;
@@ -16,10 +18,24 @@
   }
   .weir-button:not(:disabled):is(:hover, :focus-visible) .weir-refresh-icon { rotate: 65deg; }
 
-  /*
-   * 汉堡变叉：三条横线先向中间靠拢，再上下两条分别旋转 ±45°，中间一条缩短淡出。
-   * 关闭时顺序反过来：先转回水平，再分开。用户全程看到的是同一个元件。
-   */
+  .weir-plus-close-icon {
+    transform-origin: center;
+    transition: rotate var(--weir-spring-dur) var(--weir-spring);
+  }
+  .weir-plus-close-icon[data-open] { rotate: 45deg; }
+  .weir-button:not(:disabled):is(:hover, :focus-visible) .weir-plus-close-icon:not([data-open]) { rotate: 90deg; }
+
+  .weir-sort-icon {
+    color: var(--weir-ink-3);
+    transition: color var(--weir-fast) var(--weir-ease), translate var(--weir-fast) var(--weir-ease);
+  }
+  .weir-sort-icon[data-dir="asc"],
+  .weir-sort-icon[data-dir="desc"] { color: var(--weir-ink); }
+  .weir-table-sort-btn:is(:hover, :focus-visible) .weir-sort-icon { color: var(--weir-ink); translate: 0 -1px; }
+
+  .weir-filter-icon[data-active] { color: var(--weir-accent-text); }
+
+  /* 汉堡变叉 */
   .weir-menu-toggle rect {
     transform-box: fill-box;
     transform-origin: center;
@@ -55,6 +71,7 @@
   .weir-button:not(:disabled):is(:hover, :focus-visible) svg { translate: 0 -1px; scale: 1.09; }
   .weir-button:not(:disabled):active svg { translate: 0 1px; scale: 0.93; }
   @media (prefers-reduced-motion: reduce) {
-    .weir-button:not(:disabled):is(:hover, :focus-visible, :active) svg { translate: none; scale: none; }
+    .weir-button:not(:disabled):is(:hover, :focus-visible, :active) svg,
+    .weir-table-sort-btn:is(:hover, :focus-visible) .weir-sort-icon { translate: none; scale: none; }
   }
 }

@@ -1,0 +1,405 @@
+import {useId, useState} from "react";
+import {z} from "zod";
+import {api} from "@/lib/http";
+import {cents, money, smartMoney} from "@/lib/format";
+import {useAction, useResource} from "@/lib/requests";
+import {adminSubscriptionRow, empty, grantSchema, keyRow, page, userRow} from "@/schemas";
+import {navigateTo} from "@/app/route";
+import {
+  Button, ConfirmDialog, DataTable, EmptyState, ErrorLine, Feedback, Field, Form, FormActions,
+  FormSection, GroupDialog, GroupSelect, Input, InsetGroup, InsetRow, Overlay, PasswordInput,
+  PlanIdentity, RemoteTable, Resource, Select, Status, StepUpDialog, Switch, TagInput, Toolbar,
+  toast, useGroups,
+} from "@/ui";
+import {AssignSubscriptionDialog, ExtendSubscription} from "./user-dialogs";
+import {UserAttributes} from "./user-attributes";
+import {UserQuotas} from "./user-quotas";
+import type {SubRow, UserItem} from "./index";
+
+export function UserDetailInspector({
+  userID,
+  tab,
+  onTabChange,
+  revision,
+  onChanged,
+  onDeleted,
+}: {
+  userID: number;
+  tab: "account" | "subs" | "keys" | "grant";
+  onTabChange: (next: "account" | "subs" | "keys" | "grant") => void;
+  revision: number;
+  onChanged: () => void;
+  onDeleted: () => void;
+}) {
+  const [task, setTask] = useState<"balance" | "limits" | "quotas" | "attributes" | "groups" | "replace-group" | "assign" | "profile" | "delete">();
+  const [relatedRevision, reviseRelated] = useState(0);
+  const detail = useResource(() => api(`/admin/users/${userID}`, userRow), `usr-detail-${userID}`, true, revision);
+  const groups = useGroups({revision});
+  const subs = useResource(() => api(`/admin/users/${userID}/subscriptions?page=1`, page(adminSubscriptionRow)), `usr-subs-${userID}`, true, relatedRevision);
+  const keys = useResource(() => api(`/admin/users/${userID}/keys?page=1`, page(keyRow)), `usr-keys-${userID}`, true, relatedRevision);
+  const op = useAction();
+  const listOpen = tab !== "account";
+  const finish = (message: string, related = false) => {
+    toast(message);
+    setTask(undefined);
+    if (related) reviseRelated(n => n + 1);
+    else onChanged();
+  };
+  const open = (next: typeof task) => { op.clearError(); setTask(next); };
+  return (
+    <Resource state={detail}>
+      {usr => (
+        <>
+          <InsetGroup>
+            <InsetRow label="账号状态"><Status value={usr.status} /></InsetRow>
+            <InsetRow label="可用余额" onClick={() => open("balance")}><strong className="weir-digits">{money(usr.balance)}</strong></InsetRow>
+            <InsetRow label="并发 / RPM" onClick={() => open("limits")}><span className="weir-digits">{usr.concurrency} / {usr.rpm_limit || "不限"}</span></InsetRow>
+            <InsetRow label="平台配额" onClick={() => open("quotas")} />
+            <InsetRow label="自定义属性" onClick={() => open("attributes")} />
+          </InsetGroup>
+          <InsetGroup title="授权与分发">
+            <InsetRow label="私有分组" hint={usr.restrict_public_groups ? "公开分组受现有规则限制" : "可访问公开分组"} onClick={() => open("groups")}>
+              {(groups?.value ?? []).filter(g => g.is_exclusive && usr.allowed_groups.includes(g.id)).length || "未授权"}
+            </InsetRow>
+            <InsetRow label="替换专属分组" onClick={() => open("replace-group")} />
+            <InsetRow label="订阅" onClick={() => onTabChange("subs")}>{subs?.value ? `${subs.value.items.length}${subs.value.more ? "+" : ""}` : "未知"}</InsetRow>
+            <InsetRow label="API Key" onClick={() => onTabChange("keys")}>{keys?.value ? `${keys.value.items.length}${keys.value.more ? "+" : ""}` : "未知"}</InsetRow>
+            {usr.role !== "admin" && <InsetRow label="发码授权" onClick={() => onTabChange("grant")} />}
+          </InsetGroup>
+          <Toolbar>
+            <Button onClick={() => open("assign")}>分配订阅</Button>
+            <Button variant="outline" onClick={() => open("profile")}>编辑账号</Button>
+            <Button variant="link" onClick={() => navigateTo("usage", {user: usr.id})}>查看用量</Button>
+            <Button variant="link" onClick={() => navigateTo("ops", {tab: "errors", user_id: usr.id})}>查看报错</Button>
+          </Toolbar>
+          {usr.role !== "admin" && <InsetGroup><InsetRow label="删除用户" tone="bad" onClick={() => open("delete")} /></InsetGroup>}
+          {task === "groups" && (
+            <GroupDialog
+              title="授权私有分组"
+              source={{privateOnly: true, revision}}
+              value={usr.allowed_groups}
+              multiple
+              allowEmpty
+              activeOnly
+              busy={op.busy}
+              error={op.error}
+              onClose={() => open(undefined)}
+              onApply={ids => void op.run(async () => {
+                await api(`/admin/users/${usr.id}/private-groups`, userRow, "PUT", {group_ids: ids});
+                finish("私有分组已更新");
+              })}
+            />
+          )}
+          {task === "replace-group" && (
+            <ReplaceUserGroup user={usr} groups={groups?.value ?? []} onClose={() => open(undefined)} onSaved={message => { finish(message); reviseRelated(n => n + 1); }} />
+          )}
+          {task === "quotas" && <UserQuotas userID={usr.id} onClose={() => open(undefined)} />}
+          {task === "attributes" && <UserAttributes userID={usr.id} onClose={() => open(undefined)} />}
+          {task === "assign" && <AssignSubscriptionDialog open revision={revision} fixedUserID={usr.id} onClose={() => open(undefined)} onSaved={() => finish("已开通订阅", true)} />}
+          {(task === "balance" || task === "limits" || task === "profile") && <UserChangeDialog task={task} usr={usr} onClose={() => open(undefined)} onSaved={finish} />}
+          {listOpen && (
+            <Overlay open title={tab === "subs" ? "用户订阅" : tab === "keys" ? "用户名下 API Key" : "编辑发码授权"} onClose={() => onTabChange("account")}>
+              {tab === "subs" && <UserSubscriptionsPane userID={usr.id} revision={relatedRevision} onChanged={msg => finish(msg, true)} />}
+              {tab === "keys" && <UserKeysPane userID={usr.id} revision={relatedRevision} onChanged={msg => finish(msg, true)} />}
+              {tab === "grant" && usr.role !== "admin" && <GrantEditor user={usr.id} />}
+            </Overlay>
+          )}
+          <ConfirmDialog
+            open={task === "delete"}
+            title="删除用户"
+            description={`确定删除用户「${usr.email}」吗？`}
+            confirm="删除用户"
+            busy={op.busy}
+            error={op.error}
+            onClose={() => open(undefined)}
+            onConfirm={() => void op.run(async () => { await api(`/admin/users/${usr.id}`, empty, "DELETE"); onDeleted(); })}
+          />
+        </>
+      )}
+    </Resource>
+  );
+}
+
+function ReplaceUserGroup({
+  user,
+  groups,
+  onClose,
+  onSaved,
+}: {
+  user: UserItem;
+  groups: readonly {id: number; name: string; status: string; is_exclusive?: boolean; subscription_type: string}[];
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const formID = useId();
+  const action = useAction();
+  const [oldID, setOld] = useState("");
+  const [newID, setNew] = useState("");
+  const source = groups.filter(group => group.is_exclusive && user.allowed_groups.includes(group.id));
+  const destination = groups.filter(group => group.is_exclusive && group.status === "active" && group.subscription_type === "standard" && String(group.id) !== oldID);
+  return (
+    <Overlay
+      open
+      title="替换专属分组"
+      onClose={onClose}
+      busy={action.busy}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button type="submit" form={formID} busy={action.busy} disabled={!oldID || !newID || oldID === newID}>迁移密钥</Button>
+        </>
+      }
+    >
+      <Form
+        id={formID}
+        onSubmit={() => void action.run(async () => {
+          const result = await api("/admin/users/" + user.id + "/replace-group", z.object({migrated_keys: z.number().int().nonnegative()}), "POST", {old_group_id: Number(oldID), new_group_id: Number(newID)});
+          onSaved("已迁移 " + result.migrated_keys + " 个密钥并更新分组授权");
+        })}
+      >
+        <Field label="当前分组"><Select value={oldID} onChange={event => { setOld(event.target.value); setNew(""); }}><option value="">选择分组</option>{source.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</Select></Field>
+        <Field label="目标分组"><Select value={newID} onChange={event => setNew(event.target.value)}><option value="">选择分组</option>{destination.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</Select></Field>
+        {!source.length && <Feedback>此用户未获授权访问任何专属分组。</Feedback>}
+        <ErrorLine value={action.error} />
+      </Form>
+    </Overlay>
+  );
+}
+
+function UserChangeDialog({task, usr, onClose, onSaved}: {task: "balance" | "limits" | "profile"; usr: UserItem; onClose: () => void; onSaved: (message: string) => void}) {
+  const formID = useId();
+  const op = useAction();
+  const [enabled, setEnabled] = useState(usr.status === "active");
+  const path = `/admin/users/${usr.id}`;
+  const title = {balance: "调整用户余额", limits: "修改用户限流", profile: "编辑用户账号"}[task];
+  return (
+    <Overlay
+      open
+      title={title}
+      onClose={onClose}
+      busy={op.busy}
+      footer={<><Button variant="outline" onClick={onClose}>取消</Button><Button type="submit" form={formID} busy={op.busy}>保存</Button></>}
+    >
+      <Form
+        id={formID}
+        busy={op.busy}
+        onSubmit={event => {
+          const data = new FormData(event.currentTarget);
+          const password = String(data.get("password") ?? "");
+          void op.run(async () => {
+            if (task === "balance") await api(path + "/balance", userRow, "POST", {balance: Number(data.get("balance")), operation: data.get("operation"), notes: data.get("notes")});
+            else await api(path, userRow, "PUT", task === "limits"
+              ? {concurrency: Number(data.get("concurrency")), rpm_limit: Number(data.get("rpm"))}
+              : {status: enabled ? "active" : "disabled", notes: data.get("notes"), ...(password ? {password} : {})});
+            onSaved({balance: "用户余额已更新", limits: "用户限流已更新", profile: "用户账号已更新"}[task]);
+          });
+        }}
+      >
+        {task === "balance" && (
+          <>
+            <Field label="调整方式"><Select name="operation" defaultValue="add"><option value="add">增加</option><option value="subtract">扣减</option><option value="set">设为</option></Select></Field>
+            <Field label="金额"><Input name="balance" type="number" suffix="USD" min="0" step="0.01" required /></Field>
+          </>
+        )}
+        {task === "limits" && (
+          <>
+            <Field label="最大并发"><Input name="concurrency" type="number" min="0" max="10000" defaultValue={usr.concurrency} required /></Field>
+            <Field label="每分钟请求上限"><Input name="rpm" type="number" suffix="RPM" min="0" max="100000" defaultValue={usr.rpm_limit} required /></Field>
+          </>
+        )}
+        {task === "profile" && (
+          <>
+            <Switch checked={enabled} label="启用该用户" onChange={setEnabled} />
+            <Field label="新密码（选填）"><PasswordInput name="password" autoComplete="new-password" minLength={6} maxLength={128} /></Field>
+          </>
+        )}
+        {task !== "limits" && <Field label="备注（选填）"><Input name="notes" defaultValue={task === "profile" ? usr.notes : ""} /></Field>}
+        <ErrorLine value={op.error} />
+      </Form>
+    </Overlay>
+  );
+}
+
+function UserSubscriptionsPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
+  const [renew, setRenew] = useState<SubRow>();
+  const subs = useResource(() => api(`/admin/users/${userID}/subscriptions?page=1`, page(adminSubscriptionRow)), `usr-subs-${userID}`, true, revision);
+  const op = useAction();
+  return (
+    <>
+      <Resource state={subs}>
+        {data => (
+          <DataTable
+            label="用户订阅"
+            rows={data.items}
+            rowID={r => r.id}
+            empty={<EmptyState title="该用户暂无订阅套餐" />}
+            columns={[
+              {id: "group", title: "订阅组 / 到期", render: r => <PlanIdentity item={{id: r.group_id, name: r.group, platform: r.platform, expires_at: r.expires_at}} />},
+              {id: "status", title: "状态", align: "center", render: r => <Status value={r.status} />},
+              {
+                id: "act",
+                title: "操作",
+                align: "end",
+                render: r => (
+                  <div className="row-actions">
+                    <Button size="xs" variant="outline" onClick={() => setRenew(r)}>续期</Button>
+                    <Button size="xs" variant="ghost" busy={op.busy} onClick={() => void op.run(async () => { await api(`/admin/subscriptions/${r.id}/reset-quota`, empty, "POST", {}); onChanged("已重置订阅周期用量"); })}>清零配额</Button>
+                    {r.status === "active" ? (
+                      <Button size="xs" variant="destructive" busy={op.busy} onClick={() => void op.run(async () => { await api(`/admin/subscriptions/${r.id}/revoke`, empty, "POST", {}); onChanged("已撤销该订阅"); })}>撤销</Button>
+                    ) : (
+                      <Button size="xs" variant="outline" busy={op.busy} onClick={() => void op.run(async () => { await api(`/admin/subscriptions/${r.id}/restore`, empty, "POST", {}); onChanged("已恢复该订阅"); })}>恢复</Button>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Resource>
+      {renew && <ExtendSubscription id={renew.id} onClose={() => setRenew(undefined)} onSaved={() => { setRenew(undefined); onChanged("订阅已续期"); }} />}
+      <ErrorLine value={op.error} />
+    </>
+  );
+}
+
+function UserKeysPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
+  const op = useAction();
+  return (
+    <>
+      <RemoteTable
+        path={"/admin/users/" + userID + "/keys"}
+        schema={keyRow}
+        revision={revision}
+        label="用户名下 API Key"
+        rowID={r => r.id}
+        empty={<EmptyState title="该用户尚未创建 API Key" />}
+        columns={[
+          {
+            id: "key",
+            title: "Key / 消费",
+            render: r => (
+              <div>
+                <strong>{r.name}</strong> <span className="muted code-mono text-fine">{r.masked}</span>
+                <div className="muted text-fine">
+                  今日 {r.today_actual_cost === null ? "—" : smartMoney(r.today_actual_cost)} · 累计 {r.total_actual_cost === null ? "—" : smartMoney(r.total_actual_cost)}
+                </div>
+              </div>
+            ),
+          },
+          {
+            id: "group",
+            title: "绑定分组",
+            render: r => (
+              <GroupSelect
+                value={r.group_id ? String(r.group_id) : ""}
+                placeholder="未绑定分组"
+                onChange={next => void op.run(async () => {
+                  const result = await api(`/admin/api-keys/${r.id}`, z.object({auto_granted_group_access: z.boolean(), granted_group_name: z.string().optional()}), "PUT", {group_id: next ? Number(next) : 0});
+                  onChanged(`已更新密钥「${r.name}」的绑定分组` + (result.auto_granted_group_access ? "，并授予专属分组访问权限" : ""));
+                })}
+              />
+            ),
+          },
+        ]}
+      />
+      <ErrorLine value={op.error} />
+    </>
+  );
+}
+
+function GrantEditor({user}: {user: number}) {
+  const path = "/admin/grants/" + user;
+  const [revision, revise] = useState(0);
+  const [confirming, confirm] = useState(false);
+  const [pending, setPending] = useState<{invites: number; budget_cents: number; amounts_cents: number[]}>();
+  const [amountTags, setAmountTags] = useState<string[]>();
+  const current = useResource(() => api(path, grantSchema), path, true, revision);
+  const save = useAction();
+  const revoke = useAction();
+  const prepare = useAction();
+
+  return (
+    <>
+      <Resource state={current}>
+        {record => {
+          const tags = amountTags ?? record.amounts_cents.map(a => String(a / 100));
+          return (
+            <Form
+              key={revision}
+              busy={save.busy}
+              onSubmit={event => {
+                const fields = new FormData(event.currentTarget);
+                void prepare.run(async () => {
+                  save.clearError();
+                  setPending({
+                    invites: Number(fields.get("invites")),
+                    budget_cents: cents(String(fields.get("budget") || "0")),
+                    amounts_cents: tags.map(cents),
+                  });
+                });
+              }}
+            >
+              <FormSection title={`子管理员发码预算 · 剩 ${record.invites} 张邀请 · ${money(record.budget_cents / 100)}`}>
+                <Field label="设定可用邀请码张数">
+                  <div className="row-field"><Input type="number" suffix="张" name="invites" min="0" max="10000" defaultValue={record.invites} required /></div>
+                </Field>
+                <Field label="设定余额码总预算">
+                  <div className="row-field"><Input name="budget" suffix="USD" inputMode="decimal" defaultValue={String(record.budget_cents / 100)} required /></div>
+                </Field>
+                <Field label="允许签发的单张面额（USD）">
+                  <TagInput
+                    value={tags}
+                    placeholder="输入面额数字后按回车，如 5、10、20"
+                    validate={v => {
+                      try { cents(v); return undefined; } catch (e) { return e instanceof Error ? e.message : "面额格式有误"; }
+                    }}
+                    onChange={setAmountTags}
+                  />
+                </Field>
+              </FormSection>
+              <ErrorLine value={prepare.error} />
+              <FormActions>
+                <Button variant="destructive" size="sm" disabled={save.busy} onClick={() => { revoke.clearError(); confirm(true); }}>撤销授权</Button>
+                <Button type="submit" size="sm" busy={save.busy}>保存授权</Button>
+              </FormActions>
+            </Form>
+          );
+        }}
+      </Resource>
+      {pending && (
+        <StepUpDialog
+          title="验证发码授权"
+          labels={[`邀请码 ${pending.invites} 张`, `余额码预算 ${money(pending.budget_cents / 100)}`]}
+          confirmLabel="验证并保存"
+          busy={save.busy}
+          error={save.error}
+          fieldErrors={save.fieldErrors}
+          onClose={() => setPending(undefined)}
+          onConfirm={({totp}) => void save.run(async () => {
+            await api(path, empty, "PUT", {...pending, totp});
+            setPending(undefined);
+            setAmountTags(undefined);
+            revise(n => n + 1);
+            toast("已保存发码额度授权");
+          })}
+        />
+      )}
+      <ConfirmDialog
+        open={confirming}
+        title="撤销发码授权"
+        description="该用户的发码授权与剩余预算将立即清零。"
+        confirm="确认撤销"
+        busy={revoke.busy}
+        error={revoke.error}
+        onClose={() => confirm(false)}
+        onConfirm={() => void revoke.run(async () => {
+          await api(path, empty, "DELETE");
+          confirm(false);
+          setAmountTags(undefined);
+          revise(v => v + 1);
+          toast("已撤销发码授权");
+        })}
+      />
+    </>
+  );
+}

@@ -1,11 +1,16 @@
-import { fileURLToPath } from "node:url";
+import {fileURLToPath} from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  resolve: { alias: { cn: fileURLToPath(new URL("./src/ui/cn.ts", import.meta.url)) } },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      cn: fileURLToPath(new URL("./src/ui/cn.ts", import.meta.url)),
+    },
+  },
   server: {
     host: "127.0.0.1",
     port: 28742,
@@ -20,7 +25,7 @@ export default defineConfig({
         verification: fileURLToPath(new URL("./verification.html", import.meta.url)),
       },
       output: {
-        manualChunks: id => id.includes("echarts") ? "charts" : undefined,
+        manualChunks: id => (id.includes("echarts") ? "charts" : undefined),
       },
     },
   },

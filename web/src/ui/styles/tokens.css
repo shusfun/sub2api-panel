@@ -1,137 +1,143 @@
 /*
- * 设计变量，三层：
- * 1. 色板：原料色，专业控制台的中性灰阶与系统蓝。组件不直接引用 --weir-swatch-*。
- *    明暗两套主题的表面都沿同一方向单调递进：铬件（侧栏）最深 → 画布 → 卡片 → 浮层最浅。
- * 2. 语义：页面与组件只用这一层的 --weir-*。
- * 3. 材质：阴影与浮层。卡片 1px 实边加一层轻投影，弹窗、菜单、抽屉用浮层投影。
- * 间距、字号、圆角走奇数刻度，页面不写死 px。触屏 = pointer: coarse 或宽度 < 768px。
+ * 「精密调度仪器舱（Precision Dispatch Desk）」三层设计变量：
+ * 1. 色板：五档物理灰阶（底座 → 凹槽 → 舞台 → 面板 → 浮层），明暗双主题严格同向单调递进。
+ *    组件不直接引用 --weir-swatch-*。
+ * 2. 语义：页面与组件只使用 --weir-* 语义变量。
+ * 3. 材质：细 1px 实边 + 顶边微高光 / 凹槽微内影，无持续重绘动效。
+ * 所有写死像素刻度均为奇数（0px/1px 细线除外），数值默认等宽带斜线零。
  */
 :root {
-  /* ========== 1. 色板（低饱和石板与柔和语义色，明暗同源） ========== */
-  --weir-swatch-day-window: #f7f7f6;
-  --weir-swatch-day-side: #efefed;
-  --weir-swatch-day-group: #ffffff;
+  /* ========== 1. 色板（五档矿物石 / 阳极石墨物理灰阶 + 低饱和语义色） ========== */
+  /* 明亮主题：矿物石五档递进，拒绝刺眼纯白大表 */
+  --weir-swatch-day-frame: #e9e9e4;
+  --weir-swatch-day-well: #e5e5df;
+  --weir-swatch-day-window: #f2f2ee;
+  --weir-swatch-day-group: #fafaf7;
   --weir-swatch-day-float: #ffffff;
-  --weir-swatch-day-control: #f2f2f0;
-  --weir-swatch-day-slate: #2d3139;
-  --weir-swatch-day-slate-lo: #1b1e24;
-  --weir-swatch-day-ink: #212328;
-  --weir-swatch-day-ink-2: #575d68;
-  --weir-swatch-day-ink-3: #767d89;
-  --weir-swatch-day-blue: #466da8;
-  --weir-swatch-day-blue-ink: #36598f;
-  --weir-swatch-day-green: #639a72;
-  --weir-swatch-day-green-ink: #3d6d4b;
-  --weir-swatch-day-orange: #c78b36;
-  --weir-swatch-day-orange-ink: #875917;
-  --weir-swatch-day-red: #d95c65;
-  --weir-swatch-day-red-ink: #b33943;
-  --weir-swatch-night-window: #141619;
-  --weir-swatch-night-side: #101215;
-  --weir-swatch-night-group: #1b1e24;
-  --weir-swatch-night-float: #23272f;
-  --weir-swatch-night-control: #171a1f;
+  --weir-swatch-day-slate: #262a31;
+  --weir-swatch-day-slate-lo: #171a20;
+  --weir-swatch-day-ink: #1e2126;
+  --weir-swatch-day-ink-2: #525864;
+  --weir-swatch-day-ink-3: #717885;
+  --weir-swatch-day-blue: #3f67a3;
+  --weir-swatch-day-blue-ink: #2f548a;
+  --weir-swatch-day-green: #589167;
+  --weir-swatch-day-green-ink: #356643;
+  --weir-swatch-day-orange: #c0832e;
+  --weir-swatch-day-orange-ink: #835412;
+  --weir-swatch-day-red: #d1535d;
+  --weir-swatch-day-red-ink: #ad343e;
+
+  /* 暗色主题：阳极石墨五档递进 */
+  --weir-swatch-night-frame: #0d0f12;
+  --weir-swatch-night-well: #0e1014;
+  --weir-swatch-night-window: #12151a;
+  --weir-swatch-night-group: #181c23;
+  --weir-swatch-night-float: #212730;
   --weir-swatch-night-slate: #e4e7ec;
   --weir-swatch-night-slate-lo: #cfd4dc;
   --weir-swatch-night-ink: #ededf0;
   --weir-swatch-night-ink-2: #b4b8c2;
-  --weir-swatch-night-ink-3: #8b919d;
+  --weir-swatch-night-ink-3: #89909d;
   --weir-swatch-night-blue: #79a1de;
-  --weir-swatch-night-blue-ink: #94b6eb;
-  --weir-swatch-night-green: #76b385;
-  --weir-swatch-night-orange: #dca14b;
-  --weir-swatch-night-red: #e3767e;
+  --weir-swatch-night-blue-ink: #96b8ed;
+  --weir-swatch-night-green: #72b082;
+  --weir-swatch-night-orange: #dba04a;
+  --weir-swatch-night-red: #e0727a;
   --weir-swatch-night-red-ink: #f0959c;
 
   /* ========== 2. 语义 ========== */
-  /* ---- 底色与表面：侧栏铬件最深 → 画布 → 卡片（白面）→ 浮层，拉开明度差 ---- */
+  /* 五档表面：外框底座 → 凹槽 → 舞台画布 → 面板/表行 → 浮层弹窗/选中胶囊 */
+  --weir-base-deep: var(--weir-swatch-day-frame);
+  --weir-well: var(--weir-swatch-day-well);
   --weir-base: var(--weir-swatch-day-window);
-  --weir-base-deep: var(--weir-swatch-day-side);
   --weir-panel: var(--weir-swatch-day-group);
   --weir-raised: var(--weir-swatch-day-float);
-  --weir-well: var(--weir-swatch-day-control);
+
   /* 叠加填充：悬停、按下、轨道 */
-  --weir-fill: rgb(0 0 0 / 0.13);
-  --weir-fill-2: rgb(0 0 0 / 0.09);
-  --weir-fill-3: rgb(0 0 0 / 0.07);
-  --weir-fill-4: rgb(0 0 0 / 0.05);
-  /* 控件：分段底座与输入框的凹陷填充；分段当前项与导航当前项浮起一层白面 */
-  --weir-key: rgb(0 0 0 / 0.05);
-  --weir-key-hover: rgb(0 0 0 / 0.09);
-  --weir-input: rgb(0 0 0 / 0.04);
-  --weir-input-line: rgb(0 0 0 / 0.1);
+  --weir-fill: rgb(25 32 45 / 0.13);
+  --weir-fill-2: rgb(25 32 45 / 0.09);
+  --weir-fill-3: rgb(25 32 45 / 0.06);
+  --weir-fill-4: rgb(25 32 45 / 0.04);
+
+  /* 控件：凹槽底座与浮起选中胶囊 */
+  --weir-key: rgb(25 32 45 / 0.05);
+  --weir-key-hover: rgb(25 32 45 / 0.09);
+  --weir-input: var(--weir-swatch-day-well);
+  --weir-input-line: rgb(25 35 52 / 0.13);
   --weir-key-selected: var(--weir-swatch-day-float);
-  --weir-key-selected-ring: rgb(0 0 0 / 0.09);
-  --weir-key-selected-glow: rgb(0 0 0 / 0.11);
+  --weir-key-selected-ring: rgb(25 35 52 / 0.11);
+  --weir-key-selected-glow: rgb(25 35 52 / 0.09);
 
-  /* ---- 分隔线：结构边界用清晰的 1px，低对比柔和实线 ---- */
-  --weir-line: rgb(25 35 52 / 0.11);
-  --weir-line-soft: rgb(25 35 52 / 0.07);
+  /* 分隔线与顶边高光 */
+  --weir-line: rgb(25 35 52 / 0.13);
+  --weir-line-soft: rgb(25 35 52 / 0.08);
+  --weir-highlight-top: rgb(255 255 255 / 0.85);
+  --weir-well-inset: rgb(25 35 52 / 0.06);
 
-  /* ---- 文字 ---- */
+  /* 文字 */
   --weir-ink: var(--weir-swatch-day-ink);
   --weir-ink-2: var(--weir-swatch-day-ink-2);
   --weir-ink-3: var(--weir-swatch-day-ink-3);
   --weir-ink-4: rgb(25 35 52 / 0.27);
 
-  /* ---- 主操作与链接：深石板炭黑给主按钮，低饱和钢蓝给链接与焦点环 ---- */
+  /* 主操作与链接 */
   --weir-accent: var(--weir-swatch-day-slate);
   --weir-accent-lo: var(--weir-swatch-day-slate-lo);
   --weir-accent-ink: #ffffff;
   --weir-accent-text: var(--weir-swatch-day-blue-ink);
-  --weir-accent-soft: rgb(70 109 168 / 0.11);
-  --weir-accent-soft-hi: rgb(70 109 168 / 0.19);
+  --weir-accent-soft: rgb(63 103 163 / 0.11);
+  --weir-accent-soft-hi: rgb(63 103 163 / 0.19);
   --weir-accent-soft-ink: var(--weir-swatch-day-blue-ink);
   --weir-focus: var(--weir-swatch-day-blue);
-  --weir-focus-ring: rgb(70 109 168 / 0.29);
-  /* 导航当前项：浮起的白面药丸，与分段控件选中同一配方 */
+  --weir-focus-ring: rgb(63 103 163 / 0.29);
+
+  /* 导航当前项与表格 */
   --weir-nav-active: var(--weir-key-selected);
   --weir-nav-active-ink: var(--weir-ink);
   --weir-table-header: color-mix(in srgb, var(--weir-ink) 3%, var(--weir-panel));
   --weir-table-hover: color-mix(in srgb, var(--weir-ink) 2.5%, var(--weir-panel));
   --weir-table-selected: color-mix(in srgb, var(--weir-swatch-day-blue) 9%, var(--weir-panel));
 
-  /* ---- 状态色：低饱和莫兰迪实色给圆点与柱条，-ink 给文字，-soft 给浅底 ---- */
+  /* 状态色 */
   --weir-ok: var(--weir-swatch-day-green);
   --weir-ok-ink: var(--weir-swatch-day-green-ink);
-  --weir-ok-soft: rgb(99 154 114 / 0.14);
+  --weir-ok-soft: rgb(88 145 103 / 0.13);
   --weir-warn: var(--weir-swatch-day-orange);
   --weir-warn-ink: var(--weir-swatch-day-orange-ink);
-  --weir-warn-soft: rgb(199 139 54 / 0.14);
+  --weir-warn-soft: rgb(192 131 46 / 0.13);
   --weir-bad: var(--weir-swatch-day-red);
   --weir-bad-ink: var(--weir-swatch-day-red-ink);
-  --weir-bad-soft: rgb(217 92 101 / 0.11);
-  --weir-bad-soft-hi: rgb(217 92 101 / 0.19);
+  --weir-bad-soft: rgb(209 83 93 / 0.11);
+  --weir-bad-soft-hi: rgb(209 83 93 / 0.19);
   --weir-info-ink: var(--weir-swatch-day-blue-ink);
-  --weir-info-soft: rgb(70 109 168 / 0.12);
-  --weir-bar-ok: #81ae8a;
-  --weir-bar-bad: #e88188;
-  --weir-bar-run: #6c97e7;
-  --weir-bar-skip: #cfd6df;
-  --weir-bar-empty: #eef1f4;
-  /* 开关常态用克制的中性深灰石板色 */
+  --weir-info-soft: rgb(63 103 163 / 0.11);
+  --weir-bar-ok: #79a782;
+  --weir-bar-bad: #e37b82;
+  --weir-bar-run: #6591e2;
+  --weir-bar-skip: #cacfd8;
+  --weir-bar-empty: #e3e5df;
   --weir-switch-on: var(--weir-swatch-day-slate);
   --weir-knob: #ffffff;
   --weir-scrim: rgb(20 24 33 / 0.35);
 
-  /* ---- 图表：低饱和协调色系 ---- */
-  --weir-chart-1: #4e77b3;
-  --weir-chart-2: #8c6bb1;
-  --weir-chart-3: #499aa8;
-  --weir-chart-4: #639a72;
-  --weir-chart-5: #c78b36;
-  --weir-chart-6: #d95c65;
-  --weir-chart-grid: rgb(0 0 0 / 0.07);
-  --weir-chart-axis: #636368;
-  --weir-scroll-thumb: rgb(0 0 0 / 0.25);
-  --weir-scroll-thumb-active: rgb(0 0 0 / 0.41);
+  /* 图表 */
+  --weir-chart-1: #4770ac;
+  --weir-chart-2: #8766ab;
+  --weir-chart-3: #4594a2;
+  --weir-chart-4: #589167;
+  --weir-chart-5: #c0832e;
+  --weir-chart-6: #d1535d;
+  --weir-chart-grid: rgb(25 35 52 / 0.07);
+  --weir-chart-axis: #616773;
+  --weir-scroll-thumb: rgb(25 35 52 / 0.23);
+  --weir-scroll-thumb-active: rgb(25 35 52 / 0.41);
 
-  /* ---- 字体：系统字体栈，不打包字体 ---- */
+  /* 字体 */
   --weir-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
-  /* 等宽字体没有中文，中文回落到与正文同一套无衬线 */
   --weir-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "PingFang SC", "Microsoft YaHei UI", monospace;
 
-  /* ---- 字号层级：字号 --weir-text-<名> 与行高 --weir-leading-<名> 成对，一律奇数 ---- */
+  /* 字号层级（全部奇数） */
   --weir-text-large-title: 35px;
   --weir-leading-large-title: 41px;
   --weir-text-title1: 29px;
@@ -155,11 +161,7 @@
   --weir-weight-regular: 400;
   --weir-weight-medium: 500;
   --weir-weight-semibold: 600;
-  /*
-   * 字号角色：组件只用角色，桌面与触屏取不同层级（见文件末尾的触屏覆盖）。
-   * body 正文与按钮、meta 说明与次要文字、fine 标注与徽标、control 输入框、
-   * heading 区块标题、dialog 弹窗标题、title 页面标题、display 大读数。
-   */
+
   --weir-text-body: var(--weir-text-footnote);
   --weir-leading-body: var(--weir-leading-footnote);
   --weir-text-meta: var(--weir-text-caption1);
@@ -178,7 +180,7 @@
   --weir-leading-display: var(--weir-leading-title3);
   --weir-track-heading: -0.011em;
 
-  /* ---- 圆角：奇数刻度。徽标与小色块 5，按钮与输入框 7，分组与卡片 9，弹窗与抽屉 13 ---- */
+  /* 圆角（奇数刻度 + 超椭圆） */
   --weir-radius-xs: 5px;
   --weir-radius-sm: 5px;
   --weir-radius: 7px;
@@ -186,7 +188,9 @@
   --weir-radius-dialog: 13px;
   --weir-radius-full: 9999px;
 
-  /* ---- 间距：3 / 5 / 7 / 9 / 13 / 17 / 21 / 25 / 29 / 33 ---- */
+  /* 间距与尺寸（全部奇数） */
+  --weir-stage-header-height: 45px;
+  --weir-stage-inset: 7px;
   --weir-trace-max: 221px;
   --weir-entity-card-min: 305px;
   --weir-entity-well-min: 65px;
@@ -196,12 +200,12 @@
   --weir-activity-wire-stroke: 1.5;
   --weir-activity-flow-duration: 1300ms;
   --weir-activity-ink: var(--weir-ok-ink);
-  --weir-terminal-bg: #171a21;
+  --weir-terminal-bg: #15181e;
   --weir-terminal-ink: #e9ecf2;
   --weir-terminal-line: rgb(255 255 255 / 0.08);
   --weir-terminal-dot: rgb(255 255 255 / 0.19);
   --weir-terminal-muted: #9aa3b5;
-  --weir-terminal-ok: #81ae8a;
+  --weir-terminal-ok: #79a782;
   --weir-menu-morph-travel: calc(2 * var(--weir-gap-3));
   --weir-inspector-width: 381px;
   --weir-short-field-width: 157px;
@@ -238,16 +242,16 @@
   --weir-space-6: var(--weir-gap-25);
   --weir-space-8: var(--weir-gap-33);
 
-  /* ---- 控件尺寸 ---- */
-  --weir-tap: 29px; /* 桌面按钮与输入框 */
+  /* 控件尺寸（奇数） */
+  --weir-tap: 29px;
   --weir-tap-sm: 25px;
   --weir-tap-xs: 21px;
   --weir-tap-lg: 37px;
-  --weir-tap-touch: 45px; /* 触屏最小命中区域 */
+  --weir-tap-touch: 45px;
   --weir-icon: 15px;
   --weir-icon-sm: 13px;
-  --weir-row: 37px; /* 分组行、表格行 */
-  --weir-nav-row: 33px;
+  --weir-row: 37px;
+  --weir-nav-row: 31px;
   --weir-table-select: 45px;
   --weir-table-select-compact: var(--weir-tap);
   --weir-table-identity-compact: 113px;
@@ -260,7 +264,7 @@
   --weir-chart-secondary-height: 187px;
   --weir-focus-gutter: var(--weir-gap-5);
 
-  /* ---- 动效：press 按下；fast 颜色与悬停；mid 淡入、菜单；slow 退场；spring 轻快弹簧 ---- */
+  /* 动效 */
   --weir-press: 100ms;
   --weir-fast: 150ms;
   --weir-mid: 250ms;
@@ -272,7 +276,6 @@
   --weir-bounce: linear(0, 0.06 4%, 0.201 8%, 0.378 13%, 0.559 17%, 0.721 21%, 0.854 25%, 0.954 29%, 1.021 33%, 1.062 38%, 1.08 42%, 1.083 46%, 1.076 50%, 1.063 54%, 1.047 58%, 1.033 63%, 1.02 67%, 1.009 71%, 1.002 75%, 0.997 79%, 0.994 83%, 0.993 88%, 0.993 92%, 0.994 96%, 1);
   --weir-press-scale: 0.97;
   --weir-press-opacity: 0.8;
-  /* 滚动条：可点区宽度、拇指粗细、停止滚动后再停留多久开始淡出 */
   --weir-scrollbar-hit: 11px;
   --weir-scrollbar-size: 7px;
   --weir-scrollbar-linger: 100ms;
@@ -289,37 +292,40 @@
   --weir-choice-min: 139px;
   --weir-hold-duration: 1000ms;
 
-  /* ========== 3. 材质 ========== */
-  --weir-shade-faint: rgb(23 43 77 / 0.04);
-  --weir-shade: rgb(23 43 77 / 0.07);
+  /* ========== 3. 材质（细描边 + 顶边微白高光 + 凹槽微内影） ========== */
+  --weir-shade-faint: rgb(23 43 77 / 0.05);
+  --weir-shade: rgb(23 43 77 / 0.08);
   --weir-shade-strong: rgb(21 32 50 / 0.19);
-  /* 卡片与分组面：1px 细实边配漫射轻投影，通透不厚重 */
-  --weir-shadow-card: 0 0 0 1px var(--weir-line-soft), 0 1px 3px var(--weir-shade-faint), 0 5px 15px rgb(23 43 77 / 0.02);
-  /* 浮层：弹窗、菜单、抽屉 */
+  --weir-shadow-well: inset 0 1px 0 var(--weir-well-inset);
+  --weir-shadow-stage: 0 0 0 1px var(--weir-line), 0 1px 3px var(--weir-shade-faint), 0 7px 19px rgb(23 43 77 / 0.04);
+  --weir-shadow-card: inset 0 1px 0 var(--weir-highlight-top), 0 0 0 1px var(--weir-line-soft), 0 1px 3px var(--weir-shade-faint);
   --weir-shadow-float: 0 0 0 1px var(--weir-line-soft), 0 17px 49px var(--weir-shade-strong);
   color-scheme: light;
 }
 
 .dark {
+  --weir-base-deep: var(--weir-swatch-night-frame);
+  --weir-well: var(--weir-swatch-night-well);
   --weir-base: var(--weir-swatch-night-window);
-  --weir-base-deep: var(--weir-swatch-night-side);
   --weir-panel: var(--weir-swatch-night-group);
   --weir-raised: var(--weir-swatch-night-float);
-  --weir-well: var(--weir-swatch-night-control);
+
   --weir-fill: rgb(255 255 255 / 0.15);
   --weir-fill-2: rgb(255 255 255 / 0.11);
-  --weir-fill-3: rgb(255 255 255 / 0.08);
+  --weir-fill-3: rgb(255 255 255 / 0.07);
   --weir-fill-4: rgb(255 255 255 / 0.04);
-  --weir-key: rgb(255 255 255 / 0.09);
+  --weir-key: rgb(255 255 255 / 0.08);
   --weir-key-hover: rgb(255 255 255 / 0.13);
-  --weir-input: rgb(255 255 255 / 0.05);
-  --weir-input-line: rgb(255 255 255 / 0.11);
-  --weir-key-selected: rgb(255 255 255 / 0.15);
-  --weir-key-selected-ring: rgb(255 255 255 / 0.07);
+  --weir-input: var(--weir-swatch-night-well);
+  --weir-input-line: rgb(255 255 255 / 0.12);
+  --weir-key-selected: var(--weir-swatch-night-float);
+  --weir-key-selected-ring: rgb(255 255 255 / 0.09);
   --weir-key-selected-glow: rgb(0 0 0 / 0.35);
 
-  --weir-line: rgb(255 255 255 / 0.13);
+  --weir-line: rgb(255 255 255 / 0.12);
   --weir-line-soft: rgb(255 255 255 / 0.07);
+  --weir-highlight-top: rgb(255 255 255 / 0.05);
+  --weir-well-inset: rgb(0 0 0 / 0.33);
 
   --weir-ink: var(--weir-swatch-night-ink);
   --weir-ink-2: var(--weir-swatch-night-ink-2);
@@ -328,7 +334,7 @@
 
   --weir-accent: var(--weir-swatch-night-slate);
   --weir-accent-lo: var(--weir-swatch-night-slate-lo);
-  --weir-accent-ink: #15171c;
+  --weir-accent-ink: #12151a;
   --weir-accent-text: var(--weir-swatch-night-blue-ink);
   --weir-accent-soft: rgb(121 161 222 / 0.17);
   --weir-accent-soft-hi: rgb(121 161 222 / 0.27);
@@ -338,14 +344,14 @@
 
   --weir-ok: var(--weir-swatch-night-green);
   --weir-ok-ink: var(--weir-swatch-night-green);
-  --weir-ok-soft: rgb(118 179 133 / 0.15);
+  --weir-ok-soft: rgb(114 176 130 / 0.15);
   --weir-warn: var(--weir-swatch-night-orange);
   --weir-warn-ink: var(--weir-swatch-night-orange);
-  --weir-warn-soft: rgb(220 161 75 / 0.15);
+  --weir-warn-soft: rgb(219 160 74 / 0.15);
   --weir-bad: var(--weir-swatch-night-red);
   --weir-bad-ink: var(--weir-swatch-night-red-ink);
-  --weir-bad-soft: rgb(227 118 126 / 0.15);
-  --weir-bad-soft-hi: rgb(227 118 126 / 0.23);
+  --weir-bad-soft: rgb(224 114 122 / 0.15);
+  --weir-bad-soft-hi: rgb(224 114 122 / 0.23);
   --weir-info-ink: var(--weir-swatch-night-blue-ink);
   --weir-info-soft: rgb(121 161 222 / 0.17);
   --weir-bar-ok: #6ea37b;
@@ -360,21 +366,22 @@
   --weir-chart-1: #79a1de;
   --weir-chart-2: #a887cc;
   --weir-chart-3: #63b6c4;
-  --weir-chart-4: #76b385;
-  --weir-chart-5: #dca14b;
-  --weir-chart-6: #e3767e;
+  --weir-chart-4: #72b082;
+  --weir-chart-5: #dba04a;
+  --weir-chart-6: #e0727a;
   --weir-chart-grid: rgb(255 255 255 / 0.07);
   --weir-chart-axis: #98989e;
   --weir-scroll-thumb: rgb(255 255 255 / 0.21);
   --weir-scroll-thumb-active: rgb(255 255 255 / 0.37);
 
-  --weir-shade-faint: rgb(0 0 0 / 0.21);
-  --weir-shade: rgb(0 0 0 / 0.33);
-  --weir-shade-strong: rgb(0 0 0 / 0.55);
+  --weir-shade-faint: rgb(0 0 0 / 0.23);
+  --weir-shade: rgb(0 0 0 / 0.35);
+  --weir-shade-strong: rgb(0 0 0 / 0.57);
+  --weir-shadow-stage: 0 0 0 1px var(--weir-line), 0 1px 3px var(--weir-shade-faint), 0 9px 23px rgb(0 0 0 / 0.35);
+  --weir-shadow-card: inset 0 1px 0 var(--weir-highlight-top), 0 0 0 1px var(--weir-line-soft), 0 1px 3px var(--weir-shade-faint);
   color-scheme: dark;
 }
 
-/* 触屏：正文不小于 15，输入框不小于 17（字号小于 16 时 iOS 聚焦会放大整页）。 */
 @media (pointer: coarse), (max-width: 767.98px) {
   :root {
     --weir-table-identity: 163px;

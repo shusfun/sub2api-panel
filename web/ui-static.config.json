@@ -5,7 +5,7 @@
   ],
   "scopeLabels": [
     {
-      "pattern": "src/pages/ui-gallery.tsx",
+      "pattern": "src/features/dev/ui-gallery.tsx",
       "label": "example"
     }
   ],
@@ -57,7 +57,7 @@
   "components": [
     {
       "role": "button",
-      "file": "src/ui/button.tsx",
+      "file": "src/ui/primitives/button.tsx",
       "export": "Button",
       "sizeProp": "size",
       "defaultSize": "default",
@@ -79,13 +79,13 @@
         "--weir-button-padding"
       ],
       "definedIn": [
-        "src/ui/button.tsx",
+        "src/ui/primitives/button.tsx",
         "src/ui/styles/controls.css"
       ]
     },
     {
       "role": "button",
-      "file": "src/ui/hold-button.tsx",
+      "file": "src/ui/primitives/hold-button.tsx",
       "export": "HoldButton",
       "sizeProp": "size",
       "defaultSize": "default",
@@ -97,13 +97,13 @@
         "--weir-button-padding"
       ],
       "definedIn": [
-        "src/ui/hold-button.tsx",
+        "src/ui/primitives/hold-button.tsx",
         "src/ui/styles/controls.css"
       ]
     },
     {
       "role": "button",
-      "file": "src/ui/tabs.tsx",
+      "file": "src/ui/patterns/tabs.tsx",
       "export": "RefreshButton",
       "sizeProp": "size",
       "defaultSize": "sm",
@@ -115,13 +115,13 @@
         "--weir-button-padding"
       ],
       "definedIn": [
-        "src/ui/tabs.tsx",
+        "src/ui/patterns/tabs.tsx",
         "src/ui/styles/controls.css"
       ]
     },
     {
       "role": "panel",
-      "file": "src/ui/inset-group.tsx",
+      "file": "src/ui/patterns/inset-group.tsx",
       "export": "CollapsibleSection",
       "panels": {
         "": {
@@ -132,7 +132,7 @@
     },
     {
       "role": "panel",
-      "file": "src/ui/card.tsx",
+      "file": "src/ui/primitives/card.tsx",
       "export": "Panel",
       "panels": {
         "": {

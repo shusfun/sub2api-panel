@@ -101,28 +101,36 @@ function Passkeys() {
   const formID = useId();
   const [revision, revise] = useState(0);
   const list = useResource(() => api("/settings/passkeys", passkeysSchema), "settings-passkeys", true, revision);
-  const [task, setTask] = useState<{kind: "add"} | {kind: "delete"; id: number; name: string}>();
+  const [task, setTask] = useState<{kind: "add"} | {kind: "rename"; id: number; name: string} | {kind: "delete"; id: number; name: string}>();
   const action = useAction();
   const close = () => setTask(undefined);
   return <>
     <InsetGroup title="通行密钥" footer={list?.value && !list.value.enabled ? "站点没有开启通行密钥登录。" : "用设备的指纹、面容或安全密钥登录，不需要密码。"}>
       <Resource state={list}>{value => <>
         {value.items.map(item => <InsetRow key={item.id} label={item.name} hint={`添加于 ${date(item.created_at)}${item.last_used_at ? `，最近使用 ${date(item.last_used_at)}` : ""}`}>
-          <Button size="sm" variant="destructive" onClick={() => { action.clearError(); setTask({kind: "delete", id: item.id, name: item.name}); }}>删除</Button>
+          <InlineStack density="compact">
+            <Button size="sm" variant="outline" onClick={() => { action.clearError(); setTask({kind: "rename", id: item.id, name: item.name}); }}>重命名</Button>
+            <Button size="sm" variant="destructive" onClick={() => { action.clearError(); setTask({kind: "delete", id: item.id, name: item.name}); }}>删除</Button>
+          </InlineStack>
         </InsetRow>)}
         {value.enabled && <InsetRow label="添加通行密钥" onClick={() => { action.clearError(); setTask({kind: "add"}); }} />}
         {!value.enabled && !value.items.length && <InsetRow label="未启用" />}
       </>}</Resource>
     </InsetGroup>
-    {task && <Overlay open title={task.kind === "add" ? "添加通行密钥" : `删除「${task.name}」`} onClose={close} busy={action.busy} footer={
+    {task && <Overlay open title={task.kind === "add" ? "添加通行密钥" : task.kind === "rename" ? "重命名通行密钥" : `删除「${task.name}」`} onClose={close} busy={action.busy} footer={
       <><Button variant="ghost" onClick={close}>取消</Button>
-        <Button type="submit" form={formID} variant={task.kind === "delete" ? "danger-outline" : "default"} busy={action.busy}>{task.kind === "add" ? "继续" : "确认删除"}</Button></>
+        <Button type="submit" form={formID} variant={task.kind === "delete" ? "danger-outline" : "default"} busy={action.busy}>{task.kind === "add" ? "继续" : task.kind === "rename" ? "保存名称" : "确认删除"}</Button></>
     }>
       <Form id={formID} busy={action.busy} errors={action.fieldErrors} onSubmit={event => {
         const data = new FormData(event.currentTarget);
         const password = data.get("password");
         void action.run(async () => {
-          if (task.kind === "delete") {
+          if (task.kind === "rename") {
+            const name = String(data.get("name") ?? "").trim();
+            if (!name) throw new Error("请输入设备名称");
+            await api(`/settings/passkeys/${task.id}`, empty, "PATCH", {name});
+            toast("通行密钥已重命名");
+          } else if (task.kind === "delete") {
             await api(`/settings/passkeys/${task.id}`, empty, "DELETE", {password});
             toast("通行密钥已删除");
           } else {
@@ -139,8 +147,12 @@ function Passkeys() {
           revise(n => n + 1);
         });
       }}>
-        {task.kind === "add" && <Field label="设备名称"><Input name="name" maxLength={100} placeholder="例如：办公电脑" /></Field>}
-        <Field label="当前密码"><PasswordInput name="password" autoComplete="current-password" required /></Field>
+        {(task.kind === "add" || task.kind === "rename") && (
+          <Field label="设备名称">
+            <Input name="name" maxLength={100} defaultValue={task.kind === "rename" ? task.name : ""} placeholder="例如：办公电脑" required={task.kind === "rename"} />
+          </Field>
+        )}
+        {task.kind !== "rename" && <Field label="当前密码"><PasswordInput name="password" autoComplete="current-password" required /></Field>}
         <ErrorLine value={action.error} />
       </Form>
     </Overlay>}

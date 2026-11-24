@@ -3,12 +3,12 @@ import {Wrench} from "lucide-react";
 import type {z} from "zod";
 import {api} from "@/lib/http";
 import {date, durationText} from "@/lib/format";
-import {useAction} from "@/lib/requests";
-import {account, empty, opsErrorRowSchema, opsRequestRowSchema} from "@/schemas";
+import {useAction, useResource} from "@/lib/requests";
+import {account, empty, opsErrorRowSchema, opsRequestRowSchema, page} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
   Badge, Button, EntityLink, ErrorLine, Feedback, InlineStack, InsetGroup, InsetRow,
-  Inspector, PlatformBadge, Status, Switch, TimingBar, TraceId, type Column,
+  Inspector, PlatformBadge, Resource, Status, Switch, TimingBar, TraceId, type Column,
 } from "@/ui";
 
 export type OpsErrorRow = z.infer<typeof opsErrorRowSchema>;
@@ -88,6 +88,12 @@ export function OpsErrorInspector({
 }) {
   const recovery = useAction();
   const [recoveryHint, setRecoveryHint] = useState("");
+  const showRetryWaterfall = open && errorSource === "request-errors" && !!errorRow?.id;
+  const upstreamRetries = useResource(
+    () => api(`/admin/ops/request-errors/${errorRow!.id}/upstream-errors?page=1`, page(opsErrorRowSchema)),
+    showRetryWaterfall ? `ops-req-upstreams:${errorRow!.id}` : "ops-req-upstreams:none",
+    showRetryWaterfall,
+  );
 
   return (
     <Inspector
@@ -147,6 +153,33 @@ export function OpsErrorInspector({
               />
             </InsetRow>
           </InsetGroup>
+
+          {showRetryWaterfall && (
+            <InsetGroup title="关联上游重试瀑布">
+              <Resource state={upstreamRetries}>
+                {result => result.items.length ? (
+                  <>
+                    {result.items.map((item, idx) => (
+                      <InsetRow
+                        key={item.id}
+                        label={`第 ${idx + 1} 次上游尝试 · HTTP ${item.upstream_status_code ?? item.status_code}`}
+                        hint={`${date(item.created_at)} · ${item.phase || item.type || "upstream"}${item.upstream_latency_ms != null ? ` · ${durationText(item.upstream_latency_ms)}` : ""}`}
+                      >
+                        <InlineStack density="compact">
+                          {item.account_id && <EntityLink kind="account" id={item.account_id} label={item.account_name || `账号 #${item.account_id}`} />}
+                          <Badge variant="soft" tone={(item.upstream_status_code ?? item.status_code) >= 500 ? "bad" : "warn"}>
+                            {item.upstream_model || item.model || "—"}
+                          </Badge>
+                        </InlineStack>
+                      </InsetRow>
+                    ))}
+                  </>
+                ) : (
+                  <InsetRow label="无关联上游重试记录" hint="本次客户端报错未触发多次上游故障切换。" />
+                )}
+              </Resource>
+            </InsetGroup>
+          )}
 
           <InsetGroup title="四维关联实体直达">
             {errorRow.user_id && <InsetRow label="调用用户"><EntityLink kind="user" id={errorRow.user_id} label={errorRow.user_email || `#${errorRow.user_id}`} /></InsetRow>}

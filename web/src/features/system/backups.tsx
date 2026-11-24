@@ -1,11 +1,12 @@
 import {useEffect, useId, useState} from "react";
+import {Download, RotateCcw, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty} from "@/schemas";
 import {date} from "@/lib/format";
 import {useAction, useResource} from "@/lib/requests";
 import {
-  Button, Checkbox, ConfirmDialog, DataTable, EllipsisText, EmptyState, ErrorLine, Field, Form, FormGrid, InlineStack, Input,
+  Button, Checkbox, ConfirmDialog, CronField, DataTable, EllipsisText, EmptyState, Field, Form, FormGrid, InlineStack, Input,
   InsetGroup, InsetRow, Overlay, PasswordInput, RefreshButton, Resource, SaveBar, Status, StepUpDialog, Switch, TagInput,
   WorkspaceContent, toast, type Column,
 } from "@/ui";
@@ -59,14 +60,14 @@ export function BackupWorkspace({stepUpEnabled = true}: {stepUpEnabled?: boolean
     {id: "size", title: "大小", align: "number", hideWhenCompact: true, render: row => row.size_bytes ? bytes.format(row.size_bytes / 1_000_000) : "—"},
     {id: "created", title: "开始时间", hideWhenNarrow: true, render: row => row.started_at ? date(row.started_at) : "—"},
     {id: "expires", title: "到期时间", hideWhenNarrow: true, render: row => row.expires_at ? date(row.expires_at) : "长期"},
-    {id: "operations", title: "操作", align: "end", render: row => <InlineStack>
+    {id: "operations", title: "操作", align: "end", render: row => <div className="row-actions">
       {row.status === "completed" && <>
-        <Button size="sm" variant="ghost" onClick={() => open({kind: "download", row})}>下载</Button>
-        <Button size="sm" variant="destructive" disabled={row.restore_status === "running"} onClick={() => open({kind: "restore", row})}>恢复</Button>
+        <Button size="icon-xs" variant="ghost" title="下载备份" aria-label={`下载 ${row.file_name || row.id}`} onClick={() => open({kind: "download", row})}><Download /></Button>
+        <Button size="icon-xs" variant="ghost" title="覆盖恢复" aria-label={`恢复 ${row.file_name || row.id}`} disabled={row.restore_status === "running"} onClick={() => open({kind: "restore", row})}><RotateCcw /></Button>
       </>}
-      <Button size="sm" variant="ghost" disabled={row.status === "pending" || row.status === "running" || row.restore_status === "running"}
-        onClick={() => open({kind: "delete", row})}>删除</Button>
-    </InlineStack>},
+      <Button size="icon-xs" variant="ghost" title="删除备份" aria-label={`删除 ${row.file_name || row.id}`} disabled={row.status === "pending" || row.status === "running" || row.restore_status === "running"}
+        onClick={() => open({kind: "delete", row})}><Trash2 /></Button>
+    </div>},
   ];
 
   return <WorkspaceContent>
@@ -372,10 +373,10 @@ function ScheduleForm({initial}: {initial: z.infer<typeof scheduleSchema>}) {
           <InsetRow label="启用定时备份"><Switch label="启用定时备份" checked={enabled} onChange={setEnabled} /></InsetRow>
           {enabled && (
             <>
-              <FormGrid cols={3}>
-                <Field label="Cron 表达式" hint="例如每天凌晨 2 点：0 2 * * *">
-                  <Input name="cron_expr" value={cronExpr} onChange={e => setCronExpr(e.currentTarget.value)} required />
-                </Field>
+              <Field label="备份周期">
+                <CronField name="cron_expr" value={cronExpr} onChange={setCronExpr} />
+              </Field>
+              <FormGrid>
                 <Field label="保留天数" hint="0 表示不按天清理">
                   <Input name="retain_days" type="number" min={0} suffix="天" value={retainDays} onChange={e => setRetainDays(e.currentTarget.value)} required />
                 </Field>

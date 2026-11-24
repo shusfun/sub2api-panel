@@ -22,6 +22,7 @@ type UsageFilter struct {
 	Granularity string
 	Period      string
 	Model       string
+	Stream      string
 	Start       time.Time
 	End         time.Time
 	Timezone    string
@@ -63,6 +64,13 @@ func ParseUsageFilter(query url.Values, now time.Time, summary bool) (UsageFilte
 		}
 		filter.Model = model
 	}
+	if query.Has("stream") {
+		stream := strings.TrimSpace(query.Get("stream"))
+		if summary || (stream != "true" && stream != "false") || len(query["stream"]) != 1 {
+			return filter, platform.Fail(400, "invalid_input")
+		}
+		filter.Stream = stream
+	}
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	if query.Has("start_date") || query.Has("end_date") {
 		start, startErr := time.ParseInLocation(UsageDateLayout, query.Get("start_date"), now.Location())
@@ -103,6 +111,9 @@ func (filter UsageFilter) Query() url.Values {
 	}
 	if filter.Model != "" {
 		query.Set("model", filter.Model)
+	}
+	if filter.Stream != "" {
+		query.Set("stream", filter.Stream)
 	}
 	if !filter.Start.IsZero() {
 		query.Set("start_date", filter.Start.Format(UsageDateLayout))

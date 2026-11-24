@@ -1,5 +1,5 @@
 import {useId, useState} from "react";
-import {Plus, ShieldAlert, Trash2} from "lucide-react";
+import {Plus, RotateCcw, ShieldAlert, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {date} from "@/lib/format";
@@ -7,11 +7,12 @@ import {useAction, useResource} from "@/lib/requests";
 import {empty, opsAlertEventSchema, opsAlertRuleSchema, opsSettingsBundleSchema} from "@/schemas";
 import {
   Badge, Button, CollapsibleSection, ConfirmDialog, DataTable, EmptyState, ErrorLine, Feedback,
-  Field, Form, FormActions, FormGrid, FormSection, Input, InsetGroup, InsetRow, Overlay, Panel,
-  Resource, Select, Status, Switch,
+  Field, Form, FormActions, FormGrid, FormSection, InlineStack, Input, InsetGroup, InsetRow,
+  Overlay, Panel, PlatformSelect, QuickPills, Resource, Select, Status, Switch,
 } from "@/ui";
 
 type AlertRule = z.infer<typeof opsAlertRuleSchema>;
+type AlertEvent = z.infer<typeof opsAlertEventSchema>;
 
 const metricTypeOptions = [
   ["error_rate", "客户端请求错误率 (%)"],
@@ -23,13 +24,57 @@ const metricTypeOptions = [
   ["overload_account_count", "过载上游账号数"],
 ] as const;
 
+const metricLabelMap: Record<string, string> = {
+  error_rate: "客户端请求错误率",
+  upstream_error_rate: "上游渠道错误率",
+  success_rate: "整体可用率 SLA",
+  concurrency_queue_depth: "并发排队深度",
+  account_error_count: "异常上游账号数",
+  account_rate_limited_count: "限流上游账号数",
+  overload_account_count: "过载上游账号数",
+};
+
+const operatorLabelMap: Record<string, string> = {
+  ">": "大于",
+  ">=": "不低于",
+  "<": "低于",
+  "<=": "不超过",
+  "==": "等于",
+  "!=": "不等于",
+};
+
+const severityLabelMap: Record<string, string> = {
+  critical: "严重",
+  warning: "预警",
+  info: "提示",
+};
+
+const silencePresets = [
+  {value: "30", label: "30 分钟"},
+  {value: "60", label: "1 小时"},
+  {value: "240", label: "4 小时"},
+  {value: "1440", label: "24 小时"},
+] as const;
+
+function formatRuleCondition(row: AlertRule) {
+  const metric = metricLabelMap[row.metric_type] ?? row.metric_type;
+  const op = operatorLabelMap[row.operator] ?? row.operator;
+  const unit = row.metric_type.endsWith("_rate") ? "%" : "";
+  return `${metric}${op} ${row.threshold}${unit}（窗口 ${row.window_minutes} 分钟）`;
+}
+
 export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; onChanged: () => void}) {
   const formID = useId();
+  const silenceFormID = useId();
   const rules = useResource(() => api("/admin/ops/alert-rules", z.array(opsAlertRuleSchema)), "ops-rules", true, revision);
   const events = useResource(() => api("/admin/ops/alert-events", z.array(opsAlertEventSchema)), "ops-events-all", true, revision);
   const settings = useResource(() => api("/admin/ops/settings", opsSettingsBundleSchema), "ops-settings", true, revision);
 
   const [ruleModal, setRuleModal] = useState<{mode: "create"} | {mode: "edit"; rule: AlertRule}>();
+  const [silenceEvent, setSilenceEvent] = useState<AlertEvent>();
+  const [silenceMinutes, setSilenceMinutes] = useState("60");
+  const [silencePlatform, setSilencePlatform] = useState("");
+  const [silenceReason, setSilenceReason] = useState("");
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [deletingRule, setDeletingRule] = useState<AlertRule>();
   const [savedNotice, setSavedNotice] = useState("");
@@ -71,11 +116,13 @@ export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; o
                             await api(`/admin/ops/alert-events/${row.id}/status`, empty, "PUT", {status: "manual_resolved"});
                             onChanged();
                           })}>标记恢复</Button>
-                          <Button size="xs" variant="ghost" busy={action.busy} onClick={() => void action.run(async () => {
-                            const until = new Date(Date.now() + 3600_000).toISOString();
-                            await api("/admin/ops/alert-silences", empty, "POST", {rule_id: row.rule_id, platform: "", until, reason: "控制台静默 1 小时"});
-                            onChanged();
-                          })}>静默 1h</Button>
+                          <Button size="xs" variant="ghost" busy={action.busy} onClick={() => {
+                            action.clearError();
+                            setSilenceMinutes("60");
+                            setSilencePlatform("");
+                            setSilenceReason("控制台临时静默");
+                            setSilenceEvent(row);
+                          }}>静默</Button>
                         </div>
                       ) : null,
                   },
@@ -104,11 +151,11 @@ export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; o
                     render: row => (
                       <div>
                         <strong>{row.name}</strong>
-                        <div className="muted code-mono text-fine">{row.metric_type} {row.operator} {row.threshold}（{row.window_minutes}m）</div>
+                        <div className="muted text-fine">{formatRuleCondition(row)}</div>
                       </div>
                     ),
                   },
-                  {id: "sev", title: "级别", render: row => <Badge variant="soft" tone={row.severity === "critical" ? "bad" : row.severity === "warning" ? "warn" : "info"}>{row.severity}</Badge>},
+                  {id: "sev", title: "级别", render: row => <Badge variant="soft" tone={row.severity === "critical" ? "bad" : row.severity === "warning" ? "warn" : "info"}>{severityLabelMap[row.severity] ?? row.severity}</Badge>},
                   {
                     id: "on",
                     title: "启用",
@@ -198,6 +245,59 @@ export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; o
         )}
       </Overlay>
 
+      <Overlay
+        open={!!silenceEvent}
+        title="配置告警静默"
+        onClose={() => setSilenceEvent(undefined)}
+        busy={action.busy}
+        footer={<><Button variant="outline" onClick={() => setSilenceEvent(undefined)}>取消</Button><Button type="submit" form={silenceFormID} busy={action.busy}>确认静默</Button></>}
+      >
+        {silenceEvent && (
+          <Form
+            id={silenceFormID}
+            busy={action.busy}
+            onSubmit={() => {
+              const mins = Math.max(1, Number(silenceMinutes) || 60);
+              const until = new Date(Date.now() + mins * 60_000).toISOString();
+              void action.run(async () => {
+                await api("/admin/ops/alert-silences", empty, "POST", {
+                  rule_id: silenceEvent.rule_id,
+                  platform: silencePlatform,
+                  until,
+                  reason: silenceReason.trim() || `控制台静默 ${mins} 分钟`,
+                });
+                setSilenceEvent(undefined);
+                onChanged();
+              });
+            }}
+          >
+            <InsetGroup>
+              <InsetRow label="目标规则" hint={silenceEvent.title || `规则 #${silenceEvent.rule_id}`} />
+            </InsetGroup>
+            <Field label="快捷时长">
+              <QuickPills
+                label="静默时长预设"
+                options={silencePresets}
+                value={silencePresets.some(p => p.value === silenceMinutes) ? silenceMinutes : ""}
+                onChange={setSilenceMinutes}
+              />
+            </Field>
+            <FormGrid>
+              <Field label="自定义时长（分钟）">
+                <Input type="number" min="1" max="43200" required value={silenceMinutes} onChange={e => setSilenceMinutes(e.target.value)} />
+              </Field>
+              <Field label="限定平台（可选）">
+                <PlatformSelect value={silencePlatform} onChange={setSilencePlatform} />
+              </Field>
+            </FormGrid>
+            <Field label="静默原因">
+              <Input maxLength={200} value={silenceReason} onChange={e => setSilenceReason(e.target.value)} placeholder="例如：上游维护期间临时静默" />
+            </Field>
+            <ErrorLine value={action.error} />
+          </Form>
+        )}
+      </Overlay>
+
       <ConfirmDialog
         open={!!deletingRule}
         title="删除告警规则"
@@ -278,14 +378,28 @@ function OpsSettingsForm({bundle, savedNotice, onSaved}: {bundle: z.infer<typeof
 
         <FormSection title="运行时日志与噪音过滤">
           <Field label="运行时日志级别">
-            <div className="row-field">
-              <Select value={logLevel} onChange={e => setLogLevel(e.target.value)}>
-                <option value="debug">debug</option>
-                <option value="info">info</option>
-                <option value="warn">warn</option>
-                <option value="error">error</option>
-              </Select>
-            </div>
+            <InlineStack density="compact">
+              <div className="row-field">
+                <Select value={logLevel} onChange={e => setLogLevel(e.target.value)}>
+                  <option value="debug">debug</option>
+                  <option value="info">info</option>
+                  <option value="warn">warn</option>
+                  <option value="error">error</option>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                busy={save.busy}
+                onClick={() => void save.run(async () => {
+                  const res = await api("/admin/ops/runtime/logging/reset", z.object({level: z.string()}), "POST", {});
+                  setLogLevel(res.level || "info");
+                  onSaved();
+                })}
+              >
+                <RotateCcw aria-hidden />重置默认
+              </Button>
+            </InlineStack>
           </Field>
           <InsetRow label="忽略客户端主动断开 (Context Canceled)" hint="不计入 SLA 故障统计"><Switch label="忽略客户端取消" checked={ignoreCanceled} onChange={setIgnoreCanceled} /></InsetRow>
           <InsetRow label="忽略无效 API Key 请求" hint="401 鉴权拒绝不计入网关故障"><Switch label="忽略无效 Key" checked={ignoreInvalidKey} onChange={setIgnoreInvalidKey} /></InsetRow>

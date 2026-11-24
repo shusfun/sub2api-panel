@@ -107,7 +107,7 @@ function FieldControl({field, value, onChange}: {field: SettingField; value: unk
   }
 }
 
-export function SettingSection({id, onDirty}: {id: string; onDirty: (dirty: boolean) => void}) {
+export function SettingSection({id, onDirty, onDraftChange}: {id: string; onDirty: (dirty: boolean) => void; onDraftChange?: (draft: Record<string, unknown>) => void}) {
   const [revision, revise] = useState(0);
   const section = useResource(() => api(`/admin/settings/${id}`, sectionSchema), `setting-section:${id}`, true, revision);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -115,7 +115,8 @@ export function SettingSection({id, onDirty}: {id: string; onDirty: (dirty: bool
   const save = useAction();
   const dirty = Object.keys(draft).length > 0;
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
-  useEffect(() => () => onDirty(false), [onDirty]);
+  useEffect(() => { onDraftChange?.(draft); }, [draft, onDraftChange]);
+  useEffect(() => () => { onDirty(false); onDraftChange?.({}); }, [onDirty, onDraftChange]);
 
   const fields = useMemo(() => section?.value?.groups?.flatMap(group => group.fields) ?? [], [section?.value]);
   const current = (key: string) => key in draft ? draft[key] : fields.find(field => field.key === key)?.value;

@@ -9,7 +9,7 @@ var quotaSources = []struct{ id, label string }{
 }
 
 var subscriptionColumns = []SettingColumn{
-	column("int", "group_id", "订阅分组 ID"), column("int", "validity_days", "有效天数"),
+	column("group", "group_id", "订阅分组"), column("int", "validity_days", "有效天数"),
 }
 
 var policyActions = []string{"pass", "放行", "filter", "过滤", "block", "拒绝"}
@@ -356,7 +356,7 @@ var SettingCatalog = []SettingSection{
 				column("select", "service_tier", "档位", "all", "全部", "priority", "priority", "flex", "flex", "ultrafast", "ultrafast", "missing", "未指定"),
 				column("select", "action", "动作", append(append([]string{}, policyActions...), "force_priority", "强制 priority")...),
 				column("select", "scope", "账号范围", policyScopes...),
-				column("intlist", "user_ids", "限定用户 ID"),
+				column("users", "user_ids", "限定用户"),
 				column("list", "model_whitelist", "模型白名单"),
 				column("select", "fallback_action", "白名单外的动作", append(append([]string{"", "同上"}, policyActions...), "force_priority", "强制 priority")...),
 				column("text", "error_message", "拒绝时的提示"),
@@ -428,9 +428,9 @@ var SettingCatalog = []SettingSection{
 				column("select", "type", "类型", "brave", "Brave", "tavily", "Tavily"),
 				SettingColumn{Key: "api_key", Kind: "secret", Label: "API Key", Configured: "api_key_configured"},
 				column("optfloat", "quota_limit", "额度上限"),
-				column("optint", "proxy_id", "代理 ID"),
-				column("optint", "subscribed_at", "订阅时间（Unix 秒）"),
-				column("optint", "expires_at", "到期时间（Unix 秒）")).from("web_search"),
+				column("proxy", "proxy_id", "代理"),
+				column("datetime", "subscribed_at", "订阅时间"),
+				column("datetime", "expires_at", "到期时间")).from("web_search"),
 		),
 	}},
 	{ID: "mail", Title: "通知与邮件", Hint: "让验证码和提醒邮件发得出去", Groups: []SettingGroup{

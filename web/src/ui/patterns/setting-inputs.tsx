@@ -1,5 +1,9 @@
+import {useState} from "react";
+import {Plus, Trash2, X} from "lucide-react";
+import {dateTimeInputSeconds, dateTimeInputValue} from "@/lib/format";
+import {ProxySelect, UserSelect} from "../domain/entity-select";
+import {GroupSelect} from "../domain/plan-picker";
 import {Field} from "./field";
-import {Plus, Trash2} from "lucide-react";
 import {Badge} from "../primitives/badge";
 import {Button} from "../primitives/button";
 import {Input} from "../primitives/input";
@@ -51,12 +55,58 @@ type Row = Record<string, unknown>;
 function blank(column: RowColumn): unknown {
   switch (column.kind) {
     case "bool": return false;
-    case "int": case "float": return 0;
-    case "optint": case "optfloat": return null;
-    case "list": case "intlist": return [];
+    case "int": case "float": case "group": return 0;
+    case "optint": case "optfloat": case "proxy": case "datetime": return null;
+    case "list": case "intlist": case "users": return [];
     case "select": return column.options?.[0]?.value ?? "";
     default: return "";
   }
+}
+
+function UsersCellEditor({value, onChange}: {value: number[]; onChange: (next: number[]) => void}) {
+  const [labels, setLabels] = useState<Record<number, string>>({});
+  return (
+    <div className="stack">
+      <UserSelect
+        value=""
+        placeholder="搜索并添加用户…"
+        onChange={(next, label) => {
+          const id = Number(next);
+          if (!Number.isInteger(id) || id < 1) return;
+          if (label) setLabels(prev => ({...prev, [id]: label}));
+          if (!value.includes(id)) onChange([...value, id]);
+        }}
+      />
+      {value.length > 0 && (
+        <div className="row-actions">
+          {value.map(id => (
+            <Badge key={id} variant="tag" tone="neutral">
+              <span>{labels[id] ? `${labels[id]} (#${id})` : `#${id}`}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`移除用户 #${id}`}
+                onClick={() => onChange(value.filter(item => item !== id))}
+              >
+                <X />
+              </Button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function unixToDateTimeInput(cell: unknown): string {
+  if (typeof cell === "number" && Number.isFinite(cell) && cell > 0) {
+    return dateTimeInputValue(new Date(cell * 1000).toISOString());
+  }
+  if (typeof cell === "string" && cell.trim()) {
+    return dateTimeInputValue(cell);
+  }
+  return "";
 }
 
 // 行表格：每行一组字段，可增删。列的类型与设置字段一致。
@@ -76,12 +126,36 @@ export function RowsEditor({label, columns, value, onChange}: {
               const name = `${label} 第 ${index + 1} 行 ${column.label}`;
               const cell = row[column.key];
               return (
-                <Field key={column.key} label={column.label} data-wide={column.kind === "long" || column.kind === "list" || undefined}>
+                <Field key={column.key} label={column.label} data-wide={column.kind === "long" || column.kind === "list" || column.kind === "users" || undefined}>
                   {column.kind === "bool" ? <Switch label={name} checked={cell === true} onChange={next => update(index, column.key, next)} />
                     : column.kind === "select" ? (
                       <Select aria-label={name} value={String(cell ?? "")} onChange={event => update(index, column.key, event.target.value)}>
                         {column.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                       </Select>
+                    ) : column.kind === "group" ? (
+                      <GroupSelect
+                        value={typeof cell === "number" && cell > 0 ? String(cell) : ""}
+                        placeholder="选择分组"
+                        onChange={next => update(index, column.key, next ? Number(next) : 0)}
+                      />
+                    ) : column.kind === "proxy" ? (
+                      <ProxySelect
+                        value={typeof cell === "number" && cell > 0 ? String(cell) : ""}
+                        onChange={next => update(index, column.key, next ? Number(next) : null)}
+                      />
+                    ) : column.kind === "users" ? (
+                      <UsersCellEditor
+                        value={Array.isArray(cell) ? cell.map(Number).filter(n => Number.isInteger(n) && n > 0) : []}
+                        onChange={next => update(index, column.key, next)}
+                      />
+                    ) : column.kind === "datetime" ? (
+                      <Input
+                        aria-label={name}
+                        type="datetime-local"
+                        step={1}
+                        value={unixToDateTimeInput(cell)}
+                        onChange={event => update(index, column.key, dateTimeInputSeconds(event.target.value) ?? null)}
+                      />
                     ) : column.kind === "long" ? <Textarea aria-label={name} rows={3} value={String(cell ?? "")} onChange={event => update(index, column.key, event.target.value)} />
                     : column.kind === "list" || column.kind === "intlist" ? (
                       <ListInput label={name} numeric={column.kind === "intlist"} value={Array.isArray(cell) ? cell as (string | number)[] : []} onChange={next => update(index, column.key, next)} />

@@ -123,6 +123,7 @@ func MaskRedeemCode(raw string) string {
 
 func (h *handler) siteContentRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "GET /api/announcements", false, h.userAnnouncements)
+	h.s.Route(mux, "POST /api/announcements/read-all", false, h.markAllAnnouncementsRead)
 	h.s.Route(mux, "POST /api/announcements/{id}/read", false, h.markAnnouncementRead)
 	h.s.Route(mux, "GET /api/admin/announcements", true, h.adminAnnouncements)
 	h.s.Route(mux, "POST /api/admin/announcements", true, h.changeAnnouncement)
@@ -149,6 +150,22 @@ func (h *handler) userAnnouncements(w http.ResponseWriter, r *http.Request, a co
 	rows, err = platform.ProjectList(rows, func(row UserAnnouncement) (UserAnnouncement, error) { return row, platform.RequiredID(row.ID) })
 	w.Header().Set("Cache-Control", "no-store")
 	return platform.Send(w, http.StatusOK, rows, err)
+}
+
+func (h *handler) markAllAnnouncementsRead(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	rows, err := platform.Upstream[[]UserAnnouncement](r.Context(), h.s.Upstream, http.MethodGet, "/announcements?unread_only=true", a.Tokens.Access, "", "", nil)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if row.ID < 1 || row.ReadAt != nil {
+			continue
+		}
+		if _, err := platform.Upstream[struct{}](r.Context(), h.s.Upstream, http.MethodPost, fmt.Sprintf("/announcements/%d/read", row.ID), a.Tokens.Access, "", "", nil); err != nil {
+			return err
+		}
+	}
+	return platform.Send(w, http.StatusOK, struct{}{}, nil)
 }
 
 func (h *handler) markAnnouncementRead(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {

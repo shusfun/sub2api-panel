@@ -19,29 +19,46 @@ const templateSchema = z.object({subject: z.string(), html: z.string(), placehol
 const previewSchema = z.object({subject: z.string(), html: z.string()});
 const connectionSchema = z.object({upstream: z.string(), official: z.string(), origin: z.string(), account_stats: z.boolean()});
 
-export function SectionTools({id}: {id: string}) {
-  if (id === "mail") return <MailTools />;
+export function SectionTools({id, draft = {}}: {id: string; draft?: Record<string, unknown>}) {
+  if (id === "mail") return <MailTools draft={draft} />;
   if (id === "access-keys") return <AdminAccessKeys />;
   if (id === "connection") return <><Connection /><SystemTools /></>;
   return null;
 }
 
-function MailTools() {
+const smtpDraftKeys = ["smtp_host", "smtp_port", "smtp_username", "smtp_password", "smtp_from_email", "smtp_from_name", "smtp_use_tls"] as const;
+
+function pickSmtpDraft(draft: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  for (const key of smtpDraftKeys) {
+    if (key in draft && draft[key] !== "" && draft[key] !== undefined) {
+      out[key] = draft[key];
+    }
+  }
+  return out;
+}
+
+function MailTools({draft}: {draft: Record<string, unknown>}) {
   const action = useAction();
   const [editing, setEditing] = useState<{event: string; locale: string}>();
   const [locale, setLocale] = useState("zh");
   const templates = useResource(() => api(base + "/mail/templates", templatesSchema), "mail-templates", true);
+  const smtpOverrides = pickSmtpDraft(draft);
+  const hasDraftOverrides = Object.keys(smtpOverrides).length > 0;
   return <>
-    <FormSection title="发信连通性" description="使用已保存的发信配置；修改上方参数后请先保存。">
+    <FormSection
+      title="发信连通性"
+      description={hasDraftOverrides ? "测试将自动附带上方未保存的发信参数草稿。" : "使用已保存的发信配置；修改上方参数后可直接测试。"}
+    >
       <InsetRow label="测试服务器连接"><Button variant="outline" size="sm" busy={action.busy} onClick={() => void action.run(async () => {
-        await api(base + "/mail/test-connection", empty, "POST", {});
+        await api(base + "/mail/test-connection", empty, "POST", smtpOverrides);
         toast("发信服务器连接正常");
       })}>测试连接</Button></InsetRow>
       <FormSection title="发送测试邮件">
         <Form busy={action.busy} errors={action.fieldErrors} onSubmit={event => {
           const email = new FormData(event.currentTarget).get("email");
           void action.run(async () => {
-            await api(base + "/mail/send-test", empty, "POST", {email});
+            await api(base + "/mail/send-test", empty, "POST", {...smtpOverrides, email});
             toast(`测试邮件已发往 ${String(email)}`);
           });
         }}>

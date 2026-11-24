@@ -3,10 +3,75 @@ import {api} from "@/lib/http";
 import {mountedPluginsSchema, type Config, type SessionInfo} from "@/schemas";
 import {useResource} from "@/lib/requests";
 import {navigatePublic, type PublicPageID} from "@/app/route";
-import {Badge, Button, InlineStack, PlatformBadge, PluginSandboxFrame, PublicLayout, Stack} from "@/ui";
+import {Badge, Button, InlineStack, PlatformBadge, PluginSandboxFrame, PublicLayout, Stack, StatusDot} from "@/ui";
 import {PublicPatrolSection} from "@/features/observe/patrol";
 
 const homeProviders = ["anthropic", "openai", "gemini", "grok", "deepseek", "kimi", "zhipu", "minimax"] as const;
+
+function GatewayTopologyDiagram({endpoint}: {endpoint: string}) {
+  return (
+    <div className="public-terminal" aria-label="多协议网关路由拓扑">
+      <div className="public-terminal-head">
+        <InlineStack density="compact">
+          <StatusDot tone="ok" />
+          <span>多协议路由拓扑</span>
+        </InlineStack>
+        <span className="code-mono text-fine muted">{endpoint}</span>
+      </div>
+      <div className="public-terminal-body">
+        <svg viewBox="0 0 640 208" width="100%" role="img" aria-label="Client SDKs -> Panel Guard -> Sub2API Pool -> OpenAI / Anthropic / Gemini / Bedrock">
+          <defs>
+            <marker id="gw-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--accent)" />
+            </marker>
+          </defs>
+          {/* Client SDKs */}
+          <rect x="12" y="64" width="124" height="80" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="74" y="92" textAnchor="middle" fill="var(--ink)" fontSize="13" fontWeight="600">Client SDKs</text>
+          <text x="74" y="112" textAnchor="middle" fill="var(--ink-2)" fontSize="10">OpenAI / Claude</text>
+          <text x="74" y="128" textAnchor="middle" fill="var(--ink-2)" fontSize="10">Gemini / CLI</text>
+
+          {/* Arrow 1 */}
+          <line x1="136" y1="104" x2="174" y2="104" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
+
+          {/* Panel Guard */}
+          <rect x="178" y="64" width="128" height="80" rx="7" fill="var(--surface-2)" stroke="var(--accent)" strokeWidth="1.4" />
+          <text x="242" y="92" textAnchor="middle" fill="var(--ink)" fontSize="13" fontWeight="600">Panel Guard</text>
+          <text x="242" y="112" textAnchor="middle" fill="var(--ink-2)" fontSize="10">鉴权 · 限额 · 计费</text>
+          <text x="242" y="128" textAnchor="middle" fill="var(--ink-2)" fontSize="10">审计 · 巡检门控</text>
+
+          {/* Arrow 2 */}
+          <line x1="306" y1="104" x2="344" y2="104" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#gw-arrow)" />
+
+          {/* Sub2API Pool */}
+          <rect x="348" y="64" width="128" height="80" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="412" y="92" textAnchor="middle" fill="var(--ink)" fontSize="13" fontWeight="600">Sub2API Pool</text>
+          <text x="412" y="112" textAnchor="middle" fill="var(--ink-2)" fontSize="10">粘性调度 · 权重</text>
+          <text x="412" y="128" textAnchor="middle" fill="var(--ink-2)" fontSize="10">限流自愈 · 重试</text>
+
+          {/* Fan-out arrows to Upstream Providers */}
+          <path d="M 476 84 C 498 84, 498 32, 518 32" fill="none" stroke="var(--accent)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 476 96 C 498 96, 498 80, 518 80" fill="none" stroke="var(--accent)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 476 112 C 498 112, 498 128, 518 128" fill="none" stroke="var(--accent)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+          <path d="M 476 124 C 498 124, 498 176, 518 176" fill="none" stroke="var(--accent)" strokeWidth="1.3" markerEnd="url(#gw-arrow)" />
+
+          {/* Upstreams */}
+          <rect x="522" y="14" width="106" height="36" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="575" y="36" textAnchor="middle" fill="var(--ink)" fontSize="12" fontWeight="500">OpenAI</text>
+
+          <rect x="522" y="62" width="106" height="36" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="575" y="84" textAnchor="middle" fill="var(--ink)" fontSize="12" fontWeight="500">Anthropic</text>
+
+          <rect x="522" y="110" width="106" height="36" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="575" y="132" textAnchor="middle" fill="var(--ink)" fontSize="12" fontWeight="500">Gemini</text>
+
+          <rect x="522" y="158" width="106" height="36" rx="7" fill="var(--surface-2)" stroke="var(--line)" strokeWidth="1.2" />
+          <text x="575" y="180" textAnchor="middle" fill="var(--ink)" fontSize="12" fontWeight="500">Bedrock</text>
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 export function PublicHome({
   config,
@@ -179,22 +244,7 @@ export function PublicHome({
           </InlineStack>
         </div>
 
-        <div className="public-terminal" aria-label="网关调用示例">
-          <div className="public-terminal-head">
-            <span className="public-terminal-dots" aria-hidden>
-              <i /><i /><i />
-            </span>
-            <span>gateway-verify</span>
-          </div>
-          <div className="public-terminal-body">
-            <div>$ curl -X POST {endpointDisplay}/v1/responses</div>
-            <div className="terminal-comment"># 会话粘性路由 · 实时计费与品质巡检</div>
-            <div>
-              <span className="terminal-success">200 OK</span>{" "}
-              <span>{"{ \"model\": \"gpt-5.4\", \"status\": \"completed\" }"}</span>
-            </div>
-          </div>
-        </div>
+        <GatewayTopologyDiagram endpoint={endpointDisplay} />
       </section>
 
       {config.patrol_home_visible && <PublicPatrolSection publicMode />}
@@ -203,18 +253,31 @@ export function PublicHome({
         <PluginSandboxFrame key={plug.plugin_id} pluginId={plug.plugin_id} title={plug.title} />
       ))}
 
-      <section className="public-feature-grid" aria-label="平台核心特性">
+      <section className="public-feature-grid" aria-label="实时运行摘要">
         <article className="public-feature-card">
-          <h3>统一原生协议网关</h3>
-          <span>同时兼容 OpenAI Responses、Chat Completions 与 Anthropic Messages 流式调用，一行配置平滑接入各类开发客户端。</span>
+          <InlineStack density="compact">
+            <StatusDot tone="ok" />
+            <h3>网关接入点</h3>
+          </InlineStack>
+          <span className="code-mono text-fine">{endpointDisplay}</span>
+          <span className="muted text-fine">原生兼容 OpenAI Responses / Chat Completions、Anthropic Messages 与 Gemini 协议。</span>
         </article>
         <article className="public-feature-card">
-          <h3>多号池粘性调度与限流自愈</h3>
-          <span>按分组权重、实时水位和会话上下文智能路由，自动回避限流冷却节点并在恢复后平滑重入。</span>
+          <InlineStack density="compact">
+            <Badge variant="soft" tone={canSignup ? "ok" : "neutral"}>{canSignup ? "开放注册" : "受邀模式"}</Badge>
+            <h3>账号与接入策略</h3>
+          </InlineStack>
+          <span className="muted text-fine">
+            {config.model_plaza_enabled ? "已开放公开模型广场与价目查询" : "登录后可在工作台查看可用模型与价目"}
+            {config.patrol_home_visible ? " · 已开启渠道健康巡检" : ""}
+          </span>
         </article>
         <article className="public-feature-card">
-          <h3>实时账单与省 Token 品质巡检</h3>
-          <span>逐笔记录输入、输出与缓存读写成本，结合活跃用户数自适应触发指纹与降智抽检，公开透明呈现真实通道状态。</span>
+          <InlineStack density="compact">
+            <Badge variant="soft" tone="info">{homeProviders.length} 大协议家族</Badge>
+            <h3>多号池粘性调度</h3>
+          </InlineStack>
+          <span className="muted text-fine">支持按分组权重、会话粘性与限流冷却自动切换上游节点，逐笔记录 Token 与缓存成本。</span>
         </article>
       </section>
 

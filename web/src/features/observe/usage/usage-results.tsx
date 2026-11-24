@@ -1,15 +1,53 @@
 import {useEffect, useId, useMemo, useState} from "react";
-import {RefreshCw} from "lucide-react";
+import {Download, RefreshCw} from "lucide-react";
 import {api, streamUsage, type UsageStreamStatus} from "@/lib/http";
 import {compact, count, date, durationText, smartMoney} from "@/lib/format";
 import {useResource} from "@/lib/requests";
 import {usageRecord, usageSummary} from "@/schemas";
 import {
   Button, ChartSkeleton, EntityLink, Feedback, FilterSlot, InlineStack, ModelSelect,
-  Panel, RemoteTable, Resource, SearchSelect, StatusDot, modelOptions, type Column,
+  Panel, RemoteTable, Resource, SearchSelect, Segmented, StatusDot, modelOptions, type Column,
 } from "@/ui";
 import {bucketLabel, UsageHeroTrends, UsageModels} from "./usage-charts";
 import type {UsageData, UsageRow} from "./index";
+
+const streamFilterOptions = [
+  ["", "全部"],
+  ["true", "流式"],
+  ["false", "非流式"],
+] as const;
+
+function escapeCSV(value: unknown) {
+  const s = value == null ? "" : String(value);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function exportUsageCSV(rows: UsageRow[], admin: boolean) {
+  const headers = admin
+    ? ["时间", "模型", "流式", "用户", "分组", "上游账号", "API Key", "输入Token", "输出Token", "缓存读取", "缓存创建", "实际扣费", "耗时(ms)"]
+    : ["时间", "模型", "流式", "API Key", "输入Token", "输出Token", "缓存读取", "缓存创建", "实际扣费"];
+  const lines = [headers.map(escapeCSV).join(",")];
+  for (const r of rows) {
+    const base = [
+      r.created_at,
+      r.model,
+      r.stream === true ? "流式" : r.stream === false ? "非流式" : "",
+    ];
+    if (admin) {
+      base.push(r.user_email || (r.user_id ? `#${r.user_id}` : ""), r.group_name || (r.group_id ? `#${r.group_id}` : ""), r.account_name || (r.account_id ? `#${r.account_id}` : ""));
+    }
+    base.push(r.key_name, String(r.input_tokens), String(r.output_tokens), String(r.cache_read_tokens ?? ""), String(r.cache_creation_tokens ?? ""), String(r.actual_cost ?? ""));
+    if (admin) base.push(String(r.duration_ms ?? ""));
+    lines.push(base.map(escapeCSV).join(","));
+  }
+  const blob = new Blob(["\ufeff" + lines.join("\n")], {type: "text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `usage-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const liveStatus: Record<UsageStreamStatus, string> = {
   connecting: "连接中",
@@ -25,9 +63,11 @@ export function UsageResults({
   admin,
   time,
   model,
+  stream,
   inspectedID,
   setTime,
   setModel,
+  setStream,
   onBucket,
   onModel,
   onPoint,
@@ -42,9 +82,11 @@ export function UsageResults({
   admin: boolean;
   time: string;
   model: string;
+  stream: "" | "true" | "false";
   inspectedID?: number;
   setTime: (value: string) => void;
   setModel: (value: string) => void;
+  setStream: (value: "" | "true" | "false") => void;
   onBucket: (value: string) => void;
   onModel: (value: string) => void;
   onPoint: (model: string, bucket: string) => void;
@@ -60,6 +102,7 @@ export function UsageResults({
   const [updated, setUpdated] = useState<number>();
   const [revision, refresh] = useState(0);
   const [recordRevision, refreshRecords] = useState(0);
+  const [currentRows, setCurrentRows] = useState<UsageRow[]>([]);
   const summaryPath = root + "/summary?" + filter;
   const summary = useResource(() => api(summaryPath, usageSummary), summaryPath, true, revision);
 
@@ -88,6 +131,7 @@ export function UsageResults({
   const recordQuery = new URLSearchParams(filter);
   if (selected) recordQuery.set("bucket_start", selected.start);
   if (model) recordQuery.set("model", model);
+  if (stream) recordQuery.set("stream", stream);
   const recordPath = root + "?" + recordQuery.toString();
 
   const columns = useMemo<Column<UsageRow>[]>(() => {
@@ -169,6 +213,12 @@ export function UsageResults({
                 padded={false}
                 actions={
                   <InlineStack wrap>
+                    <Segmented
+                      label="流式筛选"
+                      value={stream}
+                      options={streamFilterOptions}
+                      onChange={setStream}
+                    />
                     <FilterSlot>
                       <SearchSelect
                         label="时间桶"
@@ -187,6 +237,14 @@ export function UsageResults({
                         onChange={setModel}
                       />
                     </FilterSlot>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={currentRows.length === 0}
+                      onClick={() => exportUsageCSV(currentRows, admin)}
+                    >
+                      <Download aria-hidden />导出 CSV
+                    </Button>
                   </InlineStack>
                 }
               >
@@ -200,7 +258,7 @@ export function UsageResults({
                   revision={recordRevision + revision}
                   activeRowID={inspectedID}
                   onRowClick={onInspect}
-                  onItemsLoaded={onRowsLoaded}
+                  onItemsLoaded={rows => { setCurrentRows(rows); onRowsLoaded(rows); }}
                 />
               </Panel>
             </>

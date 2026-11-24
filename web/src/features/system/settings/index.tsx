@@ -18,6 +18,7 @@ export function SettingsWorkspace({admin, section, onSection}: {admin: boolean; 
   const active = all.find(item => item.id === section) ?? personalSections[0];
   const personal = personalSections.some(item => item.id === active.id);
   const [dirty, setDirty] = useState(false);
+  const [sectionDraft, setSectionDraft] = useState<Record<string, unknown>>({});
   const [leaving, setLeaving] = useState<string>();
   const markDirty = useCallback((value: boolean) => setDirty(value), []);
   const go = (id: string) => dirty && id !== active.id ? setLeaving(id) : onSection(id);
@@ -37,8 +38,8 @@ export function SettingsWorkspace({admin, section, onSection}: {admin: boolean; 
         <Button variant="ghost" className="settings-back" onClick={() => go("")}><ChevronLeft aria-hidden />设置分区</Button>
         <h2 className="settings-title">{active.title}</h2>
         {personal ? <PersonalSection key={active.id} id={active.id} /> : <>
-          {active.id !== "access-keys" && <SettingSection key={active.id} id={active.id} onDirty={markDirty} />}
-          <SectionTools id={active.id} />
+          {active.id !== "access-keys" && <SettingSection key={active.id} id={active.id} onDirty={markDirty} onDraftChange={setSectionDraft} />}
+          <SectionTools id={active.id} draft={sectionDraft} />
         </>}
       </section>
       <ConfirmDialog open={leaving !== undefined} title="放弃未保存的改动" description="这个分区有改动还没保存，离开后会丢失。" confirm="放弃改动" busy={false} error=""

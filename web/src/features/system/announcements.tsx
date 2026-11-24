@@ -1,4 +1,5 @@
 import {useId, useState} from "react";
+import {CheckCheck, Eye, Pencil, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty} from "@/schemas";
@@ -46,17 +47,41 @@ export function Announcements() {
   const [revision, revise] = useState(0);
   const [unread, setUnread] = useState(false);
   const [item, open] = useState<Notice>();
+  const readAll = useAction();
   const path = "/announcements" + (unread ? "?unread_only=true" : "");
   const rows = useResource(() => api(path, userAnnouncements), path, true, revision);
+  const hasUnread = (rows?.value ?? []).some(r => !r.read_at);
   return <WorkspaceContent>
-    <InsetGroup title="站点公告" actions={<Select aria-label="公告筛选" value={unread ? "unread" : "all"} onChange={event => setUnread(event.target.value === "unread")}>
-      <option value="all">全部公告</option><option value="unread">未读公告</option>
-    </Select>}>
+    <InsetGroup
+      title="站点公告"
+      actions={
+        <InlineStack density="compact">
+          {hasUnread && (
+            <Button
+              size="sm"
+              variant="outline"
+              busy={readAll.busy}
+              onClick={() => void readAll.run(async () => {
+                await api("/announcements/read-all", empty, "POST", {});
+                toast("已全部标为已读");
+                revise(v => v + 1);
+              })}
+            >
+              <CheckCheck aria-hidden />全部标为已读
+            </Button>
+          )}
+          <Select aria-label="公告筛选" value={unread ? "unread" : "all"} onChange={event => setUnread(event.target.value === "unread")}>
+            <option value="all">全部公告</option><option value="unread">未读公告</option>
+          </Select>
+        </InlineStack>
+      }
+    >
       <Resource state={rows}>{items => items.length ? items.map(row => <InsetRow key={row.id} label={row.title} hint={date(row.created_at)}>
         {!row.read_at && <Badge variant="soft" tone="info">未读</Badge>}
         <Button size="sm" variant="outline" onClick={() => open(row)}>查看</Button>
       </InsetRow>) : <EmptyState title={unread ? "没有未读公告" : "暂无公告"} />}</Resource>
     </InsetGroup>
+    <ErrorLine value={readAll.error} />
     {item && <NoticeDialog item={item} onClose={() => open(undefined)} onRead={() => { toast("已标为已读"); revise(value => value + 1); }} />}
   </WorkspaceContent>;
 }
@@ -98,11 +123,11 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
     {id: "notify", title: "提醒方式", hideWhenCompact: true, render: row => row.notify_mode === "popup" ? "登录后弹窗" : "站内查看"},
     {id: "starts", title: "开始时间", hideWhenNarrow: true, render: row => row.starts_at ? date(row.starts_at) : "立即"},
     {id: "ends", title: "结束时间", hideWhenNarrow: true, render: row => row.ends_at ? date(row.ends_at) : "长期"},
-    {id: "actions", title: "操作", align: "end", render: row => <InlineStack>
-      <Button size="sm" variant="ghost" onClick={() => read(row)}>阅读情况</Button>
-      <Button size="sm" variant="ghost" onClick={() => edit(row.id)}>编辑</Button>
-      <Button size="sm" variant="destructive" onClick={() => { removal.clearError(); remove(row); }}>删除</Button>
-    </InlineStack>},
+    {id: "actions", title: "操作", align: "end", render: row => <div className="row-actions">
+      <Button size="icon-xs" variant="ghost" title="阅读情况" aria-label={`查看 ${row.title} 阅读情况`} onClick={() => read(row)}><Eye /></Button>
+      <Button size="icon-xs" variant="ghost" title="编辑公告" aria-label={`编辑 ${row.title}`} onClick={() => edit(row.id)}><Pencil /></Button>
+      <Button size="icon-xs" variant="ghost" title="删除公告" aria-label={`删除 ${row.title}`} onClick={() => { removal.clearError(); remove(row); }}><Trash2 /></Button>
+    </div>},
   ];
 
   return <WorkspaceStage flush>

@@ -130,9 +130,11 @@ func settingZero(kind string) json.RawMessage {
 	switch kind {
 	case "bool":
 		return json.RawMessage("false")
-	case "int", "float":
+	case "int", "float", "group":
 		return json.RawMessage("0")
-	case "list", "intlist", "rows":
+	case "optint", "optfloat", "proxy", "datetime":
+		return json.RawMessage("null")
+	case "list", "intlist", "users", "rows":
 		return json.RawMessage("[]")
 	case "numbers", "quotas":
 		return json.RawMessage("{}")
@@ -157,22 +159,26 @@ func checkSetting(kind string, options []SettingOption, columns []SettingColumn,
 		if err := decode(&value); err != nil {
 			return nil, err
 		}
-	case "int", "float":
+	case "int", "float", "group":
 		var value float64
 		if err := decode(&value); err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
 			return nil, bad
 		}
-		if kind == "int" && value != math.Trunc(value) {
+		if (kind == "int" || kind == "group") && value != math.Trunc(value) {
 			return nil, bad
 		}
 		if !fromUpstream && (min != nil && value < *min || max != nil && value > *max) {
 			return nil, bad
 		}
-	case "optint", "optfloat":
+	case "optint", "optfloat", "proxy", "datetime":
 		if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 			return json.RawMessage("null"), nil
 		}
-		return checkSetting(strings.TrimPrefix(kind, "opt"), nil, nil, min, max, raw, fromUpstream)
+		baseKind := strings.TrimPrefix(kind, "opt")
+		if kind == "proxy" || kind == "datetime" {
+			baseKind = "int"
+		}
+		return checkSetting(baseKind, nil, nil, min, max, raw, fromUpstream)
 	case "text", "long", "info":
 		var value string
 		if err := decode(&value); err != nil {
@@ -216,7 +222,7 @@ func checkSetting(kind string, options []SettingOption, columns []SettingColumn,
 		if value == nil {
 			return json.RawMessage("[]"), nil
 		}
-	case "intlist":
+	case "intlist", "users":
 		var value []float64
 		if err := decode(&value); err != nil || len(value) > settingRowLimit {
 			return nil, bad

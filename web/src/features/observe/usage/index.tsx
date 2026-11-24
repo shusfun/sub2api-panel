@@ -53,6 +53,10 @@ export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID:
   const [draft, setDraft] = useState<Range>({start: "", end: ""});
   const [time, setTime] = useState("");
   const [model, setModel] = useState(() => initial.get("model") ?? "");
+  const [stream, setStream] = useState<"" | "true" | "false">(() => {
+    const s = initial.get("stream");
+    return s === "true" || s === "false" ? s : "";
+  });
   const [inspected, setInspected] = useState<UsageRow>();
   const [pageRows, setPageRows] = useState<UsageRow[]>([]);
 
@@ -113,6 +117,7 @@ export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID:
   if (admin && accountID) chips.push({id: "account", label: "上游账号", value: `#${accountID}`, onRemove: () => setAccountID("")});
   if (key) chips.push({id: "key", label: "API Key", value: `#${key}`, onRemove: () => setKey("")});
   if (model) chips.push({id: "model", label: "模型", value: model, onRemove: () => setModel("")});
+  if (stream) chips.push({id: "stream", label: "调用方式", value: stream === "true" ? "流式" : "非流式", onRemove: () => setStream("")});
   if (time) chips.push({id: "time", label: "时间下钻", value: time.slice(5, 16).replace("T", " "), onRemove: () => setTime("")});
 
   const resetAll = () => {
@@ -123,6 +128,7 @@ export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID:
     }
     setKey("");
     setModel("");
+    setStream("");
     setTime("");
     navigateTo("usage", {}, true);
   };
@@ -230,9 +236,11 @@ export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID:
           admin={admin}
           time={time}
           model={model}
+          stream={stream}
           inspectedID={inspected?.id}
           setTime={setTime}
           setModel={setModel}
+          setStream={setStream}
           onBucket={changeTime}
           onModel={changeModel}
           onPoint={changePoint}

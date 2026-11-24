@@ -6,7 +6,7 @@ import {useResource} from "@/lib/requests";
 import {named, type Config} from "@/schemas";
 import {navigatePublic} from "@/app/route";
 import {
-  Button, DataTable, EllipsisText, EmptyState, FilterBar, InlineStack, InsetGroup, InsetRow,
+  Badge, Button, DataTable, EllipsisText, EmptyState, FilterBar, InlineStack, InsetGroup, InsetRow,
   PlatformBadge, PublicLayout, Resource, SearchInput, Segmented, WorkspaceContent,
 } from "@/ui";
 
@@ -132,7 +132,7 @@ export function ModelPlaza({
               <Segmented
                 label="视图切换"
                 value={activeView}
-                options={[["plaza", "模型价目"], ["channels", "可用渠道"]] as const}
+                options={[["plaza", "模型广场"], ["channels", "可用渠道与价格对比"]] as const}
                 onChange={setView}
               />
             </div>
@@ -155,7 +155,17 @@ export function ModelPlaza({
                     key={row.id}
                     footer={row.description}
                     title={row.name}
-                    actions={<InlineStack><PlatformBadge platform={row.platform} />{row.is_exclusive ? "专属" : row.subscription_type === "subscription" ? "订阅" : null}</InlineStack>}
+                    actions={
+                      <InlineStack density="compact" wrap>
+                        <PlatformBadge platform={row.platform} />
+                        <Badge variant="soft" tone="neutral">×{row.user_rate_multiplier ?? row.rate_multiplier}</Badge>
+                        {row.is_exclusive && <Badge variant="soft" tone="info">专属</Badge>}
+                        {row.subscription_type === "subscription" && <Badge variant="soft" tone="ok">订阅</Badge>}
+                        {row.peak_rate_enabled && <Badge variant="soft" tone="warn">高峰 ×{row.peak_rate_multiplier}</Badge>}
+                        {row.long_context_pricing_enabled && <Badge variant="soft" tone="neutral">长上下文分档</Badge>}
+                        <Badge variant="soft" tone="ok">{row.models.length} 个模型</Badge>
+                      </InlineStack>
+                    }
                   >
                     {row.models.length ? (
                       <DataTable
@@ -201,8 +211,20 @@ export function ModelPlaza({
                   (c.platforms ?? []).some(p => (p.supported_models ?? []).some(m => m.name.toLowerCase().includes(keyword))),
                 )
               : items;
-            return visible.length ? visible.map((channel, index) => (
-              <InsetGroup title={channel.name} key={JSON.stringify([channel.name, index])} footer={channel.description || undefined}>
+            return visible.length ? visible.map((channel, index) => {
+              const totalModels = (channel.platforms ?? []).reduce((sum, p) => sum + (p.supported_models?.length ?? 0), 0);
+              return (
+              <InsetGroup
+                title={channel.name}
+                key={JSON.stringify([channel.name, index])}
+                footer={channel.description || undefined}
+                actions={
+                  <InlineStack density="compact">
+                    <Badge variant="soft" tone="ok">可用</Badge>
+                    <Badge variant="soft" tone="neutral">{totalModels} 个模型</Badge>
+                  </InlineStack>
+                }
+              >
                 {channel.platforms?.map(platform => (
                   <div key={platform.platform}>
                     <InsetRow
@@ -225,7 +247,8 @@ export function ModelPlaza({
                   </div>
                 ))}
               </InsetGroup>
-            )) : <EmptyState title={keyword ? "没有匹配的渠道" : "暂无可使用的渠道"} />;
+              );
+            }) : <EmptyState title={keyword ? "没有匹配的渠道" : "暂无可使用的渠道"} />;
           }}
         </Resource>
       )}

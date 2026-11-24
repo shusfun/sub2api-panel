@@ -9,9 +9,6 @@ import (
 )
 
 func (f *fixture) serveAdminExtended(w http.ResponseWriter, r *http.Request, path, role string) bool {
-	if path == "/admin/redeem-codes/generate" && r.Header.Get("X-API-Key") != "" {
-		return false
-	}
 	if strings.HasPrefix(path, "/admin/") && role != "admin" {
 		w.WriteHeader(403)
 		return true

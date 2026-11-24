@@ -130,9 +130,9 @@ func setupFixture(t testing.TB, static http.Handler, origin ...string) *fixture 
 		if !traceHex.MatchString(trace) || len(span) != 3 || span[1] != trace {
 			t.Errorf("uncorrelated upstream %s", path)
 		}
-		if f.servePreview(w, r, path, role, user) || f.serveAdminExtended(w, r, path, role) ||
-			f.servePreviewExtra(w, r, path, role, user) ||
-			f.preview != nil && f.servePreviewPayment(w, r, path, user, token) {
+		if r.Header.Get("X-API-Key") == "" && (f.servePreview(w, r, path, role, user) ||
+			f.serveAdminExtended(w, r, path, role) || f.servePreviewExtra(w, r, path, role, user) ||
+			f.preview != nil && f.servePreviewPayment(w, r, path, user, token)) {
 			return
 		}
 		if f.serveFixtureTOTP(w, r, path, user) {

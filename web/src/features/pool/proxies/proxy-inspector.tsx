@@ -3,6 +3,7 @@ import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty, proxyRow} from "@/schemas";
 import {useAction, useResource} from "@/lib/requests";
+import {count} from "@/lib/format";
 import {
   Button,
   ConfirmDialog,
@@ -16,6 +17,7 @@ import {
   Input,
   InsetGroup,
   InsetRow,
+  MetricStrip,
   PasswordInput,
   ProxySelect,
   Resource,
@@ -23,6 +25,14 @@ import {
   Switch,
 } from "@/ui";
 import {type ProxyRow} from "@/features/pool/shared";
+
+const proxyStatsSchema = z.object({
+  total_accounts: z.number(),
+  active_accounts: z.number(),
+  total_requests: z.number(),
+  success_rate: z.number(),
+  average_latency: z.number(),
+});
 
 export function ProxyInspector({
   id,
@@ -36,6 +46,7 @@ export function ProxyInspector({
   onDeleted: () => void;
 }) {
   const detail = useResource(() => api(`/admin/proxies/${id}`, proxyRow), `prx-detail-${id}`, true, revision);
+  const stats = useResource(() => api(`/admin/proxies/${id}/stats`, proxyStatsSchema), `prx-stats-${id}`, true, revision);
   const linked = useResource(
     () => api(`/admin/proxies/${id}/accounts`, z.array(z.object({id: z.number(), name: z.string(), platform: z.string()}))),
     `prx-acc-${id}`,
@@ -49,6 +60,16 @@ export function ProxyInspector({
     <Resource state={detail}>
       {px => (
         <>
+          {stats?.value && (
+            <MetricStrip
+              items={[
+                {id: "reqs", label: "总请求", value: count.format(stats.value.total_requests)},
+                {id: "rate", label: "成功率", value: `${stats.value.success_rate.toFixed(1)}%`, tone: stats.value.success_rate >= 95 ? "ok" : stats.value.success_rate >= 80 ? "warn" : "bad"},
+                {id: "lat", label: "平均延迟", value: `${Math.round(stats.value.average_latency)} ms`},
+                {id: "accs", label: "活跃 / 挂载", value: `${stats.value.active_accounts} / ${stats.value.total_accounts}`},
+              ]}
+            />
+          )}
           <ProxyEditForm px={px} revision={revision} onSaved={onChanged} onRequestDelete={() => setConfirmDelete(true)} />
           <InsetGroup title={`挂载在此代理的账号 (${linked?.value?.length ?? 0})`}>
             {(linked?.value ?? []).length ? (
@@ -103,11 +124,14 @@ function ProxyEditForm({
   const [backupID, setBackupID] = useState(px.backup_proxy_id ? String(px.backup_proxy_id) : "");
   const [active, setActive] = useState(px.status === "active");
   const [clearAuth, setClearAuth] = useState(false);
+  const [expiresDate, setExpiresDate] = useState(px.expires_at ? px.expires_at.slice(0, 10) : "");
+  const [expiryWarnDays, setExpiryWarnDays] = useState(String(px.expiry_warn_days ?? 0));
 
   return (
     <Form
       busy={save.busy}
       onSubmit={() => void save.run(async () => {
+        const expEpoch = expiresDate ? Math.floor(new Date(expiresDate + "T23:59:59Z").getTime() / 1000) : undefined;
         await api(`/admin/proxies/${px.id}`, proxyRow, "PUT", {
           name: name.trim(),
           protocol,
@@ -119,6 +143,8 @@ function ProxyEditForm({
           ...(username ? {username} : {}),
           ...(password ? {password} : {}),
           ...(clearAuth ? {clear_auth: true} : {}),
+          ...(expEpoch ? {expires_at: expEpoch} : px.expires_at ? {clear_expires: true} : {}),
+          expiry_warn_days: Math.max(0, Number(expiryWarnDays) || 0),
         });
         setUsername("");
         setPassword("");
@@ -173,6 +199,13 @@ function ProxyEditForm({
             <Switch label="清除代理认证" checked={clearAuth} onChange={setClearAuth} />
           </InsetRow>
         )}
+      </FormSection>
+
+      <FormSection title="有效期与到期提醒">
+        <FormGrid>
+          <Field label="到期日期（可选）"><Input type="date" value={expiresDate} onChange={e => setExpiresDate(e.target.value)} /></Field>
+          <Field label="提前预警天数"><Input type="number" min="0" value={expiryWarnDays} onChange={e => setExpiryWarnDays(e.target.value)} /></Field>
+        </FormGrid>
       </FormSection>
 
       <ErrorLine value={save.error} />

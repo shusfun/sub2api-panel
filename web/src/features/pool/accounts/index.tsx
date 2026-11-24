@@ -52,6 +52,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
   const [proxyFilter, setProxyFilter] = useState(() => initial.get("proxy") ?? "");
   const [platform, setPlatform] = useState(() => initial.get("platform") ?? "");
   const [status, setStatus] = useState(() => initial.get("status") ?? "");
+  const [typeFilter, setTypeFilter] = useState(() => initial.get("type") ?? "");
   const [search, setSearch] = useState(() => initial.get("search") ?? "");
   const [sort, setSort] = useState<AccountSort>(() => sortOptions.find(option => option.value === initial.get("sort"))?.value ?? "priority");
   const [rowInteraction, setRowInteraction] = useState(false);
@@ -107,6 +108,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     setProxyFilter(params.get("proxy") ?? "");
     setStatus(params.get("status") ?? "");
     setPlatform(params.get("platform") ?? "");
+    setTypeFilter(params.get("type") ?? "");
     setSearch(params.get("search") ?? "");
     setSort(sortOptions.find(option => option.value === params.get("sort"))?.value ?? "priority");
     const id = Number(params.get("inspect") ?? 0);
@@ -122,14 +124,15 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     if (debouncedSearch) p.set("search", debouncedSearch);
     if (platform) p.set("platform", platform);
     if (status) p.set("status", status);
+    if (typeFilter) p.set("type", typeFilter);
     if (groupFilter) p.set("group", groupFilter);
     if (proxyFilter) p.set("proxy_id", proxyFilter);
     if (sort === "activity") p.set("sort_by", "activity");
     const qs = p.toString();
     return "/admin/accounts" + (qs ? "?" + qs : "");
-  }, [debouncedSearch, groupFilter, platform, proxyFilter, status, sort]);
+  }, [debouncedSearch, groupFilter, platform, proxyFilter, status, typeFilter, sort]);
 
-  const unfiltered = !debouncedSearch && !platform && !status && !groupFilter && !proxyFilter;
+  const unfiltered = !debouncedSearch && !platform && !status && !typeFilter && !groupFilter && !proxyFilter;
   const filtered = !unfiltered;
   function updateAccountQuery(update: Record<string, string>) {
     navigateTo("accounts", {...Object.fromEntries(new URLSearchParams(location.search)), ...update}, true);
@@ -147,7 +150,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     }
   }, [debouncedSearch, search]);
   const resetFilters = () => {
-    updateAccountQuery({group: "", proxy: "", platform: "", status: "", search: ""});
+    updateAccountQuery({group: "", proxy: "", platform: "", status: "", type: "", search: ""});
   };
 
   useEffect(() => {
@@ -315,6 +318,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
           platform={platform}
           providerPills={providerPills}
           status={status}
+          typeFilter={typeFilter}
           view={view}
           defaultWindow={defaultWindow}
           quotaDisplay={quotaDisplay}
@@ -328,7 +332,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
           addTrigger={addTrigger}
           deletionTrigger={deletionTrigger}
           onResetFilters={resetFilters}
-          onSetStatus={setStatus}
+          onSetStatus={next => updateAccountQuery({status: next})}
           onUpdateQuery={updateAccountQuery}
           onDefaultWindowChange={next => { setDefaultWindow(next); setCardWindows({}); }}
           onQuotaDisplayChange={setQuotaDisplay}

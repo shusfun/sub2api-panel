@@ -76,10 +76,11 @@ type adminGroupWire struct {
 	PeakRateMultiplier      float64               `json:"peak_rate_multiplier"`
 	FallbackGroupID         *int64                `json:"fallback_group_id"`
 	InvalidFallbackGroupID  *int64                `json:"fallback_group_id_on_invalid_request"`
-	ClaudeCodeOnly          bool                  `json:"claude_code_only"`
-	RequireOAuthOnly        bool                  `json:"require_oauth_only"`
-	AllowMessagesDispatch   bool                  `json:"allow_messages_dispatch"`
-	DefaultMappedModel      string                `json:"default_mapped_model"`
+	ClaudeCodeOnly            bool                  `json:"claude_code_only"`
+	RequireOAuthOnly          bool                  `json:"require_oauth_only"`
+	AllowMessagesDispatch     bool                  `json:"allow_messages_dispatch"`
+	AllowBatchImageGeneration bool                  `json:"allow_batch_image_generation"`
+	DefaultMappedModel        string                `json:"default_mapped_model"`
 	MaxReasoningEffort      string                `json:"max_reasoning_effort"`
 	ModelAllowlist          *modelAllowlistWire   `json:"model_allowlist"`
 	ModelPricing            []channelModelPricing `json:"model_pricing"`
@@ -111,10 +112,11 @@ type adminGroupView struct {
 	PeakRateMultiplier      float64               `json:"peak_rate_multiplier"`
 	FallbackGroupID         *int64                `json:"fallback_group_id"`
 	InvalidFallbackGroupID  *int64                `json:"fallback_group_id_on_invalid_request"`
-	ClaudeCodeOnly          bool                  `json:"claude_code_only"`
-	RequireOAuthOnly        bool                  `json:"require_oauth_only"`
-	AllowMessagesDispatch   bool                  `json:"allow_messages_dispatch"`
-	DefaultMappedModel      string                `json:"default_mapped_model"`
+	ClaudeCodeOnly            bool                  `json:"claude_code_only"`
+	RequireOAuthOnly          bool                  `json:"require_oauth_only"`
+	AllowMessagesDispatch     bool                  `json:"allow_messages_dispatch"`
+	AllowBatchImageGeneration bool                  `json:"allow_batch_image_generation"`
+	DefaultMappedModel        string                `json:"default_mapped_model"`
 	MaxReasoningEffort      string                `json:"max_reasoning_effort"`
 	ModelAllowlist          modelAllowlistWire    `json:"model_allowlist"`
 	ModelPricing            []channelModelPricing `json:"model_pricing"`
@@ -171,7 +173,7 @@ func projectAdminGroup(g adminGroupWire) (adminGroupView, error) {
 		PeakRateEnabled: g.PeakRateEnabled, PeakStart: g.PeakStart, PeakEnd: g.PeakEnd, PeakRateMultiplier: g.PeakRateMultiplier,
 		FallbackGroupID: g.FallbackGroupID, InvalidFallbackGroupID: g.InvalidFallbackGroupID,
 		ClaudeCodeOnly: g.ClaudeCodeOnly, RequireOAuthOnly: g.RequireOAuthOnly,
-		AllowMessagesDispatch: g.AllowMessagesDispatch, DefaultMappedModel: g.DefaultMappedModel,
+		AllowMessagesDispatch: g.AllowMessagesDispatch, AllowBatchImageGeneration: g.AllowBatchImageGeneration, DefaultMappedModel: g.DefaultMappedModel,
 		MaxReasoningEffort: g.MaxReasoningEffort, ModelAllowlist: allowlist, ModelPricing: pricing,
 		AccountCount: g.AccountCount, ActiveAccountCount: g.ActiveAccountCount,
 		RateLimitedAccountCount: g.RateLimitedAccountCount, ErrorAccountCount: errorCount,
@@ -199,11 +201,14 @@ type groupInput struct {
 	PeakStart                string                 `json:"peak_start,omitempty"`
 	PeakEnd                  string                 `json:"peak_end,omitempty"`
 	PeakRateMultiplier       *float64               `json:"peak_rate_multiplier,omitempty"`
-	FallbackGroupID          *int64                 `json:"fallback_group_id,omitempty"`
-	ClearFallbackGroup       bool                   `json:"clear_fallback_group,omitempty"`
-	ClaudeCodeOnly           *bool                  `json:"claude_code_only,omitempty"`
-	RequireOAuthOnly         *bool                  `json:"require_oauth_only,omitempty"`
-	AllowMessagesDispatch    *bool                  `json:"allow_messages_dispatch,omitempty"`
+	FallbackGroupID           *int64                 `json:"fallback_group_id,omitempty"`
+	ClearFallbackGroup        bool                   `json:"clear_fallback_group,omitempty"`
+	InvalidFallbackGroupID    *int64                 `json:"fallback_group_id_on_invalid_request,omitempty"`
+	ClearInvalidFallbackGroup bool                   `json:"clear_invalid_fallback_group,omitempty"`
+	ClaudeCodeOnly            *bool                  `json:"claude_code_only,omitempty"`
+	RequireOAuthOnly          *bool                  `json:"require_oauth_only,omitempty"`
+	AllowMessagesDispatch     *bool                  `json:"allow_messages_dispatch,omitempty"`
+	AllowBatchImageGeneration *bool                  `json:"allow_batch_image_generation,omitempty"`
 	DefaultMappedModel       *string                `json:"default_mapped_model,omitempty"`
 	MaxReasoningEffort       *string                `json:"max_reasoning_effort,omitempty"`
 	ModelAllowlist           *modelAllowlistWire    `json:"model_allowlist,omitempty"`
@@ -222,7 +227,8 @@ func (in groupInput) toBody(create bool) (map[string]any, error) {
 		in.RateMultiplier != nil && *in.RateMultiplier < 0 ||
 		in.RPMLimit != nil && *in.RPMLimit < 0 ||
 		in.PeakRateMultiplier != nil && *in.PeakRateMultiplier < 0 ||
-		in.FallbackGroupID != nil && *in.FallbackGroupID < 1 {
+		in.FallbackGroupID != nil && *in.FallbackGroupID < 1 ||
+		in.InvalidFallbackGroupID != nil && *in.InvalidFallbackGroupID < 1 {
 		return nil, platform.Fail(400, "invalid_input")
 	}
 	body := map[string]any{}
@@ -285,6 +291,11 @@ func (in groupInput) toBody(create bool) (map[string]any, error) {
 	} else if in.FallbackGroupID != nil {
 		body["fallback_group_id"] = *in.FallbackGroupID
 	}
+	if in.ClearInvalidFallbackGroup {
+		body["fallback_group_id_on_invalid_request"] = nil
+	} else if in.InvalidFallbackGroupID != nil {
+		body["fallback_group_id_on_invalid_request"] = *in.InvalidFallbackGroupID
+	}
 	if in.ClaudeCodeOnly != nil {
 		body["claude_code_only"] = *in.ClaudeCodeOnly
 	}
@@ -293,6 +304,9 @@ func (in groupInput) toBody(create bool) (map[string]any, error) {
 	}
 	if in.AllowMessagesDispatch != nil {
 		body["allow_messages_dispatch"] = *in.AllowMessagesDispatch
+	}
+	if in.AllowBatchImageGeneration != nil {
+		body["allow_batch_image_generation"] = *in.AllowBatchImageGeneration
 	}
 	if in.DefaultMappedModel != nil {
 		body["default_mapped_model"] = *in.DefaultMappedModel

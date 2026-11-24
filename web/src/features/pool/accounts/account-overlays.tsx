@@ -8,12 +8,15 @@ import {useAction, useResource} from "@/lib/requests";
 import {navigateTo} from "@/app/route";
 import {
   Button,
+  ConfirmDialog,
   CopyButton,
   EmptyState,
   ErrorLine,
   Field,
   Form,
+  FormGrid,
   FormSection,
+  Input,
   InsetGroup,
   InsetRow,
   MultiGroupSelect,
@@ -24,6 +27,7 @@ import {
   RefreshMorphIcon,
   Resource,
   SearchInput,
+  Segmented,
   Status,
   Switch,
   Toolbar,
@@ -166,58 +170,109 @@ export function AccountSummary({
 export function BulkBindAccountsDialog({
   open,
   ids,
+  platform,
   revision,
   onClose,
   onSaved,
 }: {
   open: boolean;
   ids: readonly number[];
+  platform?: string;
   revision: number;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const formID = useId();
   const [applyGroups, setApplyGroups] = useState(true);
+  const [groupMode, setGroupMode] = useState<"replace" | "append" | "remove">("replace");
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
   const [applyProxy, setApplyProxy] = useState(false);
   const [proxyID, setProxyID] = useState("");
+  const [priority, setPriority] = useState("");
+  const [concurrency, setConcurrency] = useState("");
+  const [rateMultiplier, setRateMultiplier] = useState("");
+  const [mixedRiskMsg, setMixedRiskMsg] = useState<string>();
   const op = useAction();
 
-  return (
-    <Overlay
-      open={open}
-      title={`批量调整 ${ids.length} 个账号归属`}
-      onClose={onClose}
-      busy={op.busy}
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>取消</Button>
-          <Button type="submit" form={formID} disabled={!applyGroups && !applyProxy} busy={op.busy}>执行批量更新</Button>
-        </>
+  const hasChanges = applyGroups || applyProxy || priority.trim() !== "" || concurrency.trim() !== "" || rateMultiplier.trim() !== "";
+
+  async function submitBulk(confirmMixedRisk = false) {
+    if (!confirmMixedRisk && applyGroups && groupMode !== "remove" && groupIDs.length > 0 && platform) {
+      const check = await api("/admin/accounts/check-mixed-channel", z.object({has_risk: z.boolean(), message: z.string().optional()}), "POST", {
+        platform,
+        group_ids: groupIDs,
+      });
+      if (check.has_risk) {
+        setMixedRiskMsg(check.message || "所选分组存在混渠道风险，确定继续批量绑定吗？");
+        return;
       }
-    >
-      <Form
-        id={formID}
+    }
+    await api("/admin/accounts/bulk-update", z.object({success: z.number(), failed: z.number()}), "POST", {
+      account_ids: ids,
+      ...(applyGroups ? {group_ids: groupIDs, group_mode: groupMode} : {}),
+      ...(applyProxy ? (proxyID ? {proxy_id: Number(proxyID)} : {clear_proxy: true}) : {}),
+      ...(priority.trim() !== "" ? {priority: Number(priority)} : {}),
+      ...(concurrency.trim() !== "" ? {concurrency: Number(concurrency)} : {}),
+      ...(rateMultiplier.trim() !== "" ? {rate_multiplier: Number(rateMultiplier)} : {}),
+      ...(confirmMixedRisk ? {confirm_mixed_channel_risk: true} : {}),
+    });
+    setMixedRiskMsg(undefined);
+    onSaved();
+  }
+
+  return (
+    <>
+      <Overlay
+        open={open}
+        title={`批量调整 ${ids.length} 个账号参数与归属`}
+        onClose={onClose}
         busy={op.busy}
-        onSubmit={() =>
-          void op.run(async () => {
-            await api("/admin/accounts/bulk-update", z.object({success: z.number(), failed: z.number()}), "POST", {
-              account_ids: ids,
-              ...(applyGroups ? {group_ids: groupIDs} : {}),
-              ...(applyProxy ? (proxyID ? {proxy_id: Number(proxyID)} : {clear_proxy: true}) : {}),
-            });
-            onSaved();
-          })
+        footer={
+          <>
+            <Button variant="outline" onClick={onClose}>取消</Button>
+            <Button type="submit" form={formID} disabled={!hasChanges} busy={op.busy}>执行批量更新</Button>
+          </>
         }
       >
-        <FormSection title="批量覆写范围">
-          <InsetRow label="同步修改所属调度分组"><Switch label="修改所属分组" checked={applyGroups} onChange={setApplyGroups} /></InsetRow>
-          {applyGroups && <Field label="目标分组列表"><MultiGroupSelect value={groupIDs} revision={revision} onChange={setGroupIDs} /></Field>}
-          <InsetRow label="同步切换代理节点"><Switch label="修改代理节点" checked={applyProxy} onChange={setApplyProxy} /></InsetRow>
-          {applyProxy && <Field label="目标代理（清空即改回直连）"><ProxySelect value={proxyID} revision={revision} onChange={setProxyID} /></Field>}
-        </FormSection>
-        <ErrorLine value={op.error} />
-      </Form>
-    </Overlay>
+        <Form id={formID} busy={op.busy} onSubmit={() => void op.run(() => submitBulk(false))}>
+          <FormSection title="分组与代理归属">
+            <InsetRow label="同步修改所属调度分组"><Switch label="修改所属分组" checked={applyGroups} onChange={setApplyGroups} /></InsetRow>
+            {applyGroups && (
+              <>
+                <Field label="分组更新方式">
+                  <Segmented
+                    label="分组更新方式"
+                    value={groupMode}
+                    options={[["replace", "替换"], ["append", "追加"], ["remove", "移除"]] as const}
+                    onChange={setGroupMode}
+                  />
+                </Field>
+                <Field label="目标分组列表"><MultiGroupSelect value={groupIDs} revision={revision} onChange={setGroupIDs} /></Field>
+              </>
+            )}
+            <InsetRow label="同步切换代理节点"><Switch label="修改代理节点" checked={applyProxy} onChange={setApplyProxy} /></InsetRow>
+            {applyProxy && <Field label="目标代理（清空即改回直连）"><ProxySelect value={proxyID} revision={revision} onChange={setProxyID} /></Field>}
+          </FormSection>
+          <FormSection title="调度参数覆写（留空不改）">
+            <FormGrid cols={3}>
+              <Field label="优先级"><Input type="number" value={priority} onChange={e => setPriority(e.target.value)} placeholder="留空" /></Field>
+              <Field label="最大并发"><Input type="number" min="0" value={concurrency} onChange={e => setConcurrency(e.target.value)} placeholder="留空" /></Field>
+              <Field label="成本倍率"><Input type="number" min="0" step="0.01" value={rateMultiplier} onChange={e => setRateMultiplier(e.target.value)} placeholder="留空" /></Field>
+            </FormGrid>
+          </FormSection>
+          <ErrorLine value={op.error} />
+        </Form>
+      </Overlay>
+      <ConfirmDialog
+        open={!!mixedRiskMsg}
+        title="混渠道批量绑定确认"
+        description={mixedRiskMsg ?? ""}
+        confirm="确认继续绑定"
+        busy={op.busy}
+        error={op.error}
+        onClose={() => setMixedRiskMsg(undefined)}
+        onConfirm={() => void op.run(() => submitBulk(true))}
+      />
+    </>
   );
 }

@@ -87,6 +87,7 @@ func (h *handler) oauthComplete(w http.ResponseWriter, r *http.Request, a core.S
 		State          string   `json:"state,omitempty"`
 		Code           string   `json:"code"`
 		RedirectURI    string   `json:"redirect_uri,omitempty"`
+		ProjectID      string   `json:"project_id,omitempty"`
 		OAuthType      string   `json:"oauth_type,omitempty"`
 		TierID         string   `json:"tier_id,omitempty"`
 		AccountID      *int64   `json:"account_id,omitempty"`
@@ -118,6 +119,9 @@ func (h *handler) oauthComplete(w http.ResponseWriter, r *http.Request, a core.S
 	}
 	if input.RedirectURI != "" {
 		exchangeBody["redirect_uri"] = input.RedirectURI
+	}
+	if input.ProjectID != "" {
+		exchangeBody["project_id"] = input.ProjectID
 	}
 	if input.OAuthType != "" {
 		exchangeBody["oauth_type"] = input.OAuthType
@@ -287,4 +291,68 @@ func (h *handler) importAccounts(w http.ResponseWriter, r *http.Request, a core.
 	default:
 		return platform.Fail(400, "invalid_input")
 	}
+}
+
+func (h *handler) oauthCookieAuth(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[struct {
+		SessionKey     string   `json:"session_key"`
+		Mode           string   `json:"mode,omitempty"`
+		Name           string   `json:"name"`
+		Notes          *string  `json:"notes,omitempty"`
+		ProxyID        *int64   `json:"proxy_id,omitempty"`
+		GroupIDs       []int64  `json:"group_ids,omitempty"`
+		Concurrency    *int     `json:"concurrency,omitempty"`
+		Priority       *int     `json:"priority,omitempty"`
+		RateMultiplier *float64 `json:"rate_multiplier,omitempty"`
+	}](r)
+	if err != nil || strings.TrimSpace(input.SessionKey) == "" || strings.TrimSpace(input.Name) == "" {
+		return platform.Fail(400, "invalid_input")
+	}
+	authBody := map[string]any{"session_key": strings.TrimSpace(input.SessionKey)}
+	if input.ProxyID != nil && *input.ProxyID > 0 {
+		authBody["proxy_id"] = *input.ProxyID
+	}
+	endpoint, accType := "/admin/accounts/cookie-auth", "oauth"
+	if input.Mode == "setup-token" {
+		endpoint, accType = "/admin/accounts/setup-token-cookie-auth", "setup-token"
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 55*time.Second)
+	defer cancel()
+	tokenData, err := platform.Upstream[map[string]any](ctx, h.s.Upstream, "POST", endpoint, a.Tokens.Access, "", "", authBody)
+	if err != nil {
+		return err
+	}
+	if len(tokenData) == 0 {
+		return platform.Fail(502, "invalid_upstream")
+	}
+	createBody := map[string]any{
+		"name":        strings.TrimSpace(input.Name),
+		"platform":    "anthropic",
+		"type":        accType,
+		"credentials": tokenData,
+	}
+	if input.Notes != nil {
+		createBody["notes"] = *input.Notes
+	}
+	if input.ProxyID != nil && *input.ProxyID > 0 {
+		createBody["proxy_id"] = *input.ProxyID
+	}
+	if len(input.GroupIDs) > 0 {
+		createBody["group_ids"] = input.GroupIDs
+	}
+	if input.Concurrency != nil {
+		createBody["concurrency"] = *input.Concurrency
+	}
+	if input.Priority != nil {
+		createBody["priority"] = *input.Priority
+	}
+	if input.RateMultiplier != nil {
+		createBody["rate_multiplier"] = *input.RateMultiplier
+	}
+	raw, err := platform.Upstream[AccountDetailWire](ctx, h.s.Upstream, "POST", "/admin/accounts", a.Tokens.Access, "", "", createBody)
+	if err != nil {
+		return err
+	}
+	view, err := ProjectAdminAccount(raw)
+	return platform.Send(w, 201, view, err)
 }

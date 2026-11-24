@@ -40,7 +40,7 @@ func (h *handler) exportAccountData(w http.ResponseWriter, r *http.Request, a co
 	if err != nil {
 		return err
 	}
-	if len(input.IDs) > 100 {
+	if len(input.IDs) > 1000 {
 		return platform.Fail(http.StatusBadRequest, "invalid_input")
 	}
 	ids := make([]string, 0, len(input.IDs))
@@ -97,7 +97,7 @@ func (h *handler) importAccountData(w http.ResponseWriter, r *http.Request, a co
 	if err != nil {
 		return err
 	}
-	if input.Data.Type != "sub2api-data" || input.Data.Version != 1 || len(input.Data.Accounts) == 0 || len(input.Data.Accounts) > 100 {
+	if input.Data.Type != "sub2api-data" || input.Data.Version != 1 || len(input.Data.Accounts) == 0 || len(input.Data.Accounts) > 1000 {
 		return platform.Fail(http.StatusBadRequest, "invalid_input")
 	}
 	for _, row := range input.Data.Accounts {

@@ -22,13 +22,16 @@ import {
 } from "@/ui";
 import {AddAccountDialog} from "./account-add-dialog";
 import {AccountBalanceSettings, AccountConfigForm} from "./account-config";
+import {AccountGuardForm} from "./account-guard";
 import {canRefreshBalance, isQuotaCapable} from "./account-helpers";
 import {AccountProbeSection, AccountScheduledTests} from "./account-probe";
+
+type AccountDetailTab = "health" | "routing" | "guard";
 
 export function AccountDetailWorkspace({id, queryString}: {id: number; queryString: string}) {
   const [revision, revise] = useState(0);
   const params = Object.fromEntries(new URLSearchParams(queryString));
-  const tab = params.tab === "config" ? "config" : "health";
+  const tab: AccountDetailTab = params.tab === "routing" || params.tab === "config" ? "routing" : params.tab === "guard" ? "guard" : "health";
   const back = () => {
     const listParams = {...params};
     delete listParams.tab;
@@ -54,8 +57,8 @@ function AccountInspector({
 }: {
   id: number;
   revision: number;
-  subTab: "health" | "config";
-  onTabChange: (next: "health" | "config") => void;
+  subTab: AccountDetailTab;
+  onTabChange: (next: AccountDetailTab) => void;
   onChanged: () => void;
   onDeleted: () => void;
 }) {
@@ -94,10 +97,11 @@ function AccountInspector({
               label="账号详情分页"
               value={subTab}
               items={[
-                {value: "health", label: "水位、用量与恢复"},
-                {value: "config", label: "归属与参数"},
+                {value: "health", label: "健康、配额与验真探测"},
+                {value: "routing", label: "路由、凭据与模型映射"},
+                {value: "guard", label: "防封控量与生命周期"},
               ]}
-              onChange={onTabChange}
+              onChange={v => onTabChange(v as AccountDetailTab)}
             />
 
             {subTab === "health" ? (
@@ -248,13 +252,13 @@ function AccountInspector({
                   </InsetRow>
                 </InsetGroup>
 
-                <AccountScheduledTests accountID={acc.id} />
                 <AccountProbeSection accountID={acc.id} models={models} busy={op.busy} runAction={op.run} />
                 <ErrorLine value={op.error} />
               </>
-            ) : (
+            ) : subTab === "routing" ? (
               <>
                 {acc.type === "apikey" && <AccountBalanceSettings account={acc} revision={revision} onRefreshed={onChanged} />}
+                <AccountScheduledTests accountID={acc.id} />
                 <AccountConfigForm
                   acc={acc}
                   revision={revision}
@@ -265,6 +269,14 @@ function AccountInspector({
                   onRequestDelete={() => setConfirmDelete(true)}
                 />
               </>
+            ) : (
+              <AccountGuardForm
+                acc={acc}
+                onSaved={() => {
+                  toast("防封控量与生命周期已更新");
+                  onChanged();
+                }}
+              />
             )}
 
             <AddAccountDialog

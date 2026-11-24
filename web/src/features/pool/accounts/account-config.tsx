@@ -5,10 +5,12 @@ import {account} from "@/schemas";
 import {useAction, useResource} from "@/lib/requests";
 import {
   Button,
+  ConfirmDialog,
   ErrorLine,
   Field,
   Form,
   FormActions,
+  FormGrid,
   FormSection,
   Input,
   InsetRow,
@@ -91,38 +93,86 @@ export function AccountConfigForm({
   const [enabled, setEnabled] = useState(acc.status === "active");
   const [newApiKey, setNewApiKey] = useState("");
   const [baseURL, setBaseURL] = useState(acc.base_url ?? "");
+  const [org, setOrg] = useState(acc.organization ?? "");
+  const [project, setProject] = useState(acc.project ?? "");
+  const [region, setRegion] = useState(acc.region ?? "");
+  const [accessKeyID, setAccessKeyID] = useState(acc.access_key_id ?? "");
+  const [secretAccessKey, setSecretAccessKey] = useState("");
+  const [sessionToken, setSessionToken] = useState("");
+  const [gcpProjectID, setGcpProjectID] = useState(acc.project_id ?? "");
+  const [gcpLocation, setGcpLocation] = useState(acc.location ?? "");
+  const [saJSON, setSaJSON] = useState("");
+  const [customHeadersText, setCustomHeadersText] = useState(
+    Object.keys(acc.custom_headers ?? {}).map(k => `${k} = `).join("\n"),
+  );
+  const initialHeadersText = Object.keys(acc.custom_headers ?? {}).map(k => `${k} = `).join("\n");
   const [mapping, setMapping] = useState(Object.entries(acc.model_mapping ?? {}).map(([from, to]) => from + " = " + to).join("\n"));
   const mappingText = Object.entries(acc.model_mapping ?? {}).map(([from, to]) => from + " = " + to).join("\n");
+  const [mixedRiskMsg, setMixedRiskMsg] = useState<string>();
+
+  async function submitAccount(confirmMixedRisk = false) {
+    const credentials: Record<string, unknown> = {};
+    if (newApiKey.trim()) credentials.api_key = newApiKey.trim();
+    if (baseURL.trim() !== (acc.base_url ?? "")) credentials.base_url = baseURL.trim();
+    if (org.trim() !== (acc.organization ?? "")) credentials.organization = org.trim();
+    if (project.trim() !== (acc.project ?? "")) credentials.project = project.trim();
+    if (region.trim() !== (acc.region ?? "")) credentials.region = region.trim();
+    if (accessKeyID.trim() !== (acc.access_key_id ?? "")) credentials.access_key_id = accessKeyID.trim();
+    if (secretAccessKey.trim()) credentials.secret_access_key = secretAccessKey.trim();
+    if (sessionToken.trim()) credentials.session_token = sessionToken.trim();
+    if (gcpProjectID.trim() !== (acc.project_id ?? "")) credentials.project_id = gcpProjectID.trim();
+    if (gcpLocation.trim() !== (acc.location ?? "")) credentials.location = gcpLocation.trim();
+    if (saJSON.trim()) credentials.service_account_json = saJSON.trim();
+    if (customHeadersText !== initialHeadersText) {
+      const headers: Record<string, string> = {};
+      for (const line of customHeadersText.split(/\r?\n/).map(l => l.trim()).filter(Boolean)) {
+        const idx = line.indexOf("=");
+        if (idx > 0) headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+      }
+      credentials.custom_headers = headers;
+    }
+    if (mapping !== mappingText) {
+      const entries = mapping.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => line.split("=").map(value => value.trim()));
+      if (entries.some(pair => pair.length !== 2 || !pair[0] || !pair[1]) || new Set(entries.map(pair => pair[0])).size !== entries.length) throw new Error("每行填写一个不重复的模型映射，格式为「请求模型 = 上游模型」");
+      credentials.model_mapping = Object.fromEntries(entries);
+    }
+    if (!confirmMixedRisk && groupIDs.length > 0 && groupIDs.join(",") !== acc.group_ids.join(",")) {
+      const check = await api("/admin/accounts/check-mixed-channel", z.object({has_risk: z.boolean(), message: z.string().optional()}), "POST", {
+        platform: acc.platform,
+        group_ids: groupIDs,
+        account_id: acc.id,
+      });
+      if (check.has_risk) {
+        setMixedRiskMsg(check.message || "所选分组存在混渠道风险，确定继续绑定吗？");
+        return;
+      }
+    }
+    await api(`/admin/accounts/${acc.id}`, account, "PUT", {
+      name: name.trim(),
+      notes,
+      status: enabled ? "active" : "inactive",
+      ...(proxyID ? {proxy_id: Number(proxyID)} : {clear_proxy: true}),
+      group_ids: groupIDs,
+      concurrency: Number(concurrency || 0),
+      priority: Number(priority || 0),
+      rate_multiplier: Number(multiplier || 1),
+      ...(Object.keys(credentials).length ? {credentials} : {}),
+      ...(confirmMixedRisk ? {confirm_mixed_channel_risk: true} : {}),
+    });
+    setNewApiKey("");
+    setSecretAccessKey("");
+    setSessionToken("");
+    setSaJSON("");
+    setMixedRiskMsg(undefined);
+    onSaved();
+  }
 
   return (
-    <Form
-      busy={save.busy}
-      onSubmit={() =>
-        void save.run(async () => {
-          const credentials: Record<string, unknown> = {};
-          if (newApiKey.trim()) credentials.api_key = newApiKey.trim();
-          if (baseURL.trim() !== (acc.base_url ?? "")) credentials.base_url = baseURL.trim();
-          if (mapping !== mappingText) {
-            const entries = mapping.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => line.split("=").map(value => value.trim()));
-            if (entries.some(pair => pair.length !== 2 || !pair[0] || !pair[1]) || new Set(entries.map(pair => pair[0])).size !== entries.length) throw new Error("每行填写一个不重复的模型映射，格式为「请求模型 = 上游模型」");
-            credentials.model_mapping = Object.fromEntries(entries);
-          }
-          await api(`/admin/accounts/${acc.id}`, account, "PUT", {
-            name: name.trim(),
-            notes,
-            status: enabled ? "active" : "inactive",
-            ...(proxyID ? {proxy_id: Number(proxyID)} : {clear_proxy: true}),
-            group_ids: groupIDs,
-            concurrency: Number(concurrency || 0),
-            priority: Number(priority || 0),
-            rate_multiplier: Number(multiplier || 1),
-            ...(Object.keys(credentials).length ? {credentials} : {}),
-          });
-          setNewApiKey("");
-          onSaved();
-        })
-      }
-    >
+    <>
+      <Form
+        busy={save.busy}
+        onSubmit={() => void save.run(() => submitAccount(false))}
+      >
       <FormSection title="基本参数与归属">
         <InsetRow label="账号启用状态">
           <Switch label="账号启用" checked={enabled} onChange={setEnabled} />
@@ -148,13 +198,35 @@ export function AccountConfigForm({
         <Field label="账号成本倍率">
           <div className="row-field"><Input type="number" min="0" step="0.01" value={multiplier} onChange={e => setMultiplier(e.target.value)} /></div>
         </Field>
-        {acc.type === "apikey" && <>
-          <Field label="上游地址"><Input type="url" value={baseURL} onChange={event => setBaseURL(event.target.value)} /></Field>
-          <Field label="模型映射" hint="每行一个，请求模型 = 上游模型"><Textarea rows={4} value={mapping} onChange={event => setMapping(event.target.value)} /></Field>
+        {(acc.type === "apikey" || acc.type === "upstream") && <>
+          <Field label="上游地址 (Base URL)"><Input type="url" value={baseURL} onChange={event => setBaseURL(event.target.value)} /></Field>
           <Field label="更新上游 API Key（留空不改）">
             <PasswordInput toggleLabel="API Key" autoComplete="new-password" value={newApiKey} onChange={e => setNewApiKey(e.target.value)} placeholder="已加密保存，仅在需要轮换时输入" />
           </Field>
         </>}
+        {acc.platform === "openai" && (
+          <FormGrid>
+            <Field label="OpenAI Organization"><Input value={org} onChange={e => setOrg(e.target.value)} placeholder="org-..." /></Field>
+            <Field label="OpenAI Project"><Input value={project} onChange={e => setProject(e.target.value)} placeholder="proj_..." /></Field>
+          </FormGrid>
+        )}
+        {acc.type === "bedrock" && (
+          <FormGrid>
+            <Field label="AWS Region"><Input value={region} onChange={e => setRegion(e.target.value)} placeholder="us-east-1" /></Field>
+            <Field label="Access Key ID"><Input value={accessKeyID} onChange={e => setAccessKeyID(e.target.value)} placeholder="AKIA..." /></Field>
+            <Field label="Secret Access Key（留空不改）"><PasswordInput toggleLabel="Secret Access Key" autoComplete="new-password" value={secretAccessKey} onChange={e => setSecretAccessKey(e.target.value)} placeholder="已加密保存" /></Field>
+            <Field label="Session Token（可选，留空不改）"><PasswordInput toggleLabel="Session Token" autoComplete="new-password" value={sessionToken} onChange={e => setSessionToken(e.target.value)} placeholder="可选临时令牌" /></Field>
+          </FormGrid>
+        )}
+        {acc.type === "service_account" && (
+          <FormGrid>
+            <Field label="GCP Project ID"><Input value={gcpProjectID} onChange={e => setGcpProjectID(e.target.value)} placeholder="my-gcp-project" /></Field>
+            <Field label="GCP Location"><Input value={gcpLocation} onChange={e => setGcpLocation(e.target.value)} placeholder="us-central1" /></Field>
+            <Field label="Service Account JSON（留空不改）"><Textarea rows={3} value={saJSON} onChange={e => setSaJSON(e.target.value)} placeholder="仅在需要更新密钥时粘贴 JSON" /></Field>
+          </FormGrid>
+        )}
+        <Field label="模型映射" hint="每行一个，请求模型 = 上游模型"><Textarea rows={4} value={mapping} onChange={event => setMapping(event.target.value)} /></Field>
+        <Field label="自定义请求头 (custom_headers)" hint="每行一个 HeaderName = Value，值留空保留原密文"><Textarea rows={3} value={customHeadersText} onChange={event => setCustomHeadersText(event.target.value)} placeholder="X-Custom-Auth = " /></Field>
         <Field label="运维备注">
           <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="选填备注" />
         </Field>
@@ -166,5 +238,16 @@ export function AccountConfigForm({
         <Button type="submit" size="sm" busy={save.busy}>保存账号配置</Button>
       </FormActions>
     </Form>
+    <ConfirmDialog
+      open={!!mixedRiskMsg}
+      title="混渠道绑定风险确认"
+      description={mixedRiskMsg ?? ""}
+      confirm="确认继续绑定"
+      busy={save.busy}
+      error={save.error}
+      onClose={() => setMixedRiskMsg(undefined)}
+      onConfirm={() => void save.run(() => submitAccount(true))}
+    />
+    </>
   );
 }

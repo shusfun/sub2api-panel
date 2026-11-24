@@ -14,6 +14,7 @@ import {
   EmptyState,
   ErrorLine,
   FilterBar,
+  GeoExitBadge,
   Inspector,
   Menu,
   MenuItem,
@@ -21,8 +22,10 @@ import {
   QuickPills,
   RefreshButton,
   RemoteTable,
+  RouteChain,
   RowActions,
   SearchInput,
+  Select,
   Status,
   WorkspaceStage,
   toast,
@@ -35,6 +38,7 @@ import {ProxyInspector} from "./proxy-inspector";
 export function ProxiesWorkspace({queryString = ""}: {queryString?: string}) {
   const initial = useMemo(() => new URLSearchParams(queryString), [queryString]);
   const [status, setStatus] = useState("");
+  const [protocol, setProtocol] = useState("");
   const [search, setSearch] = useState("");
   const [revision, revise] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
@@ -62,9 +66,12 @@ export function ProxiesWorkspace({queryString = ""}: {queryString?: string}) {
     const p = new URLSearchParams();
     if (debouncedSearch) p.set("search", debouncedSearch);
     if (status) p.set("status", status);
+    if (protocol) p.set("protocol", protocol);
     const qs = p.toString();
     return "/admin/proxies" + (qs ? "?" + qs : "");
-  }, [debouncedSearch, status]);
+  }, [debouncedSearch, status, protocol]);
+
+  const proxyNameByID = useMemo(() => new Map(rows.map(r => [r.id, r.name])), [rows]);
 
   const columns: Column<ProxyRow>[] = [
     {
@@ -76,6 +83,24 @@ export function ProxiesWorkspace({queryString = ""}: {queryString?: string}) {
           <div className="muted code-mono">{row.protocol}://{row.host}:{row.port}</div>
         </div>
       ),
+    },
+    {
+      id: "geo",
+      title: "出口位置",
+      hideWhenCompact: true,
+      render: row => <GeoExitBadge countryCode={row.country_code} country={row.country} city={row.city} ip={row.ip_address} />,
+    },
+    {
+      id: "fallback",
+      title: "回退链路",
+      hideWhenNarrow: true,
+      render: row => {
+        if (row.fallback_mode === "direct") return <RouteChain nodes={[row.name, "直连"]} />;
+        if (row.fallback_mode === "proxy" && row.backup_proxy_id) {
+          return <RouteChain nodes={[row.name, proxyNameByID.get(row.backup_proxy_id) ?? `#${row.backup_proxy_id}`]} />;
+        }
+        return <span className="muted">不回退</span>;
+      },
     },
     {
       id: "accounts",
@@ -168,6 +193,13 @@ export function ProxiesWorkspace({queryString = ""}: {queryString?: string}) {
         <FilterBar sticky>
           <div className="obs-filter-row">
             <SearchInput value={search} onChange={setSearch} placeholder="搜索名称或地址" ariaLabel="搜索代理" />
+            <Select aria-label="按协议筛选" value={protocol} onChange={e => setProtocol(e.target.value)}>
+              <option value="">全部协议</option>
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+              <option value="socks5">SOCKS5</option>
+              <option value="socks5h">SOCKS5H</option>
+            </Select>
             <QuickPills label="状态筛选" value={status} options={statusPills} onChange={setStatus} />
             <div className="obs-filter-spacer">
               <RefreshButton iconOnly size="default" variant="ghost" label="刷新代理" onClick={refresh} />
@@ -183,6 +215,18 @@ export function ProxiesWorkspace({queryString = ""}: {queryString?: string}) {
         </FilterBar>
 
         <BatchBar count={selected.length} onClear={() => setSelected([])}>
+          <Button size="xs" variant="outline" busy={batchAction.busy} onClick={() => void batchAction.run(async () => {
+            for (const id of selected) await api(`/admin/proxies/${id}`, proxyRow, "PUT", {status: "active"});
+            toast(`已启用 ${selected.length} 个代理`);
+            setSelected([]);
+            refresh();
+          })}>批量启用</Button>
+          <Button size="xs" variant="outline" busy={batchAction.busy} onClick={() => void batchAction.run(async () => {
+            for (const id of selected) await api(`/admin/proxies/${id}`, proxyRow, "PUT", {status: "inactive"});
+            toast(`已停用 ${selected.length} 个代理`);
+            setSelected([]);
+            refresh();
+          })}>批量停用</Button>
           <Button size="xs" variant="outline" busy={batchAction.busy} onClick={() => void batchAction.run(async () => {
             let passed = 0;
             for (const id of selected) {

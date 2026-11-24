@@ -51,6 +51,9 @@ export function CreateProxyDialog({open, revision, onClose, onCreated}: {open: b
           const user = String(fd.get("username") ?? "").trim();
           const pass = String(fd.get("password") ?? "");
           void op.run(async () => {
+            const expRaw = String(fd.get("expires_date") ?? "").trim();
+            const expEpoch = expRaw ? Math.floor(new Date(expRaw + "T23:59:59Z").getTime() / 1000) : undefined;
+            const warnDays = Number(fd.get("expiry_warn_days") || 0);
             const created = await api("/admin/proxies", proxyRow, "POST", {
               name: String(fd.get("name") ?? "").trim(),
               protocol: String(fd.get("protocol") ?? "http"),
@@ -60,6 +63,8 @@ export function CreateProxyDialog({open, revision, onClose, onCreated}: {open: b
               ...(pass ? {password: pass} : {}),
               fallback_mode: mode,
               ...(mode === "proxy" && backupID ? {backup_proxy_id: Number(backupID)} : {}),
+              ...(expEpoch ? {expires_at: expEpoch} : {}),
+              ...(warnDays > 0 ? {expiry_warn_days: warnDays} : {}),
             });
             onCreated(created);
           });
@@ -87,6 +92,8 @@ export function CreateProxyDialog({open, revision, onClose, onCreated}: {open: b
             </Select>
           </Field>
           {mode === "proxy" && <Field label="备用代理"><ProxySelect value={backupID} revision={revision} placeholder="无备用代理" onChange={setBackupID} /></Field>}
+          <Field label="到期日期（可选）"><Input name="expires_date" type="date" /></Field>
+          <Field label="提前预警天数"><Input name="expiry_warn_days" type="number" min="0" defaultValue="0" /></Field>
         </FormGrid>
         <ErrorLine value={op.error} />
       </Form>

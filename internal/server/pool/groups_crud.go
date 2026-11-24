@@ -375,13 +375,14 @@ func (h *handler) setGroupRateMultipliers(w http.ResponseWriter, r *http.Request
 		Entries []struct {
 			UserID         int64   `json:"user_id"`
 			RateMultiplier float64 `json:"rate_multiplier"`
+			RPMOverride    *int    `json:"rpm_override,omitempty"`
 		} `json:"entries"`
 	}](r)
 	if err != nil || len(input.Entries) == 0 || len(input.Entries) > 200 {
 		return platform.Fail(400, "invalid_input")
 	}
 	for _, item := range input.Entries {
-		if item.UserID < 1 || item.RateMultiplier < 0 {
+		if item.UserID < 1 || item.RateMultiplier < 0 || item.RPMOverride != nil && *item.RPMOverride < 0 {
 			return platform.Fail(400, "invalid_input")
 		}
 	}

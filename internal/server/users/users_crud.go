@@ -107,6 +107,11 @@ func (h *handler) registerUserAdminRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "PUT /api/admin/users/{user}/platform-quotas", true, h.userPlatformQuotas)
 	h.s.Route(mux, "POST /api/admin/users/{user}/platform-quotas/reset", true, h.userPlatformQuotas)
 	h.s.Route(mux, "GET /api/admin/user-attributes", true, h.userAttributeDefinitions)
+	h.s.Route(mux, "GET /api/admin/user-attributes/all", true, h.allUserAttributeDefinitions)
+	h.s.Route(mux, "POST /api/admin/user-attributes", true, h.createUserAttributeDefinition)
+	h.s.Route(mux, "PUT /api/admin/user-attributes/reorder", true, h.reorderUserAttributeDefinitions)
+	h.s.Route(mux, "PUT /api/admin/user-attributes/{id}", true, h.updateUserAttributeDefinition)
+	h.s.Route(mux, "DELETE /api/admin/user-attributes/{id}", true, h.deleteUserAttributeDefinition)
 	h.s.Route(mux, "GET /api/admin/users/{user}/attributes", true, h.userAttributes)
 	h.s.Route(mux, "PUT /api/admin/users/{user}/attributes", true, h.userAttributes)
 	h.s.Route(mux, "DELETE /api/admin/users/{user}", true, h.deleteAdminUser)
@@ -114,7 +119,9 @@ func (h *handler) registerUserAdminRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "GET /api/admin/users/{user}/balance-history", true, h.adminUserBalanceHistory)
 	h.s.Route(mux, "POST /api/admin/users/batch-limits", true, h.batchUpdateUserLimits)
 	h.s.Route(mux, "POST /api/admin/users/batch-disable", true, h.batchDisableUsers)
-	h.s.Route(mux, "PUT /api/admin/api-keys/{id}", true, h.adminUpdateKeyGroup)
+	h.s.Route(mux, "POST /api/admin/users/batch-enable", true, h.batchEnableUsers)
+	h.s.Route(mux, "PUT /api/admin/api-keys/{id}", true, h.adminUpdateAPIKey)
+	h.s.Route(mux, "DELETE /api/admin/api-keys/{id}", true, h.adminDeleteAPIKey)
 	h.s.Route(mux, "GET /api/admin/users/{user}/subscriptions", true, h.userSubscriptions)
 	h.s.Route(mux, "GET /api/admin/subscriptions", true, h.adminSubscriptionsList)
 	h.s.Route(mux, "POST /api/admin/subscriptions/assign", true, h.assignAdminSubscription)
@@ -258,19 +265,28 @@ func (h *handler) updateAdminUser(w http.ResponseWriter, r *http.Request, a core
 		return err
 	}
 	input, err := platform.DecodeBody[struct {
-		Username    *string `json:"username,omitempty"`
-		Password    *string `json:"password,omitempty"`
-		Notes       *string `json:"notes,omitempty"`
-		Status      string  `json:"status,omitempty"`
-		Concurrency *int    `json:"concurrency,omitempty"`
-		RPMLimit    *int    `json:"rpm_limit,omitempty"`
+		Username       *string `json:"username,omitempty"`
+		Password       *string `json:"password,omitempty"`
+		Notes          *string `json:"notes,omitempty"`
+		Role           string  `json:"role,omitempty"`
+		Status         string  `json:"status,omitempty"`
+		RestrictPublic *bool   `json:"restrict_public_groups,omitempty"`
+		Concurrency    *int    `json:"concurrency,omitempty"`
+		RPMLimit       *int    `json:"rpm_limit,omitempty"`
+		TOTP           string  `json:"totp,omitempty"`
 	}](r)
 	if err != nil ||
+		input.Role != "" && input.Role != "user" && input.Role != "admin" ||
 		input.Status != "" && input.Status != "active" && input.Status != "disabled" ||
 		input.Password != nil && (*input.Password != "" && (len(*input.Password) < 6 || len(*input.Password) > 128)) ||
 		input.Concurrency != nil && (*input.Concurrency < 0 || *input.Concurrency > 10000) ||
 		input.RPMLimit != nil && (*input.RPMLimit < 0 || *input.RPMLimit > 100000) {
 		return platform.Fail(400, "invalid_input")
+	}
+	if input.Role != "" {
+		if err := h.s.RequireOptionalStepUp(r, a, input.TOTP); err != nil {
+			return err
+		}
 	}
 	body := map[string]any{}
 	if input.Username != nil {
@@ -282,8 +298,14 @@ func (h *handler) updateAdminUser(w http.ResponseWriter, r *http.Request, a core
 	if input.Notes != nil {
 		body["notes"] = *input.Notes
 	}
+	if input.Role != "" {
+		body["role"] = input.Role
+	}
 	if input.Status != "" {
 		body["status"] = input.Status
+	}
+	if input.RestrictPublic != nil {
+		body["restrict_public_groups"] = *input.RestrictPublic
 	}
 	if input.Concurrency != nil {
 		body["concurrency"] = *input.Concurrency
@@ -353,89 +375,4 @@ func (h *handler) adminUserBalanceHistory(w http.ResponseWriter, r *http.Request
 		return item, nil
 	})
 	return platform.Send(w, 200, rows, err)
-}
-
-func (h *handler) batchUpdateUserLimits(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	input, err := platform.DecodeBody[struct {
-		UserIDs     []int64 `json:"user_ids"`
-		Concurrency *int    `json:"concurrency,omitempty"`
-		RPMLimit    *int    `json:"rpm_limit,omitempty"`
-	}](r)
-	if err != nil || len(input.UserIDs) == 0 || len(input.UserIDs) > 200 ||
-		input.Concurrency == nil && input.RPMLimit == nil ||
-		input.Concurrency != nil && (*input.Concurrency < 0 || *input.Concurrency > 10000) ||
-		input.RPMLimit != nil && (*input.RPMLimit < 0 || *input.RPMLimit > 100000) {
-		return platform.Fail(400, "invalid_input")
-	}
-	for _, id := range input.UserIDs {
-		if id < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-	}
-	res, err := platform.Upstream[struct {
-		Affected int `json:"affected"`
-	}](r.Context(), h.s.Upstream, "POST", "/admin/users/batch-limits", a.Tokens.Access, "", "", input)
-	return platform.Send(w, 200, res, err)
-}
-
-func (h *handler) batchDisableUsers(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	input, err := platform.DecodeBody[struct {
-		UserIDs []int64 `json:"user_ids"`
-	}](r)
-	if err != nil || len(input.UserIDs) == 0 || len(input.UserIDs) > 200 {
-		return platform.Fail(400, "invalid_input")
-	}
-	for _, id := range input.UserIDs {
-		if id < 1 {
-			return platform.Fail(400, "invalid_input")
-		}
-	}
-	res, err := platform.Upstream[struct {
-		Affected int `json:"affected"`
-	}](r.Context(), h.s.Upstream, "POST", "/admin/users/batch-disable", a.Tokens.Access, "", "", input)
-	return platform.Send(w, 200, res, err)
-}
-
-func (h *handler) adminUpdateKeyGroup(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	id, err := platform.PathID(r, "id")
-	if err != nil {
-		return err
-	}
-	input, err := platform.DecodeBody[struct {
-		GroupID *int64 `json:"group_id"`
-	}](r)
-	if err != nil {
-		return err
-	}
-	groupID := int64(0)
-	if input.GroupID != nil {
-		if *input.GroupID < 0 {
-			return platform.Fail(400, "invalid_input")
-		}
-		groupID = *input.GroupID
-	}
-	type resultView struct {
-		AutoGranted bool   `json:"auto_granted_group_access"`
-		GroupName   string `json:"granted_group_name,omitempty"`
-	}
-	result, err := platform.Upstream[resultView](r.Context(), h.s.Upstream, "PUT", fmt.Sprintf("/admin/api-keys/%d", id), a.Tokens.Access, "", "", map[string]any{"group_id": groupID})
-	return platform.Send(w, 200, result, err)
-}
-
-func (h *handler) replaceUserGroup(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
-	id, err := platform.PathID(r, "user")
-	if err != nil {
-		return err
-	}
-	input, err := platform.DecodeBody[struct {
-		OldID int64 `json:"old_group_id"`
-		NewID int64 `json:"new_group_id"`
-	}](r)
-	if err != nil || input.OldID < 1 || input.NewID < 1 || input.OldID == input.NewID {
-		return platform.Fail(400, "invalid_input")
-	}
-	result, err := platform.Upstream[struct {
-		Migrated int `json:"migrated_keys"`
-	}](r.Context(), h.s.Upstream, "POST", fmt.Sprintf("/admin/users/%d/replace-group", id), a.Tokens.Access, "", "", input)
-	return platform.Send(w, 200, result, err)
 }

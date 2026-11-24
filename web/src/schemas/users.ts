@@ -87,3 +87,19 @@ export const balanceHistoryRow = z.object({
   created_at: z.string(),
   group: named.optional(),
 });
+
+export const userAttributeOption = z.object({
+  value: z.string(),
+  label: z.string(),
+});
+
+export const userAttributeDefinition = named.extend({
+  key: z.string().optional().default(""),
+  label: z.string().optional().default(""),
+  type: z.string(),
+  description: z.string().optional().default(""),
+  required: z.boolean().optional().default(false),
+  enabled: z.boolean().optional().default(true),
+  sort_order: z.number().optional().default(0),
+  options: z.array(userAttributeOption).nullable().optional(),
+});

@@ -14,15 +14,36 @@ const userAttributeTextLimit = 4000
 
 var quotaPlatformName = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
 
+type userAttributeOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
 type userAttributeDefinition struct {
 	platform.NamedItem
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Required    bool   `json:"required"`
-	Options     []struct {
-		Value string `json:"value"`
-		Label string `json:"label"`
-	} `json:"options"`
+	Key         string                `json:"key,omitempty"`
+	Label       string                `json:"label,omitempty"`
+	Type        string                `json:"type"`
+	Description string                `json:"description"`
+	Required    bool                  `json:"required"`
+	Enabled     bool                  `json:"enabled"`
+	SortOrder   int                   `json:"sort_order"`
+	Options     []userAttributeOption `json:"options"`
+}
+
+type userAttributeUpsertInput struct {
+	Key         string                `json:"key"`
+	Label       string                `json:"label"`
+	Name        string                `json:"name,omitempty"`
+	Type        string                `json:"type"`
+	Description string                `json:"description,omitempty"`
+	Required    bool                  `json:"required"`
+	Enabled     *bool                 `json:"enabled,omitempty"`
+	Options     []userAttributeOption `json:"options,omitempty"`
+}
+
+func validAttributeType(kind string) bool {
+	return kind == "text" || kind == "number" || kind == "select" || kind == "boolean"
 }
 
 type userAttributeValue struct {
@@ -36,6 +57,72 @@ func (h *handler) userAttributeDefinitions(w http.ResponseWriter, r *http.Reques
 		result = []userAttributeDefinition{}
 	}
 	return platform.Send(w, http.StatusOK, result, err)
+}
+
+func (h *handler) allUserAttributeDefinitions(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	result, err := platform.Upstream[[]userAttributeDefinition](r.Context(), h.s.Upstream, http.MethodGet, "/admin/user-attributes", a.Tokens.Access, "", "", nil)
+	if result == nil {
+		result = []userAttributeDefinition{}
+	}
+	return platform.Send(w, http.StatusOK, result, err)
+}
+
+func (h *handler) createUserAttributeDefinition(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[userAttributeUpsertInput](r)
+	if err != nil || len(input.Key) == 0 || len(input.Key) > 64 || !validAttributeType(input.Type) ||
+		(len(input.Label) == 0 && len(input.Name) == 0) || len(input.Label) > 120 || len(input.Name) > 120 || len(input.Description) > 500 || len(input.Options) > 100 {
+		return platform.Fail(http.StatusBadRequest, "invalid_input")
+	}
+	if input.Name == "" {
+		input.Name = input.Label
+	}
+	if input.Label == "" {
+		input.Label = input.Name
+	}
+	result, err := platform.Upstream[userAttributeDefinition](r.Context(), h.s.Upstream, http.MethodPost, "/admin/user-attributes", a.Tokens.Access, "", "", input)
+	return platform.Send(w, http.StatusCreated, result, err)
+}
+
+func (h *handler) updateUserAttributeDefinition(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	id, err := platform.PathID(r, "id")
+	if err != nil {
+		return err
+	}
+	input, err := platform.DecodeBody[userAttributeUpsertInput](r)
+	if err != nil || len(input.Key) > 64 || (input.Type != "" && !validAttributeType(input.Type)) ||
+		len(input.Label) > 120 || len(input.Name) > 120 || len(input.Description) > 500 || len(input.Options) > 100 {
+		return platform.Fail(http.StatusBadRequest, "invalid_input")
+	}
+	if input.Name == "" && input.Label != "" {
+		input.Name = input.Label
+	}
+	result, err := platform.Upstream[userAttributeDefinition](r.Context(), h.s.Upstream, http.MethodPut, fmt.Sprintf("/admin/user-attributes/%d", id), a.Tokens.Access, "", "", input)
+	return platform.Send(w, http.StatusOK, result, err)
+}
+
+func (h *handler) deleteUserAttributeDefinition(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	id, err := platform.PathID(r, "id")
+	if err != nil {
+		return err
+	}
+	_, err = platform.Upstream[struct{}](r.Context(), h.s.Upstream, http.MethodDelete, fmt.Sprintf("/admin/user-attributes/%d", id), a.Tokens.Access, "", "", nil)
+	return platform.Send(w, http.StatusOK, struct{}{}, err)
+}
+
+func (h *handler) reorderUserAttributeDefinitions(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[struct {
+		IDs []int64 `json:"ids"`
+	}](r)
+	if err != nil || len(input.IDs) == 0 || len(input.IDs) > 100 {
+		return platform.Fail(http.StatusBadRequest, "invalid_input")
+	}
+	for _, id := range input.IDs {
+		if id < 1 {
+			return platform.Fail(http.StatusBadRequest, "invalid_input")
+		}
+	}
+	_, err = platform.Upstream[struct{}](r.Context(), h.s.Upstream, http.MethodPut, "/admin/user-attributes/reorder", a.Tokens.Access, "", "", input)
+	return platform.Send(w, http.StatusOK, struct{}{}, err)
 }
 
 func (h *handler) userAttributes(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {

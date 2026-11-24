@@ -1,4 +1,5 @@
 import {useId, useState} from "react";
+import {Pencil, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {cents, money, smartMoney} from "@/lib/format";
@@ -13,6 +14,7 @@ import {
 } from "@/ui";
 import {AssignSubscriptionDialog, ExtendSubscription} from "./user-dialogs";
 import {UserAttributes} from "./user-attributes";
+import {AdminEditKeyDialog} from "./user-key-edit";
 import {UserQuotas} from "./user-quotas";
 import type {SubRow, UserItem} from "./index";
 
@@ -120,7 +122,7 @@ export function UserDetailInspector({
   );
 }
 
-function ReplaceUserGroup({
+export function ReplaceUserGroup({
   user,
   groups,
   onClose,
@@ -166,61 +168,108 @@ function ReplaceUserGroup({
   );
 }
 
-function UserChangeDialog({task, usr, onClose, onSaved}: {task: "balance" | "limits" | "profile"; usr: UserItem; onClose: () => void; onSaved: (message: string) => void}) {
+export function UserChangeDialog({task, usr, onClose, onSaved}: {task: "balance" | "limits" | "profile"; usr: UserItem; onClose: () => void; onSaved: (message: string) => void}) {
   const formID = useId();
   const op = useAction();
   const [enabled, setEnabled] = useState(usr.status === "active");
+  const [role, setRole] = useState(usr.role || "user");
+  const [restrictPublic, setRestrictPublic] = useState(usr.restrict_public_groups);
+  const [pendingRoleBody, setPendingRoleBody] = useState<Record<string, unknown>>();
   const path = `/admin/users/${usr.id}`;
   const title = {balance: "调整用户余额", limits: "修改用户限流", profile: "编辑用户账号"}[task];
   return (
-    <Overlay
-      open
-      title={title}
-      onClose={onClose}
-      busy={op.busy}
-      footer={<><Button variant="outline" onClick={onClose}>取消</Button><Button type="submit" form={formID} busy={op.busy}>保存</Button></>}
-    >
-      <Form
-        id={formID}
+    <>
+      <Overlay
+        open
+        title={title}
+        onClose={onClose}
         busy={op.busy}
-        onSubmit={event => {
-          const data = new FormData(event.currentTarget);
-          const password = String(data.get("password") ?? "");
-          void op.run(async () => {
-            if (task === "balance") await api(path + "/balance", userRow, "POST", {balance: Number(data.get("balance")), operation: data.get("operation"), notes: data.get("notes")});
-            else await api(path, userRow, "PUT", task === "limits"
-              ? {concurrency: Number(data.get("concurrency")), rpm_limit: Number(data.get("rpm"))}
-              : {status: enabled ? "active" : "disabled", notes: data.get("notes"), ...(password ? {password} : {})});
-            onSaved({balance: "用户余额已更新", limits: "用户限流已更新", profile: "用户账号已更新"}[task]);
-          });
-        }}
+        footer={<><Button variant="outline" onClick={onClose}>取消</Button><Button type="submit" form={formID} busy={op.busy}>保存</Button></>}
       >
-        {task === "balance" && (
-          <>
-            <Field label="调整方式"><Select name="operation" defaultValue="add"><option value="add">增加</option><option value="subtract">扣减</option><option value="set">设为</option></Select></Field>
-            <Field label="金额"><Input name="balance" type="number" suffix="USD" min="0" step="0.01" required /></Field>
-          </>
-        )}
-        {task === "limits" && (
-          <>
-            <Field label="最大并发"><Input name="concurrency" type="number" min="0" max="10000" defaultValue={usr.concurrency} required /></Field>
-            <Field label="每分钟请求上限"><Input name="rpm" type="number" suffix="RPM" min="0" max="100000" defaultValue={usr.rpm_limit} required /></Field>
-          </>
-        )}
-        {task === "profile" && (
-          <>
-            <Switch checked={enabled} label="启用该用户" onChange={setEnabled} />
-            <Field label="新密码（选填）"><PasswordInput name="password" autoComplete="new-password" minLength={6} maxLength={128} /></Field>
-          </>
-        )}
-        {task !== "limits" && <Field label="备注（选填）"><Input name="notes" defaultValue={task === "profile" ? usr.notes : ""} /></Field>}
-        <ErrorLine value={op.error} />
-      </Form>
-    </Overlay>
+        <Form
+          id={formID}
+          busy={op.busy}
+          onSubmit={event => {
+            const data = new FormData(event.currentTarget);
+            const password = String(data.get("password") ?? "");
+            if (task === "profile") {
+              const body: Record<string, unknown> = {
+                username: String(data.get("username") ?? "").trim(),
+                status: enabled ? "active" : "disabled",
+                restrict_public_groups: restrictPublic,
+                notes: String(data.get("notes") ?? ""),
+                ...(password ? {password} : {}),
+                ...(role !== usr.role ? {role} : {}),
+              };
+              if (role !== usr.role && (role === "admin" || usr.role === "admin")) {
+                op.clearError();
+                setPendingRoleBody(body);
+                return;
+              }
+              void op.run(async () => {
+                await api(path, userRow, "PUT", body);
+                onSaved("用户账号已更新");
+              });
+              return;
+            }
+            void op.run(async () => {
+              if (task === "balance") await api(path + "/balance", userRow, "POST", {balance: Number(data.get("balance")), operation: data.get("operation"), notes: data.get("notes")});
+              else await api(path, userRow, "PUT", {concurrency: Number(data.get("concurrency")), rpm_limit: Number(data.get("rpm"))});
+              onSaved({balance: "用户余额已更新", limits: "用户限流已更新"}[task]);
+            });
+          }}
+        >
+          {task === "balance" && (
+            <>
+              <Field label="调整方式"><Select name="operation" defaultValue="add"><option value="add">增加</option><option value="subtract">扣减</option><option value="set">设为</option></Select></Field>
+              <Field label="金额"><Input name="balance" type="number" suffix="USD" min="0" step="0.01" required /></Field>
+            </>
+          )}
+          {task === "limits" && (
+            <>
+              <Field label="最大并发"><Input name="concurrency" type="number" min="0" max="10000" defaultValue={usr.concurrency} required /></Field>
+              <Field label="每分钟请求上限"><Input name="rpm" type="number" suffix="RPM" min="0" max="100000" defaultValue={usr.rpm_limit} required /></Field>
+            </>
+          )}
+          {task === "profile" && (
+            <>
+              <Field label="显示昵称"><Input name="username" defaultValue={usr.username} /></Field>
+              <Field label="账号角色">
+                <Select value={role} onChange={e => setRole(e.target.value)}>
+                  <option value="user">普通用户</option>
+                  <option value="admin">管理员</option>
+                </Select>
+              </Field>
+              <Switch checked={enabled} label="启用该用户" onChange={setEnabled} />
+              <Switch checked={restrictPublic} label="限制访问公开分组（仅限专属分组）" onChange={setRestrictPublic} />
+              <Field label="新密码（选填）"><PasswordInput name="password" autoComplete="new-password" minLength={6} maxLength={128} /></Field>
+            </>
+          )}
+          {task !== "limits" && <Field label="备注（选填）"><Input name="notes" defaultValue={task === "profile" ? usr.notes : ""} /></Field>}
+          <ErrorLine value={op.error} />
+        </Form>
+      </Overlay>
+      {pendingRoleBody && (
+        <StepUpDialog
+          title="验证管理员角色变更"
+          labels={[usr.email, `角色变更：${usr.role} → ${role}`]}
+          confirmLabel="验证并保存"
+          busy={op.busy}
+          error={op.error}
+          fieldErrors={op.fieldErrors}
+          onClose={() => setPendingRoleBody(undefined)}
+          onConfirm={({totp}) => void op.run(async () => {
+            await api(path, userRow, "PUT", {...pendingRoleBody, totp});
+            setPendingRoleBody(undefined);
+            onSaved("用户账号与角色已更新");
+          })}
+        />
+      )}
+    </>
   );
 }
 
-function UserSubscriptionsPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
+export function UserSubscriptionsPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
   const [renew, setRenew] = useState<SubRow>();
   const subs = useResource(() => api(`/admin/users/${userID}/subscriptions?page=1`, page(adminSubscriptionRow)), `usr-subs-${userID}`, true, revision);
   const op = useAction();
@@ -262,8 +311,10 @@ function UserSubscriptionsPane({userID, revision, onChanged}: {userID: number; r
   );
 }
 
-function UserKeysPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
+export function UserKeysPane({userID, revision, onChanged}: {userID: number; revision: number; onChanged: (msg: string) => void}) {
   const op = useAction();
+  const [editing, setEditing] = useState<z.infer<typeof keyRow>>();
+  const [deleting, setDeleting] = useState<z.infer<typeof keyRow>>();
   return (
     <>
       <RemoteTable
@@ -286,6 +337,7 @@ function UserKeysPane({userID, revision, onChanged}: {userID: number; revision: 
               </div>
             ),
           },
+          {id: "status", title: "状态", align: "center", render: r => <Status value={r.status} />},
           {
             id: "group",
             title: "绑定分组",
@@ -300,14 +352,47 @@ function UserKeysPane({userID, revision, onChanged}: {userID: number; revision: 
               />
             ),
           },
+          {
+            id: "act",
+            title: "操作",
+            align: "end",
+            render: r => (
+              <div className="row-actions">
+                <Button size="icon-sm" variant="ghost" title="编辑密钥" aria-label="编辑密钥" onClick={() => setEditing(r)}><Pencil aria-hidden /></Button>
+                <Button size="icon-sm" variant="ghost" title="删除密钥" aria-label="删除密钥" onClick={() => setDeleting(r)}><Trash2 aria-hidden /></Button>
+              </div>
+            ),
+          },
         ]}
       />
       <ErrorLine value={op.error} />
+      {editing && (
+        <AdminEditKeyDialog
+          item={editing}
+          revision={revision}
+          onClose={() => setEditing(undefined)}
+          onSaved={msg => { setEditing(undefined); onChanged(msg); }}
+        />
+      )}
+      <ConfirmDialog
+        open={!!deleting}
+        title="删除代管密钥"
+        description={deleting ? `确定删除密钥「${deleting.name}」吗？` : ""}
+        confirm="删除"
+        busy={op.busy}
+        error={op.error}
+        onClose={() => setDeleting(undefined)}
+        onConfirm={() => deleting && void op.run(async () => {
+          await api(`/admin/api-keys/${deleting.id}`, empty, "DELETE");
+          setDeleting(undefined);
+          onChanged(`已删除密钥「${deleting.name}」`);
+        })}
+      />
     </>
   );
 }
 
-function GrantEditor({user}: {user: number}) {
+export function GrantEditor({user}: {user: number}) {
   const path = "/admin/grants/" + user;
   const [revision, revise] = useState(0);
   const [confirming, confirm] = useState(false);

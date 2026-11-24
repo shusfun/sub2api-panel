@@ -1,4 +1,5 @@
 import {useId, useState} from "react";
+import {History, Pencil, Trash2} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty} from "@/schemas";
@@ -6,10 +7,9 @@ import {count, date, dateTimeInputSeconds, dateTimeInputValue, money} from "@/li
 import {useAction, useDebouncedValue} from "@/lib/requests";
 import {
   Button, ConfirmDialog, EntityLink, ErrorLine, Field, FilterBar, FilterSlot, Form, FormGrid,
-  InlineStack, Input, MaskedSecret, Overlay, RefreshButton, SearchInput, SecretRevealDialog, Select, Status, Textarea,
-  WorkspaceStage, toast, type Column,
+  Input, MaskedSecret, Overlay, RefreshButton, RemoteTable, SearchInput, SecretRevealDialog,
+  Select, Switch, Textarea, WorkspaceStage, toast, type Column,
 } from "@/ui";
-import {RemoteTable} from "@/ui";
 
 const base = "/admin/promo-codes";
 const promoCode = z.object({
@@ -40,15 +40,44 @@ export function PromoCodes() {
 
   const columns: Column<PromoCode>[] = [
     {id: "code", title: "优惠码", render: row => <MaskedSecret masked={row.masked} />},
-    {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
+    {
+      id: "status",
+      title: "启用",
+      align: "center",
+      render: row => (
+        <Switch
+          checked={row.status === "active"}
+          disabled={removal.busy}
+          label={`${row.status === "active" ? "停用" : "启用"}优惠码 ${row.masked}`}
+          onChange={checked => void removal.run(async () => {
+            await api(base + "/" + row.id, empty, "PUT", {
+              bonus_amount: row.bonus_amount,
+              max_uses: row.max_uses,
+              notes: row.notes,
+              expires_at: row.expires_at ? Math.floor(new Date(row.expires_at).getTime() / 1000) : 0,
+              status: checked ? "active" : "disabled",
+            });
+            revise(v => v + 1);
+            toast(checked ? "优惠码已启用" : "优惠码已停用");
+          })}
+        />
+      ),
+    },
     {id: "amount", title: "赠送余额", align: "number", render: row => money(row.bonus_amount)},
     {id: "uses", title: "已用 / 上限", align: "number", hideWhenCompact: true, render: row => count.format(row.used_count) + " / " + (row.max_uses ? count.format(row.max_uses) : "不限")},
     {id: "expiry", title: "到期时间", hideWhenNarrow: true, render: row => row.expires_at ? date(row.expires_at) : "长期"},
-    {id: "actions", title: "操作", align: "end", render: row => <InlineStack>
-      <Button variant="ghost" size="sm" onClick={() => setUsage(row)}>使用记录</Button>
-      <Button variant="ghost" size="sm" onClick={() => edit({row})}>编辑</Button>
-      <Button variant="destructive" size="sm" onClick={() => { removal.clearError(); remove(row); }}>删除</Button>
-    </InlineStack>},
+    {
+      id: "actions",
+      title: "操作",
+      align: "end",
+      render: row => (
+        <div className="row-actions">
+          <Button variant="ghost" size="icon-sm" title="使用记录" aria-label="使用记录" onClick={() => setUsage(row)}><History aria-hidden /></Button>
+          <Button variant="ghost" size="icon-sm" title="编辑优惠码" aria-label="编辑优惠码" onClick={() => edit({row})}><Pencil aria-hidden /></Button>
+          <Button variant="ghost" size="icon-sm" title="删除优惠码" aria-label="删除优惠码" onClick={() => { removal.clearError(); remove(row); }}><Trash2 aria-hidden /></Button>
+        </div>
+      ),
+    },
   ];
 
   return <WorkspaceStage flush>

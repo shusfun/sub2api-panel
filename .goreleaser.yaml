@@ -2,6 +2,7 @@ version: 2
 project_name: sub2api-panel
 before:
   hooks:
+    - go run . update validate-build {{.Tag}} {{.IsSnapshot}}
     - pnpm --dir web install --frozen-lockfile
     - pnpm --dir web build
 builds:
@@ -11,7 +12,7 @@ builds:
     tags:
       - panel_release
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+      - -s -w -X main.version={{if index .Env "PANEL_PRODUCT_VERSION"}}{{.Env.PANEL_PRODUCT_VERSION}}{{else}}{{.Version}}{{end}} -X main.commit={{.Commit}}
     goos:
       - linux
       - windows
@@ -20,8 +21,20 @@ builds:
       - arm64
 archives:
   - formats: [tar.gz]
+    name_template: '{{ .ProjectName }}_{{ if index .Env "PANEL_PRODUCT_VERSION" }}{{ .Env.PANEL_PRODUCT_VERSION }}{{ else }}{{ .Version }}{{ end }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - README.md
+      - LICENSE
+      - src: deploy/postgres-grants.sql
+        strip_parent: true
     format_overrides:
       - goos: windows
         formats: [zip]
 checksum:
   name_template: checksums.txt
+release:
+  draft: true
+  prerelease: auto
+  name_template: 'Sub2API Panel {{ if index .Env "PANEL_PRODUCT_VERSION" }}{{ .Env.PANEL_PRODUCT_VERSION }}{{ else }}{{ .Version }}{{ end }}'
+  extra_files:
+    - glob: ./release-input/update-manifest.json

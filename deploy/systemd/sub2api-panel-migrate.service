@@ -1,0 +1,15 @@
+[Unit]
+Description=Migrate the Sub2API Panel PostgreSQL database
+
+[Service]
+Type=oneshot
+User=panel-migrate
+Group=panel-migrate
+EnvironmentFile=/etc/sub2api-panel/migrate.env
+ExecStart=/opt/sub2api-panel/pending/sub2api-panel migrate
+ExecStart=/usr/bin/psql --no-psqlrc --no-password --single-transaction --set=ON_ERROR_STOP=1 --file=/opt/sub2api-panel/pending/postgres-grants.sql
+TimeoutStartSec=900
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

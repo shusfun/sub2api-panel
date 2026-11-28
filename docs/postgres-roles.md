@@ -8,7 +8,7 @@ sub2api-panel migrate
 
 生产环境把 `serve` 与 `issuer` 配置成同一数据库的不同角色 URL：
 
-- `panel_serve`：`runtime_settings`、`usage_observations`、`usage_snapshots`、`usage_versions`、`usage_cursors`、`patrol_policies`、`probe_templates`、`patrol_runs` 的读写权限，以及会话运行所需的最小公共权限；不得读取 `grants`、`issues`、`grant_audits`。
+- `panel_serve`：`runtime_settings`、`usage_observations`、`usage_snapshots`、`usage_versions`、`usage_cursors`、`patrol_policies`、`probe_templates`、`patrol_runs` 及七张账本表的读写权限，具体清单见 [PostgreSQL 部署授权](../deploy/postgres-grants.sql)。不得读取 `grants`、`issues`、`grant_audits`。
 - `panel_issuer`：`grants`、`issues`、`grant_audits` 和 `runtime_settings` 的读写权限；不得读取用量观测表，也不读取浏览器会话数据。
 - 迁移角色：拥有 schema migration 所需的 DDL 权限，不用于运行进程。
 

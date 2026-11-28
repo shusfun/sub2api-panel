@@ -1,0 +1,64 @@
+name: Prepare release draft
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Git tag to build
+        required: true
+        type: string
+      manifest:
+        description: JSON release manifest
+        required: true
+        type: string
+      approved_version_target:
+        description: Exact product version explicitly requested by the owner for a change to either of the first two numbers
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: panel-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    environment: panel-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Validate release input
+        env:
+          PANEL_TAG: ${{ inputs.tag }}
+          PANEL_RELEASE_MANIFEST: ${{ inputs.manifest }}
+          PANEL_APPROVED_VERSION_TARGET: ${{ inputs.approved_version_target }}
+        run: |
+          set -euo pipefail
+          product="$(go run . update product-version "$PANEL_TAG")"
+          mkdir -p release-input
+          printf '%s\n' "$PANEL_RELEASE_MANIFEST" > release-input/update-manifest.json
+          go run . update validate-release "$PANEL_TAG" release-input/update-manifest.json
+          test "$(git rev-parse --verify "refs/tags/$PANEL_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          printf 'PANEL_PRODUCT_VERSION=%s\nGORELEASER_CURRENT_TAG=%s\n' "$product" "$PANEL_TAG" >> "$GITHUB_ENV"
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '2.14.3'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PANEL_APPROVED_VERSION_TARGET: ${{ inputs.approved_version_target }}

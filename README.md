@@ -16,6 +16,8 @@ go build -tags panel_release -o sub2api-panel .
 
 `sub2api-panel --help` 查看命令，`sub2api-panel version` 查看版本。下载对应平台与架构的发布包后，先对照发布的 `checksums.txt` 验证压缩包。面板的 `update check` 和 `update install` 使用本地 JSON 清单，其字段为 `version`、`os`、`arch` 和候选二进制的 `sha256`。安装命令需要指定现行二进制路径，恢复时使用 `update rollback --target`。更换前停止服务管理器中的面板进程，更换完成后启动。官方实例版本在「设置 → 系统信息」查看和管理。
 
+Linux systemd 的正式版本规则、面板在线更新、首次部署与故障恢复见[面板发布与生产升级](docs/panel-release.md)。
+
 ## 同机 HTTPS 部署
 
 用独立的 HTTPS 域名访问面板。下面的示例由 Caddy 终止 TLS，只将这个域名转发到面板进程。保留原有官方站点的独立配置。反向代理应保留原始路径、查询、签名请求头和 `Origin`，并让测活事件及时下发。
@@ -88,6 +90,8 @@ panel.example.com {
 $env:PANEL_TEST_BROWSER_ADDR = '127.0.0.1:28741'
 go test -run '^TestBrowserFixture$' -v -timeout 0
 ```
+
+验收面板更新交互时，可为同一预览夹具设置 `PANEL_TEST_BROWSER_UPDATE=1`，以模拟发布、TOTP 提交和任务结果。
 
 开发面板页面时，在宿主机用 `pnpm --dir web dev` 启动 Vite，再给同一个预览夹具设置 `PANEL_TEST_BROWSER_VITE=local`。在 Docker 里的夹具用 `PANEL_TEST_BROWSER_VITE=docker`。仍从 `http://127.0.0.1:28741` 打开面板。夹具转发前端模块和热更新连接，Vite 固定监听宿主机的 `127.0.0.1:28742`。Vite 停止后，重新加载页面即可使用已构建的前端。独立的验证码页面使用构建产物。
 

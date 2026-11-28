@@ -1,0 +1,14 @@
+panel.example.com {
+    @internal path /internal /internal/*
+    respond @internal 404
+
+    @maintenance file {
+        root /var/lib/sub2api-panel-maintenance
+        try_files /active
+    }
+    respond @maintenance "面板更新维护中，请稍后刷新页面并重新登录。" 503
+
+    reverse_proxy 127.0.0.1:8741 {
+        flush_interval -1
+    }
+}

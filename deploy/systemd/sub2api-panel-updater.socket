@@ -1,0 +1,12 @@
+[Unit]
+Description=Sub2API Panel update socket
+
+[Socket]
+ListenStream=/run/sub2api-panel-updater.sock
+SocketUser=root
+SocketGroup=panel-update-client
+SocketMode=0660
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target

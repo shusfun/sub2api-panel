@@ -6,3 +6,5 @@ web/dist/
 .env
 *.exe
 /sub2api-panel
+/release-input/
+/dist/

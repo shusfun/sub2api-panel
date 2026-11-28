@@ -115,6 +115,9 @@ func RunBrowserFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := setupFixture(t, frontend, "http://"+listener.Addr().String())
+	if os.Getenv("PANEL_TEST_BROWSER_UPDATE") == "1" {
+		setupUpdateFixture(t, f)
+	}
 	if path := os.Getenv("PANEL_TEST_BROWSER_USAGE_FILE"); path != "" {
 		if err := f.loadPreviewUsage(path); err != nil {
 			t.Fatal(err)

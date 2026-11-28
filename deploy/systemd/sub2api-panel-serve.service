@@ -1,0 +1,28 @@
+[Unit]
+Description=Sub2API Panel serve
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+User=panel-serve
+Group=panel-serve
+EnvironmentFile=/etc/sub2api-panel/serve.env
+Environment=PANEL_LOCAL_READINESS=1
+WorkingDirectory=/var/lib/sub2api-panel
+ExecCondition=/usr/bin/test ! -f /var/lib/sub2api-panel-maintenance/active -o -f /run/sub2api-panel-updater/start-allowed
+ExecStart=/opt/sub2api-panel/current/sub2api-panel serve
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=95
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+Environment=PANEL_UPDATE_SOCKET=/run/sub2api-panel-updater.sock
+ReadWritePaths=/var/lib/sub2api-panel
+SupplementaryGroups=panel-update-client
+
+[Install]
+WantedBy=multi-user.target

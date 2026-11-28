@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,8 +13,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
-	"golang.org/x/mod/semver"
+	"sub2api-panel/internal/panelupdate"
 )
 
 type UpdateManifest struct {
@@ -25,8 +27,40 @@ type UpdateManifest struct {
 
 func UpdateCLI(args []string, version string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Print("update check --manifest 清单.json --file 候选二进制\nupdate install --manifest 清单.json --file 候选二进制 --target 已安装的二进制\nupdate rollback --target 已安装的二进制\n")
+		fmt.Print("update check --manifest 清单.json --file 候选二进制\nupdate install --manifest 清单.json --file 候选二进制 --target 已安装的二进制\nupdate rollback --target 已安装的二进制\nupdate executor\nupdate product-version <tag>\nupdate validate-release <tag> <manifest>\n")
 		return nil
+	}
+	switch args[0] {
+	case "executor":
+		if len(args) != 1 {
+			return fmt.Errorf("更新执行器不接受额外参数")
+		}
+		return panelupdate.RunExecutor()
+	case "product-version":
+		if len(args) == 2 {
+			if product, ok := panelupdate.ProductForTag(args[1]); ok {
+				fmt.Println(product)
+				return nil
+			}
+		}
+		return fmt.Errorf("无效的发布 Git 标签")
+	case "validate-release":
+		if len(args) != 3 {
+			return fmt.Errorf("请指定 Git 标签和发布清单")
+		}
+		return validateRelease(args[1], args[2])
+	case "validate-build":
+		if len(args) != 3 || (args[2] != "true" && args[2] != "false") {
+			return fmt.Errorf("请指定 Git 标签和快照状态")
+		}
+		if args[2] == "true" {
+			return nil
+		}
+		product, ok := panelupdate.ProductForTag(args[1])
+		if !ok || product != os.Getenv("PANEL_PRODUCT_VERSION") {
+			return fmt.Errorf("PANEL_PRODUCT_VERSION 必须与 Git 标签对应")
+		}
+		return validateRelease(args[1], "release-input/update-manifest.json")
 	}
 	fs := flag.NewFlagSet("update "+args[0], flag.ContinueOnError)
 	manifest := fs.String("manifest", "", "发布清单")
@@ -51,7 +85,7 @@ func UpdateCLI(args []string, version string) error {
 			if _, err := copyCheckedBinary(*file, io.Discard, candidate); err != nil {
 				return err
 			}
-			fmt.Printf("当前版本 %s，候选版本 %s，平台与 SHA-256 校验通过，存在新版本 %t\n", version, candidate.Version, semver.Compare(asSemver(candidate.Version), asSemver(version)) > 0)
+			fmt.Printf("当前版本 %s，候选版本 %s，平台与 SHA-256 校验通过，存在新版本 %t\n", version, candidate.Version, panelupdate.Compare(candidate.Version, version) > 0)
 			return nil
 		}
 		return InstallUpdate(*file, *target, candidate)
@@ -62,11 +96,10 @@ func UpdateCLI(args []string, version string) error {
 	}
 }
 
-func asSemver(value string) string {
-	if !strings.HasPrefix(value, "v") {
-		return "v" + value
-	}
-	return value
+func validateRelease(tag, manifest string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	return panelupdate.ValidateRelease(ctx, tag, manifest, os.Getenv("PANEL_APPROVED_VERSION_TARGET"))
 }
 
 func readUpdateManifest(path string) (UpdateManifest, error) {
@@ -82,7 +115,7 @@ func readUpdateManifest(path string) (UpdateManifest, error) {
 		return result, fmt.Errorf("发布清单格式无效")
 	}
 	checksum, err := hex.DecodeString(result.SHA256)
-	if err != nil || len(checksum) != sha256.Size || !semver.IsValid(asSemver(result.Version)) || result.OS != runtime.GOOS || result.Arch != runtime.GOARCH {
+	if err != nil || len(checksum) != sha256.Size || !panelupdate.ValidVersion(result.Version) || result.OS != runtime.GOOS || result.Arch != runtime.GOARCH {
 		return result, fmt.Errorf("发布清单与当前平台不匹配")
 	}
 	return result, nil

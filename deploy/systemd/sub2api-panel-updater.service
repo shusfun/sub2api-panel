@@ -1,0 +1,24 @@
+[Unit]
+Description=Sub2API Panel update executor
+Requires=sub2api-panel-updater.socket
+After=network-online.target sub2api-panel-updater.socket
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/sub2api-panel/updater.env
+Environment=GH_PROMPT_DISABLED=1
+RuntimeDirectory=sub2api-panel-updater
+RuntimeDirectoryMode=0755
+StateDirectory=sub2api-panel-updater
+StateDirectoryMode=0700
+UMask=0022
+ExecStart=/opt/sub2api-panel/executor/sub2api-panel update executor
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -70,6 +70,11 @@ func Meta(ctx context.Context) CallMeta {
 	return value
 }
 
+func UpdateLog(ctx context.Context, message string, fields ...any) {
+	meta := Meta(ctx)
+	slog.Info(message, append([]any{"trace_id", meta.Trace, "span_id", meta.Span, "vcs.ref.head.revision", BuildCommit()}, fields...)...)
+}
+
 func TraceRequest(r *http.Request, w http.ResponseWriter, name string) (*http.Request, func()) {
 	info := CallMeta{Trace: RandomHex(16), Span: RandomHex(8), UA: r.UserAgent()}
 	if parent := SpanHex.FindStringSubmatch(r.Header.Get("traceparent")); len(parent) == 3 && parent[1] != strings.Repeat("0", 32) && parent[2] != strings.Repeat("0", 16) {

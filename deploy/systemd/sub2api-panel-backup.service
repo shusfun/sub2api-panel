@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up the Sub2API Panel PostgreSQL database
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/sub2api-panel/backup.env
+StateDirectory=sub2api-panel-backup
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/usr/bin/pg_dump --format=custom --no-password --file=/var/lib/sub2api-panel-backup/pending.dump
+ExecStart=/usr/bin/pg_restore --list /var/lib/sub2api-panel-backup/pending.dump
+TimeoutStartSec=900
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

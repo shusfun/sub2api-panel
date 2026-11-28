@@ -8,12 +8,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 	_ "time/tzdata"
 
 	"sub2api-panel/internal/issuer"
+	"sub2api-panel/internal/panelupdate"
 	"sub2api-panel/internal/platform"
 	"sub2api-panel/internal/server/core"
 	"sub2api-panel/internal/server/observe"
@@ -32,6 +35,7 @@ const cliHelp = `Sub2API 管理面板
   update check      核对下载后的候选二进制
   update install    安装已经校验的候选二进制
   update rollback   恢复上次安装前的二进制
+  update executor   运行 systemd 更新执行器
 
 使用 update <命令> --help 查看参数。
 `
@@ -102,6 +106,8 @@ func Run(args []string, version, commit string, frontendDist func(string) (fs.FS
 		}
 		return
 	}
+	ctx, stopSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignal()
 	secret := required("PANEL_ISSUER_SECRET")
 	if len(secret) < 32 {
 		slog.Error("invalid issuer secret")
@@ -156,6 +162,7 @@ func Run(args []string, version, commit string, frontendDist func(string) (fs.FS
 			Official:      official,
 			Upstream:      up,
 			Issuer:        issuerClient,
+			PanelUpdater:  panelupdate.NewClient(os.Getenv("PANEL_UPDATE_SOCKET")),
 			Secret:        secret,
 			Sessions:      platform.NewSessions(),
 			UsageLocation: location,
@@ -171,8 +178,11 @@ func Run(args []string, version, commit string, frontendDist func(string) (fs.FS
 			}
 			app.OfficialDB = officialDB
 		}
-		router.StartRuntime(context.Background(), app)
+		router.StartRuntime(ctx, app)
 		handler = router.NewHandler(app, router.SPAFileServer(dist))
+	}
+	if os.Getenv("PANEL_LOCAL_READINESS") == "1" {
+		handler = withReadiness(handler, db, cmd, version)
 	}
 	server := &http.Server{
 		Addr:              address,
@@ -183,9 +193,19 @@ func Run(args []string, version, commit string, frontendDist func(string) (fs.FS
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    16 << 10,
 	}
+	result := make(chan error, 1)
+	go func() { result <- server.ListenAndServe() }()
 	slog.Info("panel listening", "address", address, "service", cmd)
-	if err := server.ListenAndServe(); err != nil {
+	select {
+	case err := <-result:
 		slog.Error("listener stopped", "error", err)
 		os.Exit(1)
+	case <-ctx.Done():
+		shutdown, cancel := context.WithTimeout(context.Background(), 85*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdown); err != nil {
+			slog.Error("graceful shutdown timed out", "error", err)
+			_ = server.Close()
+		}
 	}
 }

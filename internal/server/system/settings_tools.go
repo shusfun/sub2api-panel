@@ -44,6 +44,9 @@ func (h *handler) adminSettingToolRoutes(mux *http.ServeMux) {
 
 	h.s.Route(mux, "GET /api/admin/settings-tools/system", true, h.systemVersions)
 	h.s.Route(mux, "POST /api/admin/settings-tools/system/{action}", true, h.officialSystemAction)
+	h.s.Route(mux, "GET /api/admin/settings-tools/panel-update", true, h.panelUpdateStatus)
+	h.s.Route(mux, "GET /api/admin/settings-tools/panel-update/release", true, h.panelUpdateCheck)
+	h.s.Route(mux, "POST /api/admin/settings-tools/panel-update", true, h.panelUpdateSubmit)
 	h.s.Route(mux, "GET /api/admin/settings-tools/admin-key", true, h.adminKeyStatus)
 	h.s.Route(mux, "POST /api/admin/settings-tools/admin-key/rotate", true, h.changeLegacyAdminKey)
 	h.s.Route(mux, "DELETE /api/admin/settings-tools/admin-key", true, h.changeLegacyAdminKey)

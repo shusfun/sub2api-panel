@@ -8,6 +8,7 @@ import {
   Overlay, RefreshButton, Resource, Select, StepUpDialog, Textarea, toast,
 } from "@/ui";
 import {AdminAccessKeys} from "./access-keys";
+import {PanelUpdateRows} from "./panel-update";
 
 const base = "/admin/settings-tools";
 const templatesSchema = z.object({
@@ -153,9 +154,9 @@ function SystemTools() {
   const state = useResource(() => api(base + "/system", versionSchema), "system-versions", true, revision);
   const [task, setTask] = useState<keyof typeof systemActions>();
   const action = useAction();
-  return <InsetGroup title="系统信息" actions={<RefreshButton size="xs" variant="ghost" busy={state?.loading} label="检查版本" onClick={() => revise(n => n + 1)} />}>
+  return <InsetGroup title="系统信息" actions={<RefreshButton size="xs" variant="ghost" busy={state?.loading} label="检查官方上游版本" onClick={() => revise(n => n + 1)} />}>
     <Resource state={state}>{value => <>
-      <InsetRow label="面板版本" hint={value.panel_commit}>{value.panel_version}</InsetRow>
+      <PanelUpdateRows version={value.panel_version} commit={value.panel_commit} />
       <InsetRow label="官方上游版本" hint={value.upstream?.latest_version ? "可用版本 " + value.upstream.latest_version : undefined}>{value.upstream?.current_version || "暂不可用"}</InsetRow>
       {value.upstream && <InsetRow label="上游生命周期维护"><InlineStack wrap>
         {(Object.entries(systemActions) as [keyof typeof systemActions, string][]).map(([id, label]) => (

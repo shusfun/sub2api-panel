@@ -16,6 +16,7 @@ import (
 
 	"sub2api-panel/ent"
 	"sub2api-panel/internal/extplugin"
+	"sub2api-panel/internal/panelupdate"
 	"sub2api-panel/internal/platform"
 	"sub2api-panel/internal/pluginrt"
 	officialent "sub2api-panel/official"
@@ -30,6 +31,7 @@ type Server struct {
 	Official           string
 	Upstream           platform.ServiceClient
 	Issuer             platform.ServiceClient
+	PanelUpdater       *panelupdate.Client
 	Secret             string
 	Sessions           *platform.Sessions
 	UsageLocation      *time.Location

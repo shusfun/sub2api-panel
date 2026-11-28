@@ -99,6 +99,13 @@ func TestSessionAndRoleBoundaries(t *testing.T) {
 	r.Header.Del("X-CSRF-Token")
 	checkResponse(t, u.send(r), 403)
 	u.expect("GET", "/admin/users", "", 403)
+	u.expect("GET", "/admin/settings-tools/panel-update", "", 403)
+	u.expect("POST", "/admin/settings-tools/panel-update", `{"version":"0.1.0001","totp":"123456"}`, 403)
+	a.expect("POST", "/admin/settings-tools/panel-update", `{"version":"0.1.0001","totp":"000000"}`, 403)
+	a.expect("POST", "/admin/settings-tools/panel-update", `{"version":"0.1.0001","totp":"123456"}`, 503)
+	if status := a.expect("GET", "/admin/settings-tools/panel-update", "", 200); status["configured"] != false {
+		t.Fatal("unmanaged panel should report online updates disabled")
+	}
 	u.expect("PUT", "/admin/grants/2", `{}`, 403)
 	u.expect("DELETE", "/keys/9", "", 403)
 	u.expect("POST", "/issues", issueBody(10, "invitation", 0), 403)
@@ -114,6 +121,27 @@ func TestSessionAndRoleBoundaries(t *testing.T) {
 	u.expect("POST", "/session/logout", "", 200)
 	u.expect("GET", "/session", "", 401)
 	u.expect("POST", "/session/logout", "", 401)
+}
+
+func TestPanelUpdateAdminFlow(t *testing.T) {
+	f := setupFixture(t, http.NotFoundHandler())
+	setupUpdateFixture(t, f)
+	admin := browserLogin(t, f.app, "admin")
+	const path = "/admin/settings-tools/panel-update"
+	admin.expect("GET", path, "", 200)
+	admin.expect("GET", path+"/release", "", 200)
+	admin.expect("POST", path, `{"version":"0.1.0001","totp":"000000"}`, 403)
+	job := admin.expect("POST", path, `{"version":"0.1.0001","totp":"123456"}`, 202)
+	if job["phase"] != "queued" || job["to"] != "0.1.0001" {
+		t.Fatalf("unexpected queued job: %v", job)
+	}
+	admin.expect("POST", path, `{"version":"0.1.0001","totp":"123456"}`, 409)
+	admin.expect("POST", "/session/logout", "", 200)
+	admin = browserLogin(t, f.app, "admin")
+	status := admin.expect("GET", path, "", 200)
+	if stored, ok := status["job"].(map[string]any); !ok || stored["id"] != job["id"] {
+		t.Fatalf("re-login lost latest update job: %v", status)
+	}
 }
 
 func TestIssueReservations(t *testing.T) {

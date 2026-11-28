@@ -1,0 +1,25 @@
+[Unit]
+Description=Sub2API Panel issuer
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+User=panel-issuer
+Group=panel-issuer
+EnvironmentFile=/etc/sub2api-panel/issuer.env
+Environment=PANEL_LOCAL_READINESS=1
+ExecCondition=/usr/bin/test ! -f /var/lib/sub2api-panel-maintenance/active -o -f /run/sub2api-panel-updater/start-allowed
+ExecStart=/opt/sub2api-panel/current/sub2api-panel issuer
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=95
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+
+[Install]
+WantedBy=multi-user.target

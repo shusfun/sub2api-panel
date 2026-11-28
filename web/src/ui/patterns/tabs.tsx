@@ -93,6 +93,7 @@ export function DetailHeader({
 
 export function RefreshButton({
   busy,
+  disabled,
   label = "刷新",
   iconOnly = false,
   size = "sm",
@@ -100,6 +101,7 @@ export function RefreshButton({
   onClick,
 }: {
   busy?: boolean;
+  disabled?: boolean;
   label?: string;
   iconOnly?: boolean;
   size?: "default" | "xs" | "sm";
@@ -112,6 +114,7 @@ export function RefreshButton({
       size={iconOnly ? (size === "default" ? "icon" : `icon-${size}`) : size}
       variant={variant}
       busy={busy}
+      disabled={disabled}
       title={iconOnly ? label : undefined}
       aria-label={iconOnly ? label : undefined}
       onClick={onClick}

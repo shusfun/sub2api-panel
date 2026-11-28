@@ -39,6 +39,20 @@
 - 用户登录后，`GET /api/v1/usage` 提供分页明细，`GET /api/v1/usage/dashboard/snapshot-v2` 提供每日趋势和按请求模型汇总。两者都可接受数字 `api_key_id`，官方按当前会话校验归属。面板统一传入统计时区，用 `actual_cost` 显示实际扣费，并单列缓存读写 Token。 [用户用量处理](https://github.com/Wei-Shaw/sub2api/blob/v0.2.23/backend/internal/handler/usage_handler.go)
 - 官方配置 `dashboard_aggregation.retention.usage_logs_days` 默认 `90`。实际可查范围取决于实例配置及已执行的清理。面板的汇总查询最多 90 天，逐笔记录可分页查全部仍保留的记录。 [官方配置](https://github.com/Wei-Shaw/sub2api/blob/v0.2.23/deploy/config.example.yaml#L824)
 
+## 上游账本依赖的接口与字段
+
+账本对账（见 ADR 0008）依赖下列官方与第三方接口。
+
+- 官方只读库 `usage_logs` 新增读取 `total_cost`、`account_rate_multiplier`、`account_stats_cost`（可空 `NUMERIC(20,10)`，迁移 `101_add_account_stats_pricing.sql`）、`billing_type`、`duration_ms`。未接只读库时，按天退回 `GET /admin/usage/stats`，其次 `GET /admin/accounts/:id/stats`。
+- `GET /v1/usage` 读取 `balance`、`remaining`、`usage.total.actual_cost`、`quota.limit`。
+- `GET /v1/sub2api/billing` 需要 Sub2API v0.1.157 及以上。
+- 账号详情 `GET /admin/accounts/:id` 对 apikey 账号只返回 `has_api_key`，不返回 `api_key`，`base_url` 原样返回。带明文的 `GET /admin/accounts/data` 需要官方二次验证，面板不使用。
+- New API：`GET /api/status`（`quota_per_unit`）、`GET /api/usage/token/`（`data.user_quota.total_available`、`data.total_used`）、`GET /api/user/self`（`quota`、`used_quota`，访问令牌加 `New-Api-User` 头）、`GET /api/log/self`。令牌页路径为 `/keys`，依据其前端 `_authenticated/keys` 路由目录推断，未读到路由声明本身。
+- One API：`GET /api/status`、`GET /api/user/self`、`GET /api/log/self`，没有 `/api/usage/token`。令牌页路径为 `/token`。
+- Sub2API 令牌页路径为 `/keys`，前端路由声明见 `frontend/src/router/index.ts:207`（`path: '/keys'`，组件 `KeysView.vue`）。
+- 未接官方只读库时的按天退回：选用 `GET /admin/accounts/:id/stats?days=N`（N 取 1 到 90，默认 30），返回 `history[]`，每项含 `date`、`requests`、`cost`、`actual_cost`（账号口径）、`user_cost`（用户口径）。面板把 `actual_cost` 作为预计花费、`user_cost` 作为本站收入，只在账号序列接口按天请求时用管理员会话补，不落库，上游真实扣费留空，`granularity` 返回 `day`。未选 `GET /admin/usage/stats`：它是全站聚合，只给总额，没有按天明细。后台汇总没有管理员令牌，所以这条退回不进入小时汇总与告警。字段依据 `usagestats.AccountUsageHistory`，未在真实实例上验证。
+- 上述第三方接口来自对 GitHub 源码的调查，未在真实实例上验证，升级时需复核。
+
 ## 版本切换
 
 升级官方实例时，在一次性实例重跑 `TestOfficialCompatibility`，核对登录与 TOTP、Key 用量、邀请码注册及复用、余额码兑换和账号调度。供应商相关的测活事件和人机验证还需要用部署环境选定的供应商实测。根目录 README 记录测试实例配置方式。

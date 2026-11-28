@@ -15,6 +15,27 @@ type GrantAudit func(*sql.Selector)
 // Issue is the predicate function for issue builders.
 type Issue func(*sql.Selector)
 
+// LedgerAccount is the predicate function for ledgeraccount builders.
+type LedgerAccount func(*sql.Selector)
+
+// LedgerAlert is the predicate function for ledgeralert builders.
+type LedgerAlert func(*sql.Selector)
+
+// LedgerDay is the predicate function for ledgerday builders.
+type LedgerDay func(*sql.Selector)
+
+// LedgerEvent is the predicate function for ledgerevent builders.
+type LedgerEvent func(*sql.Selector)
+
+// LedgerHour is the predicate function for ledgerhour builders.
+type LedgerHour func(*sql.Selector)
+
+// LedgerSample is the predicate function for ledgersample builders.
+type LedgerSample func(*sql.Selector)
+
+// LedgerWallet is the predicate function for ledgerwallet builders.
+type LedgerWallet func(*sql.Selector)
+
 // PatrolPolicy is the predicate function for patrolpolicy builders.
 type PatrolPolicy func(*sql.Selector)
 

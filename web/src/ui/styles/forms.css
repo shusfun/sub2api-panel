@@ -164,6 +164,20 @@
   background: var(--weir-raised);
   box-shadow: var(--weir-shadow-card);
   min-width: 0;
+  container-type: scroll-state;
+}
+/* 粘性定位停在滚动容器内边距之上；粘住时用视口底色补住栏下这段内边距，避免透出后面的字段。 */
+.weir-savebar-mask {
+  display: none;
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline: calc(-1 * var(--weir-space-5));
+  block-size: var(--weir-space-6);
+  background: var(--weir-base);
+  pointer-events: none;
+}
+@container scroll-state(stuck: block-end) {
+  .weir-savebar-mask { display: block; }
 }
 .weir-savebar-state {
   color: var(--weir-ink-2);

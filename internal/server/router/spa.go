@@ -11,7 +11,8 @@ import (
 func IsPanelDocumentRoute(p string) bool {
 	switch p {
 	case "/", "/index.html", "/_ui", "/login", "/register", "/email-verify", "/forgot-password", "/reset-password", "/auth/callback", "/patrol", "/key-usage", "/model-plaza", "/oauth/mcp/authorize", "/mcp", "/purchase", "/payment/result", "/batch-image",
-		"/keys", "/usage", "/settings", "/announcements", "/affiliate", "/channels/status", "/admin/ops", "/admin/accounts", "/admin/groups", "/admin/proxies", "/admin/users", "/admin/redeem", "/admin/plugins", "/admin/announcements", "/admin/audit-logs", "/admin/risk-control", "/admin/backups", "/admin/orders":
+		"/keys", "/usage", "/settings", "/announcements", "/affiliate", "/channels/status", "/admin/ops", "/admin/accounts", "/admin/groups", "/admin/proxies", "/admin/users", "/admin/redeem", "/admin/plugins", "/admin/announcements", "/admin/audit-logs", "/admin/risk-control", "/admin/backups", "/admin/orders",
+		"/admin/subscriptions", "/admin/channels", "/admin/upstream-rules", "/admin/affiliates", "/admin/settings":
 		return true
 	default:
 		parent, id, ok := strings.Cut(strings.TrimPrefix(p, "/"), "/")

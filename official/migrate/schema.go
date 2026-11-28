@@ -45,7 +45,12 @@ var (
 		{Name: "output_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "cache_read_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "cache_creation_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_cost", Type: field.TypeFloat64, Default: 0},
 		{Name: "actual_cost", Type: field.TypeFloat64},
+		{Name: "account_rate_multiplier", Type: field.TypeFloat64, Nullable: true},
+		{Name: "account_stats_cost", Type: field.TypeFloat64, Nullable: true},
+		{Name: "billing_type", Type: field.TypeInt8, Default: 0},
+		{Name: "duration_ms", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 	}
 	// UsageLogsTable holds the schema information for the "usage_logs" table.

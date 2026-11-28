@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {Dialog} from "@base-ui/react/dialog";
-import {Activity, Gauge, KeyRound, Layers3, Network, Puzzle, Search, Server, ShieldCheck, Ticket, UsersRound, X} from "lucide-react";
+import {Activity, CreditCard, Gauge, Images, KeyRound, Layers3, Network, Puzzle, Search, Server, Settings, ShieldCheck, Share2, SlidersHorizontal, Tag, Ticket, UsersRound, Waypoints, X} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {entityHref, navigatePath} from "@/lib/navigation";
@@ -70,18 +70,28 @@ export function CommandPalette({
           {id: "nav-ops", section: "工作台", label: "实时监控", meta: "QPS · 并发 · 错误追踪 · 告警规则", icon: Gauge, run: () => go("/admin/ops")},
           {id: "nav-patrol", section: "工作台", label: "渠道健康", meta: "巡检看板 · 官方监控 · 规则编排", icon: ShieldCheck, run: () => go("/channels/status")},
           {id: "nav-usage", section: "工作台", label: "用量分析", meta: "全站与多维 Token / 费用趋势", icon: Activity, run: () => go("/usage")},
-          {id: "nav-accounts", section: "工作台", label: "上游账号", meta: "水位 · 调度 · 多引擎测活", icon: Server, run: () => go("/admin/accounts")},
-          {id: "nav-groups", section: "工作台", label: "调度分组", meta: "分组 · 复合路由 · 模型调价", icon: Layers3, run: () => go("/admin/groups")},
+          {id: "nav-accounts", section: "工作台", label: "上游账号", meta: "水位 · 调度 · 多引擎测活 · 账本 · 对账 · 余额", icon: Server, run: () => go("/admin/accounts")},
+          {id: "nav-groups", section: "工作台", label: "调度分组", meta: "分组 · 复合路由", icon: Layers3, run: () => go("/admin/groups")},
+          {id: "nav-channels", section: "工作台", label: "渠道定价", meta: "渠道 · 定价 · 模型调价", icon: Tag, run: () => go("/admin/channels")},
           {id: "nav-proxies", section: "工作台", label: "代理节点", meta: "测速 · 出口质量 · 导入导出", icon: Network, run: () => go("/admin/proxies")},
-          {id: "nav-users", section: "工作台", label: "用户", meta: "调余额 · 订阅 · 私有分组", icon: UsersRound, run: () => go("/admin/users")},
+          {id: "nav-upstream-rules", section: "工作台", label: "上游规则", meta: "错误透传 · 透传 · TLS 指纹 · 指纹", icon: Waypoints, run: () => go("/admin/upstream-rules")},
+          {id: "nav-users", section: "工作台", label: "用户", meta: "调余额 · 私有分组", icon: UsersRound, run: () => go("/admin/users")},
+          {id: "nav-subscriptions", section: "工作台", label: "订阅", meta: "订阅 · 批量操作 · 到期", icon: CreditCard, run: () => go("/admin/subscriptions")},
           {id: "nav-codes", section: "工作台", label: "卡密与优惠", meta: "兑换码 · 优惠码 · 子管理员发码", icon: Ticket, run: () => go("/admin/redeem")},
+          {id: "nav-affiliates", section: "工作台", label: "推广返利", meta: "推广 · 返利 · 邀请 · 转账", icon: Share2, run: () => go("/admin/affiliates")},
+          {id: "nav-risk", section: "工作台", label: "风控与审计", meta: "内容风控 · 提示词审计", icon: ShieldCheck, run: () => go("/admin/risk-control")},
           {id: "nav-plugins", section: "工作台", label: "插件生态", meta: "LM 指纹 · 外部市场与沙箱页", icon: Puzzle, run: () => go("/admin/plugins")},
-          {id: "nav-keys", section: "工作台", label: "我的密钥", meta: "个人余额 · 兑换 · API Key 导入客户端", icon: KeyRound, run: () => go("/keys")},
+          {id: "nav-site-settings", section: "工作台", label: "站点设置", meta: "站点 · 上游账本 · 对账", icon: SlidersHorizontal, run: () => go("/admin/settings")},
+          {id: "nav-keys", section: "账户", label: "我的密钥", meta: "个人余额 · 兑换 · API Key 导入客户端", icon: KeyRound, run: () => go("/keys")},
+          {id: "nav-batch-image", section: "账户", label: "批量生图", meta: "生图 · 批量", icon: Images, run: () => go("/batch-image")},
+          {id: "nav-settings", section: "账户", label: "账户设置", meta: "密码 · 两步验证 · 主题 · 通知", icon: Settings, run: () => go("/settings")},
         ]
       : [
           {id: "nav-keys", section: "工作台", label: "我的密钥", meta: "可用余额 · 兑换充值 · API Key", icon: KeyRound, run: () => go("/keys")},
           {id: "nav-usage", section: "工作台", label: "用量分析", meta: "实时扣费趋势 · 模型占比 · 逐笔明细", icon: Activity, run: () => go("/usage")},
           {id: "nav-patrol", section: "工作台", label: "渠道健康", meta: "实时分组不降智率与历史巡检记录", icon: ShieldCheck, run: () => go("/channels/status")},
+          {id: "nav-batch-image", section: "工作台", label: "批量生图", meta: "生图 · 批量", icon: Images, run: () => go("/batch-image")},
+          {id: "nav-settings", section: "账户", label: "账户设置", meta: "密码 · 两步验证 · 主题 · 通知", icon: Settings, run: () => go("/settings")},
         ];
 
     const kw = query.trim().toLowerCase();

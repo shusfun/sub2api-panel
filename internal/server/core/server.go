@@ -40,6 +40,7 @@ type Server struct {
 	Balances           *BalanceMonitor
 	Database           *ent.Client
 	OfficialDB         *officialent.Client
+	LedgerCards        func(ctx context.Context, ids []int64) (map[int64]LedgerCardSummary, error)
 	DataDir            string
 	PluginRT           *pluginrt.Runtime
 	ExtPlugins         *extplugin.Manager

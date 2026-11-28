@@ -29,22 +29,22 @@
   --weir-swatch-day-red-ink: #ad343e;
 
   /* 暗色主题：阳极石墨五档递进 */
-  --weir-swatch-night-frame: #0d0f12;
-  --weir-swatch-night-well: #0e1014;
-  --weir-swatch-night-window: #12151a;
-  --weir-swatch-night-group: #181c23;
-  --weir-swatch-night-float: #212730;
-  --weir-swatch-night-slate: #e4e7ec;
-  --weir-swatch-night-slate-lo: #cfd4dc;
-  --weir-swatch-night-ink: #ededf0;
-  --weir-swatch-night-ink-2: #b4b8c2;
-  --weir-swatch-night-ink-3: #89909d;
+  --weir-swatch-night-frame: #0e0d0c;
+  --weir-swatch-night-well: #121110;
+  --weir-swatch-night-window: #171614;
+  --weir-swatch-night-group: #1e1c1a;
+  --weir-swatch-night-float: #292622;
+  --weir-swatch-night-slate: #e9a76a;
+  --weir-swatch-night-slate-lo: #dc9659;
+  --weir-swatch-night-ink: #f0ede7;
+  --weir-swatch-night-ink-2: #bfb9b0;
+  --weir-swatch-night-ink-3: #928c83;
   --weir-swatch-night-blue: #79a1de;
   --weir-swatch-night-blue-ink: #96b8ed;
-  --weir-swatch-night-green: #72b082;
-  --weir-swatch-night-orange: #dba04a;
-  --weir-swatch-night-red: #e0727a;
-  --weir-swatch-night-red-ink: #f0959c;
+  --weir-swatch-night-green: #7cc392;
+  --weir-swatch-night-orange: #e6b14f;
+  --weir-swatch-night-red: #ec7d85;
+  --weir-swatch-night-red-ink: #f59aa1;
 
   /* ========== 2. 语义 ========== */
   /* 五档表面：外框底座 → 凹槽 → 舞台画布 → 面板/表行 → 浮层弹窗/选中胶囊 */
@@ -127,6 +127,11 @@
   --weir-chart-3: #4594a2;
   --weir-chart-4: #589167;
   --weir-chart-5: #c0832e;
+  --weir-plat-openai: #3f9a7d;
+  --weir-plat-anthropic: #c7754a;
+  --weir-plat-gemini: #4f7fd6;
+  --weir-plat-deepseek: #5e6ad2;
+  --weir-plat-grok: #7d828b;
   --weir-chart-6: #d1535d;
   --weir-chart-grid: rgb(25 35 52 / 0.07);
   --weir-chart-axis: #616773;
@@ -251,7 +256,7 @@
   --weir-icon: 15px;
   --weir-icon-sm: 13px;
   --weir-row: 37px;
-  --weir-nav-row: 31px;
+  --weir-nav-row: 27px;
   --weir-table-select: 45px;
   --weir-table-select-compact: var(--weir-tap);
   --weir-table-identity-compact: 113px;
@@ -319,7 +324,7 @@
   --weir-input: var(--weir-swatch-night-well);
   --weir-input-line: rgb(255 255 255 / 0.12);
   --weir-key-selected: var(--weir-swatch-night-float);
-  --weir-key-selected-ring: rgb(255 255 255 / 0.09);
+  --weir-key-selected-ring: rgb(233 167 106 / 0.23);
   --weir-key-selected-glow: rgb(0 0 0 / 0.35);
 
   --weir-line: rgb(255 255 255 / 0.12);
@@ -334,40 +339,45 @@
 
   --weir-accent: var(--weir-swatch-night-slate);
   --weir-accent-lo: var(--weir-swatch-night-slate-lo);
-  --weir-accent-ink: #12151a;
-  --weir-accent-text: var(--weir-swatch-night-blue-ink);
-  --weir-accent-soft: rgb(121 161 222 / 0.17);
-  --weir-accent-soft-hi: rgb(121 161 222 / 0.27);
-  --weir-accent-soft-ink: var(--weir-swatch-night-blue-ink);
-  --weir-focus: var(--weir-swatch-night-blue);
-  --weir-focus-ring: rgb(121 161 222 / 0.37);
+  --weir-accent-ink: #1b1510;
+  --weir-accent-text: #f2bd8f;
+  --weir-accent-soft: rgb(233 167 106 / 0.15);
+  --weir-accent-soft-hi: rgb(233 167 106 / 0.25);
+  --weir-accent-soft-ink: #f2bd8f;
+  --weir-focus: var(--weir-swatch-night-slate);
+  --weir-focus-ring: rgb(233 167 106 / 0.35);
 
   --weir-ok: var(--weir-swatch-night-green);
-  --weir-ok-ink: var(--weir-swatch-night-green);
-  --weir-ok-soft: rgb(114 176 130 / 0.15);
+  --weir-ok-ink: #8fd0a3;
+  --weir-ok-soft: rgb(124 195 146 / 0.15);
   --weir-warn: var(--weir-swatch-night-orange);
-  --weir-warn-ink: var(--weir-swatch-night-orange);
-  --weir-warn-soft: rgb(219 160 74 / 0.15);
+  --weir-warn-ink: #efc36b;
+  --weir-warn-soft: rgb(230 177 79 / 0.15);
   --weir-bad: var(--weir-swatch-night-red);
   --weir-bad-ink: var(--weir-swatch-night-red-ink);
-  --weir-bad-soft: rgb(224 114 122 / 0.15);
-  --weir-bad-soft-hi: rgb(224 114 122 / 0.23);
+  --weir-bad-soft: rgb(236 125 133 / 0.15);
+  --weir-bad-soft-hi: rgb(236 125 133 / 0.23);
   --weir-info-ink: var(--weir-swatch-night-blue-ink);
   --weir-info-soft: rgb(121 161 222 / 0.17);
   --weir-bar-ok: #6ea37b;
   --weir-bar-bad: #d97179;
   --weir-bar-run: #6892de;
-  --weir-bar-skip: #3a404c;
-  --weir-bar-empty: #242831;
-  --weir-switch-on: #556175;
+  --weir-bar-skip: #3e3a34;
+  --weir-bar-empty: #27241f;
+  --weir-switch-on: #c98a4f;
   --weir-knob: #ffffff;
   --weir-scrim: rgb(0 0 0 / 0.57);
 
-  --weir-chart-1: #79a1de;
+  --weir-chart-1: #e9a76a;
   --weir-chart-2: #a887cc;
   --weir-chart-3: #63b6c4;
   --weir-chart-4: #72b082;
   --weir-chart-5: #dba04a;
+  --weir-plat-openai: #5fbf9f;
+  --weir-plat-anthropic: #e3946d;
+  --weir-plat-gemini: #7da5ee;
+  --weir-plat-deepseek: #929af3;
+  --weir-plat-grok: #a7acb5;
   --weir-chart-6: #e0727a;
   --weir-chart-grid: rgb(255 255 255 / 0.07);
   --weir-chart-axis: #98989e;

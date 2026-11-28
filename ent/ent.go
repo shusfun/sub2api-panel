@@ -10,6 +10,13 @@ import (
 	"sub2api-panel/ent/grant"
 	"sub2api-panel/ent/grantaudit"
 	"sub2api-panel/ent/issue"
+	"sub2api-panel/ent/ledgeraccount"
+	"sub2api-panel/ent/ledgeralert"
+	"sub2api-panel/ent/ledgerday"
+	"sub2api-panel/ent/ledgerevent"
+	"sub2api-panel/ent/ledgerhour"
+	"sub2api-panel/ent/ledgersample"
+	"sub2api-panel/ent/ledgerwallet"
 	"sub2api-panel/ent/patrolpolicy"
 	"sub2api-panel/ent/patrolrun"
 	"sub2api-panel/ent/probetemplate"
@@ -86,6 +93,13 @@ func checkColumn(t, c string) error {
 			grant.Table:            grant.ValidColumn,
 			grantaudit.Table:       grantaudit.ValidColumn,
 			issue.Table:            issue.ValidColumn,
+			ledgeraccount.Table:    ledgeraccount.ValidColumn,
+			ledgeralert.Table:      ledgeralert.ValidColumn,
+			ledgerday.Table:        ledgerday.ValidColumn,
+			ledgerevent.Table:      ledgerevent.ValidColumn,
+			ledgerhour.Table:       ledgerhour.ValidColumn,
+			ledgersample.Table:     ledgersample.ValidColumn,
+			ledgerwallet.Table:     ledgerwallet.ValidColumn,
 			patrolpolicy.Table:     patrolpolicy.ValidColumn,
 			patrolrun.Table:        patrolrun.ValidColumn,
 			probetemplate.Table:    probetemplate.ValidColumn,

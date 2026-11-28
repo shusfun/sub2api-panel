@@ -60,6 +60,10 @@
     inline-size: 1%;
     padding-inline: var(--weir-space-4);
   }
+  /* 指定了 grow 列时，剩余宽度只给 grow 列；末尾操作列收到内容宽度，不再和 grow 列分空白。 */
+  [data-slot="table"][data-compact]:has([data-grow]) :is([data-slot="table-head"], [data-slot="table-cell"]):last-child:not([data-grow]) {
+    inline-size: 1%;
+  }
   [data-slot="table"] [data-pinned="actions"] {
     position: sticky;
     inset-inline-end: 0;

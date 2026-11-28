@@ -34,6 +34,7 @@ import {
   toast,
 } from "@/ui";
 import {type AccountRow} from "@/features/pool/shared";
+import {AccountInspectorEdit} from "./account-inspector-edit";
 
 export function AccountModelsDialog({accountRow, onClose}: {accountRow?: AccountRow; onClose: () => void}) {
   const [keyword, setKeyword] = useState("");
@@ -108,11 +109,13 @@ export function AccountSummary({
   row,
   revision,
   onShowModels,
+  onSaved,
 }: {
   id: number;
   row?: AccountRow;
   revision: number;
   onShowModels: (acc: AccountRow) => void;
+  onSaved: () => void;
 }) {
   const detail = useResource(() => api(`/admin/accounts/${id}`, account), `acc-detail-${id}`, true, revision);
   const stats7d = useResource(() => api(`/admin/accounts/${id}/stats?days=7`, accountStatsSummary), `acc-sum-7d-${id}`, true, revision);
@@ -154,6 +157,7 @@ export function AccountSummary({
                 </InsetRow>
               )}
             </InsetGroup>
+            <AccountInspectorEdit acc={value} revision={revision} onSaved={onSaved} />
             <Toolbar>
               <Button size="sm" onClick={() => navigateTo("accounts", {detail: id})}><Zap aria-hidden />深测与高级配置</Button>
               <Button size="sm" variant="outline" onClick={() => onShowModels(value)}><Boxes aria-hidden />可用模型</Button>

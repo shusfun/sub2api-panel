@@ -99,9 +99,34 @@ func CacheCreationTokens(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheCreationTokens, v))
 }
 
+// TotalCost applies equality check predicate on the "total_cost" field. It's identical to TotalCostEQ.
+func TotalCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldTotalCost, v))
+}
+
 // ActualCost applies equality check predicate on the "actual_cost" field. It's identical to ActualCostEQ.
 func ActualCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
+}
+
+// AccountRateMultiplier applies equality check predicate on the "account_rate_multiplier" field. It's identical to AccountRateMultiplierEQ.
+func AccountRateMultiplier(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
+}
+
+// AccountStatsCost applies equality check predicate on the "account_stats_cost" field. It's identical to AccountStatsCostEQ.
+func AccountStatsCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountStatsCost, v))
+}
+
+// BillingType applies equality check predicate on the "billing_type" field. It's identical to BillingTypeEQ.
+func BillingType(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingType, v))
+}
+
+// DurationMs applies equality check predicate on the "duration_ms" field. It's identical to DurationMsEQ.
+func DurationMs(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDurationMs, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -524,6 +549,46 @@ func CacheCreationTokensLTE(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldCacheCreationTokens, v))
 }
 
+// TotalCostEQ applies the EQ predicate on the "total_cost" field.
+func TotalCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldTotalCost, v))
+}
+
+// TotalCostNEQ applies the NEQ predicate on the "total_cost" field.
+func TotalCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldTotalCost, v))
+}
+
+// TotalCostIn applies the In predicate on the "total_cost" field.
+func TotalCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldTotalCost, vs...))
+}
+
+// TotalCostNotIn applies the NotIn predicate on the "total_cost" field.
+func TotalCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldTotalCost, vs...))
+}
+
+// TotalCostGT applies the GT predicate on the "total_cost" field.
+func TotalCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldTotalCost, v))
+}
+
+// TotalCostGTE applies the GTE predicate on the "total_cost" field.
+func TotalCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldTotalCost, v))
+}
+
+// TotalCostLT applies the LT predicate on the "total_cost" field.
+func TotalCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldTotalCost, v))
+}
+
+// TotalCostLTE applies the LTE predicate on the "total_cost" field.
+func TotalCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldTotalCost, v))
+}
+
 // ActualCostEQ applies the EQ predicate on the "actual_cost" field.
 func ActualCostEQ(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
@@ -562,6 +627,196 @@ func ActualCostLT(v float64) predicate.UsageLog {
 // ActualCostLTE applies the LTE predicate on the "actual_cost" field.
 func ActualCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldActualCost, v))
+}
+
+// AccountRateMultiplierEQ applies the EQ predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierNEQ applies the NEQ predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierIn applies the In predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAccountRateMultiplier, vs...))
+}
+
+// AccountRateMultiplierNotIn applies the NotIn predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAccountRateMultiplier, vs...))
+}
+
+// AccountRateMultiplierGT applies the GT predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierGTE applies the GTE predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierLT applies the LT predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierLTE applies the LTE predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAccountRateMultiplier, v))
+}
+
+// AccountRateMultiplierIsNil applies the IsNil predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAccountRateMultiplier))
+}
+
+// AccountRateMultiplierNotNil applies the NotNil predicate on the "account_rate_multiplier" field.
+func AccountRateMultiplierNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAccountRateMultiplier))
+}
+
+// AccountStatsCostEQ applies the EQ predicate on the "account_stats_cost" field.
+func AccountStatsCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostNEQ applies the NEQ predicate on the "account_stats_cost" field.
+func AccountStatsCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostIn applies the In predicate on the "account_stats_cost" field.
+func AccountStatsCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldAccountStatsCost, vs...))
+}
+
+// AccountStatsCostNotIn applies the NotIn predicate on the "account_stats_cost" field.
+func AccountStatsCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldAccountStatsCost, vs...))
+}
+
+// AccountStatsCostGT applies the GT predicate on the "account_stats_cost" field.
+func AccountStatsCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostGTE applies the GTE predicate on the "account_stats_cost" field.
+func AccountStatsCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostLT applies the LT predicate on the "account_stats_cost" field.
+func AccountStatsCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostLTE applies the LTE predicate on the "account_stats_cost" field.
+func AccountStatsCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldAccountStatsCost, v))
+}
+
+// AccountStatsCostIsNil applies the IsNil predicate on the "account_stats_cost" field.
+func AccountStatsCostIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldAccountStatsCost))
+}
+
+// AccountStatsCostNotNil applies the NotNil predicate on the "account_stats_cost" field.
+func AccountStatsCostNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldAccountStatsCost))
+}
+
+// BillingTypeEQ applies the EQ predicate on the "billing_type" field.
+func BillingTypeEQ(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingType, v))
+}
+
+// BillingTypeNEQ applies the NEQ predicate on the "billing_type" field.
+func BillingTypeNEQ(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingType, v))
+}
+
+// BillingTypeIn applies the In predicate on the "billing_type" field.
+func BillingTypeIn(vs ...int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingType, vs...))
+}
+
+// BillingTypeNotIn applies the NotIn predicate on the "billing_type" field.
+func BillingTypeNotIn(vs ...int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingType, vs...))
+}
+
+// BillingTypeGT applies the GT predicate on the "billing_type" field.
+func BillingTypeGT(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingType, v))
+}
+
+// BillingTypeGTE applies the GTE predicate on the "billing_type" field.
+func BillingTypeGTE(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingType, v))
+}
+
+// BillingTypeLT applies the LT predicate on the "billing_type" field.
+func BillingTypeLT(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingType, v))
+}
+
+// BillingTypeLTE applies the LTE predicate on the "billing_type" field.
+func BillingTypeLTE(v int8) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingType, v))
+}
+
+// DurationMsEQ applies the EQ predicate on the "duration_ms" field.
+func DurationMsEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldDurationMs, v))
+}
+
+// DurationMsNEQ applies the NEQ predicate on the "duration_ms" field.
+func DurationMsNEQ(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldDurationMs, v))
+}
+
+// DurationMsIn applies the In predicate on the "duration_ms" field.
+func DurationMsIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldDurationMs, vs...))
+}
+
+// DurationMsNotIn applies the NotIn predicate on the "duration_ms" field.
+func DurationMsNotIn(vs ...int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldDurationMs, vs...))
+}
+
+// DurationMsGT applies the GT predicate on the "duration_ms" field.
+func DurationMsGT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldDurationMs, v))
+}
+
+// DurationMsGTE applies the GTE predicate on the "duration_ms" field.
+func DurationMsGTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldDurationMs, v))
+}
+
+// DurationMsLT applies the LT predicate on the "duration_ms" field.
+func DurationMsLT(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldDurationMs, v))
+}
+
+// DurationMsLTE applies the LTE predicate on the "duration_ms" field.
+func DurationMsLTE(v int) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldDurationMs, v))
+}
+
+// DurationMsIsNil applies the IsNil predicate on the "duration_ms" field.
+func DurationMsIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldDurationMs))
+}
+
+// DurationMsNotNil applies the NotNil predicate on the "duration_ms" field.
+func DurationMsNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldDurationMs))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

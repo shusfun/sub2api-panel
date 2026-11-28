@@ -18,6 +18,20 @@ type Tx struct {
 	GrantAudit *GrantAuditClient
 	// Issue is the client for interacting with the Issue builders.
 	Issue *IssueClient
+	// LedgerAccount is the client for interacting with the LedgerAccount builders.
+	LedgerAccount *LedgerAccountClient
+	// LedgerAlert is the client for interacting with the LedgerAlert builders.
+	LedgerAlert *LedgerAlertClient
+	// LedgerDay is the client for interacting with the LedgerDay builders.
+	LedgerDay *LedgerDayClient
+	// LedgerEvent is the client for interacting with the LedgerEvent builders.
+	LedgerEvent *LedgerEventClient
+	// LedgerHour is the client for interacting with the LedgerHour builders.
+	LedgerHour *LedgerHourClient
+	// LedgerSample is the client for interacting with the LedgerSample builders.
+	LedgerSample *LedgerSampleClient
+	// LedgerWallet is the client for interacting with the LedgerWallet builders.
+	LedgerWallet *LedgerWalletClient
 	// PatrolPolicy is the client for interacting with the PatrolPolicy builders.
 	PatrolPolicy *PatrolPolicyClient
 	// PatrolRun is the client for interacting with the PatrolRun builders.
@@ -168,6 +182,13 @@ func (tx *Tx) init() {
 	tx.Grant = NewGrantClient(tx.config)
 	tx.GrantAudit = NewGrantAuditClient(tx.config)
 	tx.Issue = NewIssueClient(tx.config)
+	tx.LedgerAccount = NewLedgerAccountClient(tx.config)
+	tx.LedgerAlert = NewLedgerAlertClient(tx.config)
+	tx.LedgerDay = NewLedgerDayClient(tx.config)
+	tx.LedgerEvent = NewLedgerEventClient(tx.config)
+	tx.LedgerHour = NewLedgerHourClient(tx.config)
+	tx.LedgerSample = NewLedgerSampleClient(tx.config)
+	tx.LedgerWallet = NewLedgerWalletClient(tx.config)
 	tx.PatrolPolicy = NewPatrolPolicyClient(tx.config)
 	tx.PatrolRun = NewPatrolRunClient(tx.config)
 	tx.ProbeTemplate = NewProbeTemplateClient(tx.config)

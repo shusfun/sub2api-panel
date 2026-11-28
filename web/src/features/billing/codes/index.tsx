@@ -98,12 +98,13 @@ export function CodesWorkspace({config}: {config: Config}) {
     {
       id: "usedBy",
       hideWhenNarrow: true,
+      grow: true,
       title: "兑换人",
       render: row =>
         row.used_by ? (
           <EntityLink kind="user" id={row.used_by} label={row.used_email || `用户 #${row.used_by}`} />
         ) : (
-          <span className="muted">未使用</span>
+          <span className="muted">—</span>
         ),
     },
     {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
@@ -192,8 +193,8 @@ export function CodesWorkspace({config}: {config: Config}) {
           <MetricStrip
             flush
             items={[
-              {id: "active", label: "可用", value: count.format(codeStats.value.active_codes), tone: "ok"},
-              {id: "used", label: "已兑换", value: count.format(codeStats.value.used_codes), tone: "accent"},
+              {id: "active", label: "未使用", value: count.format(codeStats.value.active_codes), tone: "ok"},
+              {id: "used", label: "已使用", value: count.format(codeStats.value.used_codes), tone: "accent"},
               {id: "expired", label: "已过期", value: count.format(codeStats.value.expired_codes), tone: "warn"},
               {id: "total", label: "累计生成", value: count.format(codeStats.value.total_codes)},
             ]}
@@ -215,25 +216,22 @@ export function CodesWorkspace({config}: {config: Config}) {
             {codePoolMode === "official" && (
               <>
                 <SearchInput value={search} onChange={setSearch} placeholder="搜索备注或兑换码后缀" ariaLabel="搜索兑换码" />
-                <QuickPills
-                  label="兑换码类型"
-                  value={codeType}
-                  options={[
-                    {value: "", label: "全部类型"},
-                    {value: "balance", label: "余额码"},
-                    {value: "subscription", label: "订阅码"},
-                    {value: "invitation", label: "邀请码"},
-                    {value: "concurrency", label: "并发码"},
-                  ]}
-                  onChange={setCodeType}
-                />
+                <FilterSlot>
+                  <Select value={codeType} aria-label="兑换码类型" onChange={e => setCodeType(e.target.value)}>
+                    <option value="">全部类型</option>
+                    <option value="balance">余额码</option>
+                    <option value="subscription">订阅码</option>
+                    <option value="invitation">邀请码</option>
+                    <option value="concurrency">并发码</option>
+                  </Select>
+                </FilterSlot>
                 <QuickPills
                   label="兑换码状态"
                   value={status}
                   options={[
                     {value: "", label: "全部"},
-                    {value: "unused", label: "可用", tone: "ok"},
-                    {value: "used", label: "已用"},
+                    {value: "unused", label: "未使用", tone: "ok"},
+                    {value: "used", label: "已使用", tone: "muted"},
                     {value: "expired", label: "已过期", tone: "warn"},
                     {value: "disabled", label: "已停用", tone: "bad"},
                   ]}

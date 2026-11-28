@@ -6,8 +6,9 @@ import {compactTokens, count, date} from "@/lib/format";
 import {useAction, useResource} from "@/lib/requests";
 import {patrolBoardSchema, patrolRunDetailSchema} from "@/schemas";
 import {
-  Badge, Button, EmptyState, ErrorLine, InlineStack, MetricStrip, PlatformBadge,
-  QualitySparkBars, RefreshButton, Resource, Select, Stack, StatusDot,
+  Badge, Button, EmptyState, ErrorLine, InlineStack, KpiStrip, PlatformBadge,
+  QualitySparkBars, RefreshButton, Resource, Select, Stack, Verdict,
+  type KpiItem,
 } from "@/ui";
 import {GuestSelfCheckSection, PatrolRunDetailDialog} from "./patrol-details";
 
@@ -100,61 +101,59 @@ export function PublicPatrolSection({
           ? board.groups
           : board.groups.filter(g => String(g.group_id) === groupScope);
 
-        const stripItems = [
+        const stripItems: KpiItem[] = [
           {
             id: "groups",
             label: "监控分组",
             value: count.format(board.group_count),
-            hint: `${board.healthy_groups} 个不降智 · ${board.degraded_groups} 个需关注 · ${board.idle_groups} 个免检或待测`,
+            delta: `${board.healthy_groups} 个不降智 · ${board.degraded_groups} 个需关注 · ${board.idle_groups} 个免检或待测`,
           },
           {
             id: "rate",
             label: "综合不降智率",
-            value: board.overall_healthy_rate === null ? null : board.overall_healthy_rate.toFixed(1),
-            unit: board.overall_healthy_rate === null ? undefined : "%",
-            tone: board.overall_healthy_rate !== null && board.overall_healthy_rate < 85 ? ("bad" as const) : ("ok" as const),
-            hint: `${board.total_healthy_runs}/${board.total_valid_runs} 次有效检测 · ${board.total_failed_runs} 次失败不计入比率`,
+            value: board.overall_healthy_rate === null ? "—" : `${board.overall_healthy_rate.toFixed(1)}%`,
+            tone: board.overall_healthy_rate !== null && board.overall_healthy_rate < 85 ? "bad" : "ok",
+            delta: `${board.total_healthy_runs}/${board.total_valid_runs} 次有效检测 · ${board.total_failed_runs} 次失败不计入比率`,
           },
           {
             id: "duration",
             label: "分组平均耗时",
-            value: board.avg_duration_ms === null ? null : (board.avg_duration_ms / 1000).toFixed(1),
-            unit: board.avg_duration_ms === null ? undefined : "s",
-            hint: "各组最近一次已完成有效检测均值",
+            value: board.avg_duration_ms === null ? "—" : `${(board.avg_duration_ms / 1000).toFixed(1)}s`,
+            delta: "各组最近一次已完成有效检测均值",
           },
           {
             id: "tokens",
             label: "近期检测 Token",
             value: compactTokens(board.recent_tokens),
-            hint: `今日低峰智能免检 ${board.idle_skipped_today} 轮 · 约省 ${compactTokens(board.estimated_saved_tokens)} Token`,
+            delta: `今日低峰智能免检 ${board.idle_skipped_today} 轮 · 约省 ${compactTokens(board.estimated_saved_tokens)} Token`,
           },
         ];
 
         return (
           <Stack>
-            <div className="auth-inline-row">
-              <InlineStack wrap>
-                <StatusDot tone={board.degraded_groups > 0 ? "warn" : "ok"} pulse />
-                <strong>{board.enabled ? "智能流量门控巡检运行中" : "巡检已暂停"}</strong>
-                <span className="muted text-fine">同步于 {date(board.synced_at)}</span>
-              </InlineStack>
-              <InlineStack wrap>
-                {board.groups.length > 1 && (
-                  <Select aria-label="分组范围" value={groupScope} onChange={e => setGroupScope(e.target.value)}>
-                    <option value="all">全部分组 ({board.groups.length})</option>
-                    {board.groups.map(g => <option key={g.group_id} value={String(g.group_id)}>{g.group_name || `分组 #${g.group_id}`}</option>)}
-                  </Select>
-                )}
-                {admin && onOpenTemplates && (
-                  <Button size="sm" variant="outline" onClick={onOpenTemplates}><Settings2 aria-hidden />探针模板</Button>
-                )}
-                {admin && onEditPolicy && (
-                  <Button size="sm" onClick={() => onEditPolicy(undefined)}><Plus aria-hidden />配置巡检分组</Button>
-                )}
-              </InlineStack>
-            </div>
+            <Verdict
+              tone={!board.enabled ? "info" : board.degraded_groups > 0 ? "warn" : "ok"}
+              title={!board.enabled ? "巡检已暂停" : board.degraded_groups > 0 ? `${board.degraded_groups} 个分组需要关注` : "所有分组运行正常"}
+              detail={`${board.enabled ? "智能流量门控巡检运行中 · " : ""}同步于 ${date(board.synced_at)}`}
+              actions={
+                <>
+                  {board.groups.length > 1 && (
+                    <Select aria-label="分组范围" value={groupScope} onChange={e => setGroupScope(e.target.value)}>
+                      <option value="all">全部分组 ({board.groups.length})</option>
+                      {board.groups.map(g => <option key={g.group_id} value={String(g.group_id)}>{g.group_name || `分组 #${g.group_id}`}</option>)}
+                    </Select>
+                  )}
+                  {admin && onOpenTemplates && (
+                    <Button size="sm" variant="outline" onClick={onOpenTemplates}><Settings2 aria-hidden />探针模板</Button>
+                  )}
+                  {admin && onEditPolicy && (
+                    <Button size="sm" onClick={() => onEditPolicy(undefined)}><Plus aria-hidden />配置巡检分组</Button>
+                  )}
+                </>
+              }
+            />
 
-            <MetricStrip items={stripItems} />
+            <KpiStrip items={stripItems} />
             <ErrorLine value={triggerAct.error} />
 
             <section className="patrol-section-surface" aria-label="分组巡检概览">

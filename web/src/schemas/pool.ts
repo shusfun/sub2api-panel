@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {id, named} from "./common";
+import {ledgerCardSummary} from "./ledger";
 
 export const accountBalanceItem = z.object({currency: z.string(), balance: z.number()});
 export const accountBalance = z.object({
@@ -22,6 +23,7 @@ export const accountExtraSchema = z.object({
   rpm_limit: z.number().nullable().optional(),
   codex_cli_only: z.boolean().optional().default(false),
   tls_fingerprint: z.boolean().optional().default(false),
+  tls_fingerprint_profile_id: z.number().nullable().optional(),
   intercept_warmup: z.boolean().optional().default(false),
   model_allowlist: z.array(z.string()).optional().default([]),
 });
@@ -73,6 +75,10 @@ export const account = named.extend({
   today_cost: z.number().optional(),
   today_errors: z.number().optional(),
   balance: accountBalance.optional(),
+  // 仅接官方只读库时出现：近 5 分钟单账号 RPM 与平均延迟。
+  rpm_5m: z.number().optional(),
+  avg_latency_ms: z.number().optional(),
+  ledger: ledgerCardSummary.optional(),
 });
 
 const quotaWindow = z.object({percent_used: z.number().nullable(), resets_at: z.string().nullable()}).nullable();
@@ -307,4 +313,39 @@ export const ephemeralPassSchema = z.object({
   quota_usd: z.string(),
   ikale_url: z.string(),
   inspector_url: z.string(),
+});
+
+export const passthroughRuleSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  enabled: z.boolean(),
+  priority: z.number(),
+  error_codes: z.array(z.number()),
+  keywords: z.array(z.string()),
+  match_mode: z.string(),
+  platforms: z.array(z.string()),
+  passthrough_code: z.boolean(),
+  response_code: z.number().nullable(),
+  passthrough_body: z.boolean(),
+  custom_message: z.string().nullable(),
+  skip_monitoring: z.boolean(),
+  description: z.string().nullable(),
+  updated_at: z.string(),
+});
+
+export const tlsProfileSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string().nullable(),
+  enable_grease: z.boolean(),
+  cipher_suites: z.array(z.number()),
+  curves: z.array(z.number()),
+  point_formats: z.array(z.number()),
+  signature_algorithms: z.array(z.number()),
+  alpn_protocols: z.array(z.string()),
+  supported_versions: z.array(z.number()),
+  key_share_groups: z.array(z.number()),
+  psk_modes: z.array(z.number()),
+  extensions: z.array(z.number()),
+  updated_at: z.string(),
 });

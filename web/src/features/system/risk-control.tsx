@@ -7,8 +7,10 @@ import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
 import {
   Button, ChoiceCards, ConfirmDialog, EllipsisText, EntityLink, Field, Form, FormGrid, Input, InsetGroup, InsetRow,
   MultiGroupSelect, PasswordInput, RefreshButton, Resource, SaveBar, SearchInput, Select, Status, Switch,
-  WorkspaceContent, toast, type Column,
+  Segmented, WorkspaceContent, toast, type Column,
 } from "@/ui";
+import {PromptAudit} from "./prompt-audit";
+import {RiskStatusPanel} from "./risk-status";
 import {RemoteTable} from "@/ui";
 
 const base = "/admin/risk-control";
@@ -22,6 +24,7 @@ const log = z.object({id: z.number(), created_at: z.string(), user_id: z.number(
   highest_score: z.number(), auto_banned: z.boolean(), user_status: z.string()});
 
 export function RiskControl() {
+  const [view, setView] = useState<"moderation" | "prompt">("moderation");
   const [revision, revise] = useState(0);
   const [search, setSearch] = useState("");
   const [target, setTarget] = useState<{id: number; label: string}>();
@@ -38,6 +41,9 @@ export function RiskControl() {
       <Button size="sm" variant="ghost" onClick={() => { action.clearError(); setTarget({id: row.user_id!, label: row.user_email || "用户 #" + row.user_id}); }}>解除封禁</Button>},
   ];
   return <WorkspaceContent>
+    <Segmented label="风控视图" value={view} options={[["moderation", "内容风控"], ["prompt", "提示词审计"]] as const} onChange={setView} />
+    {view === "prompt" ? <PromptAudit /> : <>
+    <RiskStatusPanel />
     <Resource state={data}>{value => <RiskForm key={JSON.stringify(value)} value={value} onSaved={() => { revise(v => v + 1); toast("风控配置已保存"); }} />}</Resource>
     <section className="swift-group" aria-label="风控记录">
       <div className="swift-group-head">
@@ -56,6 +62,7 @@ export function RiskControl() {
         revise(value => value + 1);
         toast("已解除用户封禁");
       })} />}
+    </>}
   </WorkspaceContent>;
 }
 

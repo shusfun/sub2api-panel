@@ -56,6 +56,13 @@ const silencePresets = [
   {value: "1440", label: "24 小时"},
 ] as const;
 
+const ruleTemplates = [
+  {key: "error", label: "请求错误率过高", rule: {name: "请求错误率过高", description: "", metric_type: "error_rate", operator: ">", threshold: 5, window_minutes: 5, sustained_minutes: 1, severity: "warning", cooldown_minutes: 30, notify_email: true}},
+  {key: "upstream", label: "上游渠道错误率过高", rule: {name: "上游渠道错误率过高", description: "", metric_type: "upstream_error_rate", operator: ">", threshold: 10, window_minutes: 5, sustained_minutes: 1, severity: "critical", cooldown_minutes: 30, notify_email: true}},
+  {key: "sla", label: "可用率 SLA 低于 99%", rule: {name: "可用率 SLA 低于 99%", description: "", metric_type: "success_rate", operator: "<", threshold: 99, window_minutes: 15, sustained_minutes: 1, severity: "critical", cooldown_minutes: 60, notify_email: true}},
+  {key: "queue", label: "并发排队堆积", rule: {name: "并发排队堆积", description: "", metric_type: "concurrency_queue_depth", operator: ">", threshold: 20, window_minutes: 5, sustained_minutes: 2, severity: "warning", cooldown_minutes: 30, notify_email: false}},
+] as const;
+
 function formatRuleCondition(row: AlertRule) {
   const metric = metricLabelMap[row.metric_type] ?? row.metric_type;
   const op = operatorLabelMap[row.operator] ?? row.operator;
@@ -135,7 +142,16 @@ export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; o
         <Panel
           title="告警规则"
           padded={false}
-          actions={<Button size="xs" onClick={() => { action.clearError(); setNotifyEmail(true); setRuleModal({mode: "create"}); }}><Plus aria-hidden />新建规则</Button>}
+          actions={<InlineStack density="compact">
+            <Select value="" aria-label="从模板创建规则" onChange={e => {
+              const tpl = ruleTemplates.find(t => t.key === e.target.value);
+              if (tpl) void action.run(async () => { await api("/admin/ops/alert-rules", opsAlertRuleSchema, "POST", {...tpl.rule, enabled: false}); onChanged(); });
+            }}>
+              <option value="">从模板创建（默认停用）</option>
+              {ruleTemplates.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </Select>
+            <Button size="xs" onClick={() => { action.clearError(); setNotifyEmail(true); setRuleModal({mode: "create"}); }}><Plus aria-hidden />新建规则</Button>
+          </InlineStack>}
         >
           <Resource state={rules}>
             {rows => (
@@ -180,6 +196,14 @@ export function OpsAlertsAndSettings({revision, onChanged}: {revision: number; o
                     render: row => (
                       <div className="row-actions">
                         <Button size="xs" variant="ghost" onClick={() => { setNotifyEmail(row.notify_email); setRuleModal({mode: "edit", rule: row}); }}>编辑</Button>
+                        <Button size="xs" variant="ghost" busy={action.busy} onClick={() => void action.run(async () => {
+                          await api("/admin/ops/alert-rules", opsAlertRuleSchema, "POST", {
+                            name: `${row.name}（副本）`.slice(0, 100), description: row.description ?? "", enabled: false, metric_type: row.metric_type, operator: row.operator,
+                            threshold: row.threshold, window_minutes: row.window_minutes, sustained_minutes: row.sustained_minutes, severity: row.severity,
+                            cooldown_minutes: row.cooldown_minutes, notify_email: row.notify_email,
+                          });
+                          onChanged();
+                        })}>复制</Button>
                         <Button size="icon-xs" variant="ghost" title="删除规则" aria-label={`删除 ${row.name}`} onClick={() => setDeletingRule(row)}><Trash2 /></Button>
                       </div>
                     ),

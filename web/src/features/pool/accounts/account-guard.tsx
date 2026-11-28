@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {api} from "@/lib/http";
-import {account} from "@/schemas";
-import {useAction} from "@/lib/requests";
+import {account, page, tlsProfileSchema} from "@/schemas";
+import {useAction, useResource} from "@/lib/requests";
 import {
   Button,
   ErrorLine,
@@ -12,6 +12,7 @@ import {
   FormSection,
   Input,
   InsetRow,
+  Select,
   Switch,
   Textarea,
 } from "@/ui";
@@ -34,6 +35,8 @@ export function AccountGuardForm({
   const [rpmLimit, setRpmLimit] = useState(extra?.rpm_limit != null ? String(extra.rpm_limit) : "");
   const [codexCLIOnly, setCodexCLIOnly] = useState(extra?.codex_cli_only ?? false);
   const [tlsFingerprint, setTlsFingerprint] = useState(extra?.tls_fingerprint ?? false);
+  const [tlsProfileID, setTlsProfileID] = useState(extra?.tls_fingerprint_profile_id != null ? String(extra.tls_fingerprint_profile_id) : "");
+  const profiles = useResource(() => api("/admin/tls-fingerprint-profiles", page(tlsProfileSchema)), "tls-profiles-select", true);
   const [interceptWarmup, setInterceptWarmup] = useState(extra?.intercept_warmup ?? false);
   const [allowlistText, setAllowlistText] = useState((extra?.model_allowlist ?? []).join("\n"));
   const [expiresDate, setExpiresDate] = useState(acc.expires_at ? new Date(acc.expires_at * 1000).toISOString().slice(0, 10) : "");
@@ -57,6 +60,7 @@ export function AccountGuardForm({
             ...(rpmLimit.trim() !== "" ? {rpm_limit: Number(rpmLimit)} : {}),
             codex_cli_only: codexCLIOnly,
             tls_fingerprint: tlsFingerprint,
+            tls_fingerprint_profile_id: tlsFingerprint && tlsProfileID ? Number(tlsProfileID) : null,
             intercept_warmup: interceptWarmup,
             model_allowlist: allowlist,
           },
@@ -78,6 +82,15 @@ export function AccountGuardForm({
       <FormSection title="防封特征与模型白名单">
         <InsetRow label="仅允许 Codex CLI 流量"><Switch label="仅 Codex CLI" checked={codexCLIOnly} onChange={setCodexCLIOnly} /></InsetRow>
         <InsetRow label="启用 TLS 指纹伪装"><Switch label="TLS 指纹伪装" checked={tlsFingerprint} onChange={setTlsFingerprint} /></InsetRow>
+        {tlsFingerprint && (
+          <InsetRow label="TLS 指纹档案" hint="不选择时由上游使用默认档案；档案在「上游规则」页维护">
+            <Select value={tlsProfileID} aria-label="TLS 指纹档案" onChange={e => setTlsProfileID(e.target.value)}>
+              <option value="">上游默认档案</option>
+              {(profiles?.value?.items ?? []).map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+              {tlsProfileID && !(profiles?.value?.items ?? []).some(p => String(p.id) === tlsProfileID) && <option value={tlsProfileID}>档案 #{tlsProfileID}</option>}
+            </Select>
+          </InsetRow>
+        )}
         <InsetRow label="拦截预热探测请求 (intercept_warmup)"><Switch label="拦截预热请求" checked={interceptWarmup} onChange={setInterceptWarmup} /></InsetRow>
         <Field label="单号模型白名单（每行一个，留空不限）">
           <Textarea rows={3} value={allowlistText} onChange={e => setAllowlistText(e.target.value)} placeholder="claude-sonnet-4-5" />

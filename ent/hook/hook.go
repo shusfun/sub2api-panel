@@ -44,6 +44,90 @@ func (f IssueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IssueMutation", m)
 }
 
+// The LedgerAccountFunc type is an adapter to allow the use of ordinary
+// function as LedgerAccount mutator.
+type LedgerAccountFunc func(context.Context, *ent.LedgerAccountMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerAccountFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerAccountMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerAccountMutation", m)
+}
+
+// The LedgerAlertFunc type is an adapter to allow the use of ordinary
+// function as LedgerAlert mutator.
+type LedgerAlertFunc func(context.Context, *ent.LedgerAlertMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerAlertFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerAlertMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerAlertMutation", m)
+}
+
+// The LedgerDayFunc type is an adapter to allow the use of ordinary
+// function as LedgerDay mutator.
+type LedgerDayFunc func(context.Context, *ent.LedgerDayMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerDayFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerDayMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerDayMutation", m)
+}
+
+// The LedgerEventFunc type is an adapter to allow the use of ordinary
+// function as LedgerEvent mutator.
+type LedgerEventFunc func(context.Context, *ent.LedgerEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerEventMutation", m)
+}
+
+// The LedgerHourFunc type is an adapter to allow the use of ordinary
+// function as LedgerHour mutator.
+type LedgerHourFunc func(context.Context, *ent.LedgerHourMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerHourFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerHourMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerHourMutation", m)
+}
+
+// The LedgerSampleFunc type is an adapter to allow the use of ordinary
+// function as LedgerSample mutator.
+type LedgerSampleFunc func(context.Context, *ent.LedgerSampleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerSampleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerSampleMutation", m)
+}
+
+// The LedgerWalletFunc type is an adapter to allow the use of ordinary
+// function as LedgerWallet mutator.
+type LedgerWalletFunc func(context.Context, *ent.LedgerWalletMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LedgerWalletFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LedgerWalletMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LedgerWalletMutation", m)
+}
+
 // The PatrolPolicyFunc type is an adapter to allow the use of ordinary
 // function as PatrolPolicy mutator.
 type PatrolPolicyFunc func(context.Context, *ent.PatrolPolicyMutation) (ent.Value, error)

@@ -25,6 +25,7 @@ import {AddAccountDialog} from "./account-add-dialog";
 import {AccountBatch} from "./account-batch";
 import {AccountCardItem} from "./account-card";
 import {buildAccountColumns} from "./account-columns";
+import {needsAttention, useLedgerTotals} from "./account-ledger-summary";
 import {AccountWorkspaceHeader, createAccountRowControls} from "./account-controls";
 import {AccountCRS} from "./account-crs";
 import {AccountData} from "./account-data";
@@ -99,6 +100,8 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     clearStats();
     revise(v => v + 1);
   };
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const ledgerHeader = useLedgerTotals(revision);
   const batchAction = useAction();
   const removeAction = useAction();
 
@@ -223,6 +226,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     refreshCardTelemetry,
     recoverAccount,
     onRequestDelete: row => { removeAction.clearError(); setDeleting(row); },
+    onChanged: refresh,
   });
 
   const providerPills = useMemo(() => {
@@ -236,7 +240,7 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
     ];
   }, [platform, platformCounts, totals]);
 
-  const columns = buildAccountColumns({results, balanceMap, groupsOf, accountRecovery, scheduleSwitch, rowActions, rowMore});
+  const columns = buildAccountColumns({inspectorOpen: !!inspect, results, balanceMap, groupsOf, accountRecovery, scheduleSwitch, rowActions, rowMore});
   const index = inspect ? rows.findIndex(row => row.id === inspect) : -1;
   const emptyState = (
     <EmptyState
@@ -309,12 +313,16 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
             onPrev={index > 0 ? () => setInspect(rows[index - 1].id) : undefined}
             onNext={index >= 0 && index < rows.length - 1 ? () => setInspect(rows[index + 1].id) : undefined}
           >
-            {inspect && <AccountSummary id={inspect} row={rows[index]} revision={revision} onShowModels={acc => setModelsAccount(acc)} />}
+            {inspect && <AccountSummary id={inspect} row={rows[index]} revision={revision} onShowModels={acc => setModelsAccount(acc)} onSaved={refresh} />}
           </Inspector>
         }
       >
         <AccountWorkspaceHeader
           totals={totals}
+          ledgerTotals={ledgerHeader?.totals}
+          showProfit={ledgerHeader?.showProfit}
+          attentionOnly={attentionOnly}
+          onToggleAttention={() => setAttentionOnly(value => !value)}
           platform={platform}
           providerPills={providerPills}
           status={status}
@@ -372,7 +380,8 @@ export function AccountsWorkspace({queryString = ""}: {queryString?: string}) {
             empty={emptyState}
             renderItems={(items, stale) => {
               const activityAvailable = liveStatus !== "reconnecting" && liveStatus !== "denied";
-              const ordered = sortAccounts(activityAvailable ? items : items.map(row => ({...row, activity_known: false})), sort);
+              const visible = attentionOnly ? items.filter(needsAttention) : items;
+              const ordered = sortAccounts(activityAvailable ? visible : visible.map(row => ({...row, activity_known: false})), sort);
               return <ReorderMotion key={view} order={ordered.map(item => item.id).join(",")}>
                 {view === "list" ? (
                   <DataTable label="上游账号" rows={ordered} columns={columns} rowID={row => row.id}

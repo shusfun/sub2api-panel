@@ -44,4 +44,12 @@ func init() {
 	usagelogDescCacheCreationTokens := usagelogFields[9].Descriptor()
 	// usagelog.DefaultCacheCreationTokens holds the default value on creation for the cache_creation_tokens field.
 	usagelog.DefaultCacheCreationTokens = usagelogDescCacheCreationTokens.Default.(int64)
+	// usagelogDescTotalCost is the schema descriptor for total_cost field.
+	usagelogDescTotalCost := usagelogFields[10].Descriptor()
+	// usagelog.DefaultTotalCost holds the default value on creation for the total_cost field.
+	usagelog.DefaultTotalCost = usagelogDescTotalCost.Default.(float64)
+	// usagelogDescBillingType is the schema descriptor for billing_type field.
+	usagelogDescBillingType := usagelogFields[14].Descriptor()
+	// usagelog.DefaultBillingType holds the default value on creation for the billing_type field.
+	usagelog.DefaultBillingType = usagelogDescBillingType.Default.(int8)
 }

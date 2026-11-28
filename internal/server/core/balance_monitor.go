@@ -26,6 +26,10 @@ import (
 const BalanceSettingPrefix = "account_balance/"
 const BalanceConfigLimit = 500
 
+// defaultQuotaPerUnit 是 New API / One API 的默认额度换算（500000 额度 = 1 美元），
+// 仅在 /api/status 取不到 quota_per_unit 时兜底。
+const defaultQuotaPerUnit = 500000.0
+
 type AccountBalanceItem struct {
 	Currency string  `json:"currency"`
 	Balance  float64 `json:"balance"`
@@ -40,6 +44,16 @@ type AccountBalanceView struct {
 	Balances  []AccountBalanceItem `json:"balances,omitempty"`
 	FetchedAt *int64               `json:"fetched_at,omitempty"`
 	Billing   *AccountBillingView  `json:"billing,omitempty"`
+	// Sample 只给账本模块在服务端内部使用，不进入任何接口响应。
+	Sample *BalanceSample `json:"-"`
+}
+
+// BalanceSample 是一次采样里账本对账需要的附加读数，金额均已折算为美元。
+type BalanceSample struct {
+	KeyUsedUSD    *float64
+	WalletUsedUSD *float64
+	QuotaLimitUSD *float64
+	QuotaPerUSD   float64
 }
 
 type AccountBillingView struct {
@@ -57,10 +71,19 @@ var nonPublicBalanceNetworks = []netip.Prefix{
 }
 
 type BalanceConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Provider string `json:"provider"`
-	BaseURL  string `json:"base_url"`
-	Key      string `json:"api_key"`
+	Enabled        bool   `json:"enabled"`
+	Provider       string `json:"provider"`
+	BaseURL        string `json:"base_url"`
+	Key            string `json:"api_key"`
+	AccessToken    string `json:"access_token,omitempty"`
+	UpstreamUserID int64  `json:"upstream_user_id,omitempty"`
+}
+
+// BalanceHooks 是采样结果的回调，由账本模块在 router.WireHubs 里接入。
+// 回调在采样协程里同步执行，且不持有 BalanceMonitor 的锁。
+type BalanceHooks struct {
+	OnSample  func(ctx context.Context, id int64, config BalanceConfig, view AccountBalanceView)
+	OnFailure func(ctx context.Context, id int64, config BalanceConfig, err error)
 }
 
 type balanceSample struct {
@@ -76,6 +99,7 @@ type BalanceMonitor struct {
 	states map[int64]balanceSample
 	slots  chan struct{}
 	http   *http.Client
+	hooks  BalanceHooks
 }
 
 func NewBalanceMonitor() *BalanceMonitor {
@@ -91,6 +115,16 @@ func NewBalanceMonitor() *BalanceMonitor {
 			},
 		},
 	}
+}
+
+// SetHooks 替换采样回调；可在监控启动后调用。
+func (m *BalanceMonitor) SetHooks(hooks BalanceHooks) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.hooks = hooks
+	m.mu.Unlock()
 }
 
 func dialBalanceHost(ctx context.Context, network, address string) (net.Conn, error) {
@@ -128,6 +162,24 @@ func publicBalanceIP(ip netip.Addr) bool {
 	return true
 }
 
+// balanceBaseURL 校验并返回站点根地址：必须 https、默认端口、无凭据与查询串、主机不是非公网 IP。
+func balanceBaseURL(raw string) (*url.URL, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery || (u.Port() != "" && u.Port() != "443") || u.RawPath != "" {
+		return nil, platform.Fail(400, "invalid_input")
+	}
+	if ip, err := netip.ParseAddr(u.Hostname()); err == nil && !publicBalanceIP(ip.Unmap()) {
+		return nil, platform.Fail(400, "invalid_input")
+	}
+	return u, nil
+}
+
+func balanceJoin(base *url.URL, path string) string {
+	u := *base
+	u.Path = strings.TrimRight(u.Path, "/") + path
+	return u.String()
+}
+
 func BalanceEndpoint(config BalanceConfig) (string, error) {
 	switch config.Provider {
 	case "deepseek":
@@ -135,21 +187,51 @@ func BalanceEndpoint(config BalanceConfig) (string, error) {
 	case "kimi":
 		return "https://api.moonshot.cn/v1/users/me/balance", nil
 	case "sub2api":
-		u, err := url.Parse(strings.TrimSpace(config.BaseURL))
-		if err != nil || u.Scheme != "https" || u.User != nil || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" || u.ForceQuery || (u.Port() != "" && u.Port() != "443") || u.RawPath != "" {
-			return "", platform.Fail(400, "invalid_input")
-		}
-		if ip, err := netip.ParseAddr(u.Hostname()); err == nil && !publicBalanceIP(ip.Unmap()) {
-			return "", platform.Fail(400, "invalid_input")
+		u, err := balanceBaseURL(config.BaseURL)
+		if err != nil {
+			return "", err
 		}
 		u.Path = strings.TrimSuffix(strings.TrimRight(u.Path, "/"), "/v1") + "/v1/usage"
 		return u.String(), nil
+	case "newapi", "oneapi":
+		u, err := balanceBaseURL(config.BaseURL)
+		if err != nil {
+			return "", err
+		}
+		if config.AccessToken != "" {
+			return balanceJoin(u, "/api/user/self"), nil
+		}
+		if config.Provider == "oneapi" {
+			return "", platform.Fail(400, "invalid_input")
+		}
+		return balanceJoin(u, "/api/usage/token/"), nil
 	default:
 		return "", platform.Fail(400, "invalid_input")
 	}
 }
 
-func (s *Server) balanceCipher() (cipher.AEAD, error) {
+// sealSecret 用面板密钥派生的 AES-GCM 加密任意明文，name 作为附加认证数据绑定到存储键。
+func (s *Server) sealSecret(name string, plaintext []byte) (string, error) {
+	aead, err := s.secretCipher()
+	if err != nil {
+		return "", err
+	}
+	return base64.RawStdEncoding.EncodeToString(aead.Seal(nil, nil, plaintext, []byte(name))), nil
+}
+
+func (s *Server) openSecret(name, ciphertext string) ([]byte, error) {
+	aead, err := s.secretCipher()
+	if err != nil {
+		return nil, err
+	}
+	raw, err := base64.RawStdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	return aead.Open(nil, nil, raw, []byte(name))
+}
+
+func (s *Server) secretCipher() (cipher.AEAD, error) {
 	key := sha256.Sum256([]byte("panel upstream balances\x00" + s.Secret))
 	block, err := aes.NewCipher(key[:])
 	if err != nil {
@@ -160,15 +242,7 @@ func (s *Server) balanceCipher() (cipher.AEAD, error) {
 
 func (s *Server) decryptBalanceConfig(name, ciphertext string) (BalanceConfig, error) {
 	var config BalanceConfig
-	aead, err := s.balanceCipher()
-	if err != nil {
-		return config, err
-	}
-	raw, err := base64.RawStdEncoding.DecodeString(ciphertext)
-	if err != nil {
-		return config, err
-	}
-	plaintext, err := aead.Open(nil, nil, raw, []byte(name))
+	plaintext, err := s.openSecret(name, ciphertext)
 	if err != nil {
 		return config, err
 	}
@@ -193,12 +267,11 @@ func (s *Server) SaveBalanceConfig(ctx context.Context, id int64, row *ent.Runti
 	if err != nil {
 		return err
 	}
-	aead, err := s.balanceCipher()
+	name := BalanceSettingPrefix + strconv.FormatInt(id, 10)
+	ciphertext, err := s.sealSecret(name, raw)
 	if err != nil {
 		return err
 	}
-	name := BalanceSettingPrefix + strconv.FormatInt(id, 10)
-	ciphertext := base64.RawStdEncoding.EncodeToString(aead.Seal(nil, nil, raw, []byte(name)))
 	if row == nil {
 		count, err := s.Database.RuntimeSetting.Query().Where(runtimesetting.KeyHasPrefix(BalanceSettingPrefix)).Count(ctx)
 		if err != nil {
@@ -293,9 +366,9 @@ func (m *BalanceMonitor) SampleIfDue(ctx context.Context, id int64, generation s
 			value.Billing = m.fetchBilling(ctx, config)
 		}
 		m.mu.Lock()
-		defer m.mu.Unlock()
 		latest := m.states[id]
 		if latest.generation != generation {
+			m.mu.Unlock()
 			done <- platform.Fail(409, "invalid_input")
 			return
 		}
@@ -319,12 +392,36 @@ func (m *BalanceMonitor) SampleIfDue(ctx context.Context, id int64, generation s
 			}
 		}
 		m.states[id] = latest
+		hooks := m.hooks
+		m.mu.Unlock()
+		if err == nil && hooks.OnSample != nil {
+			hooks.OnSample(ctx, id, config, value)
+		} else if err != nil && hooks.OnFailure != nil {
+			hooks.OnFailure(ctx, id, config, err)
+		}
 		done <- err
 	}()
 	return done
 }
 
 func (m *BalanceMonitor) fetch(ctx context.Context, config BalanceConfig) (AccountBalanceView, error) {
+	var value AccountBalanceView
+	var err error
+	switch config.Provider {
+	case "newapi", "oneapi":
+		value, err = m.fetchQuota(ctx, config)
+	default:
+		value, err = m.fetchBalance(ctx, config)
+	}
+	if err != nil {
+		return AccountBalanceView{}, err
+	}
+	now := time.Now().Unix()
+	value.FetchedAt = &now
+	return value, nil
+}
+
+func (m *BalanceMonitor) fetchBalance(ctx context.Context, config BalanceConfig) (AccountBalanceView, error) {
 	endpoint, err := BalanceEndpoint(config)
 	if err != nil {
 		return AccountBalanceView{}, err
@@ -334,21 +431,80 @@ func (m *BalanceMonitor) fetch(ctx context.Context, config BalanceConfig) (Accou
 		return AccountBalanceView{}, err
 	}
 	defer body.Close()
-	value, err := ReadBalanceResponse(io.LimitReader(body, 1<<20), config.Provider)
+	return ReadBalanceResponse(io.LimitReader(body, 1<<20), config.Provider)
+}
+
+// fetchQuota 读取 New API / One API：有访问令牌时读钱包（/api/user/self），
+// 只有 Key 时读 Key 自身的额度（/api/usage/token/，仅 New API）。额度按 /api/status 的 quota_per_unit 换算成美元。
+func (m *BalanceMonitor) fetchQuota(ctx context.Context, config BalanceConfig) (AccountBalanceView, error) {
+	base, err := balanceBaseURL(config.BaseURL)
 	if err != nil {
 		return AccountBalanceView{}, err
 	}
-	now := time.Now().Unix()
-	value.FetchedAt = &now
+	endpoint, err := BalanceEndpoint(config)
+	if err != nil {
+		return AccountBalanceView{}, err
+	}
+	perUnit := m.quotaPerUnit(ctx, base)
+	wallet := config.AccessToken != ""
+	token, headers := config.Key, map[string]string{}
+	if wallet {
+		token = config.AccessToken
+		if config.Provider == "newapi" && config.UpstreamUserID > 0 {
+			headers["New-Api-User"] = strconv.FormatInt(config.UpstreamUserID, 10)
+		}
+	}
+	body, err := m.openWith(ctx, endpoint, token, headers)
+	if err != nil {
+		return AccountBalanceView{}, err
+	}
+	defer body.Close()
+	value, err := ReadQuotaResponse(io.LimitReader(body, 1<<20), wallet, perUnit)
+	if err != nil || !wallet || config.Provider != "newapi" || config.Key == "" {
+		return value, err
+	}
+	// 钱包读数成功后，尽力补读 Key 级已用额度；失败不影响钱包读数。
+	if keyBody, err := m.open(ctx, balanceJoin(base, "/api/usage/token/"), config.Key); err == nil {
+		defer keyBody.Close()
+		if keyView, err := ReadQuotaResponse(io.LimitReader(keyBody, 1<<20), false, perUnit); err == nil && keyView.Sample != nil {
+			value.Sample.KeyUsedUSD = keyView.Sample.KeyUsedUSD
+		}
+	}
 	return value, nil
 }
 
+func (m *BalanceMonitor) quotaPerUnit(ctx context.Context, base *url.URL) float64 {
+	body, err := m.open(ctx, balanceJoin(base, "/api/status"), "")
+	if err != nil {
+		return defaultQuotaPerUnit
+	}
+	defer body.Close()
+	var wire struct {
+		Data struct {
+			QuotaPerUnit *float64 `json:"quota_per_unit"`
+		} `json:"data"`
+	}
+	if json.NewDecoder(io.LimitReader(body, 1<<20)).Decode(&wire) != nil || wire.Data.QuotaPerUnit == nil || !(*wire.Data.QuotaPerUnit > 0 && *wire.Data.QuotaPerUnit < 1e12) {
+		return defaultQuotaPerUnit
+	}
+	return *wire.Data.QuotaPerUnit
+}
+
 func (m *BalanceMonitor) open(ctx context.Context, endpoint, key string) (io.ReadCloser, error) {
+	return m.openWith(ctx, endpoint, key, nil)
+}
+
+func (m *BalanceMonitor) openWith(ctx context.Context, endpoint, key string, headers map[string]string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+key)
+	if key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
 	res, err := m.http.Do(req)
 	if err != nil {
 		return nil, err
@@ -383,58 +539,4 @@ func (m *BalanceMonitor) fetchBilling(ctx context.Context, config BalanceConfig)
 		return nil
 	}
 	return &AccountBillingView{Effective: *billing.Effective, Observed: billing.Observed}
-}
-
-func ReadBalanceResponse(body io.Reader, provider string) (AccountBalanceView, error) {
-	var wire struct {
-		Mode      string   `json:"mode"`
-		Unit      string   `json:"unit"`
-		Plan      string   `json:"planName"`
-		Balance   *float64 `json:"balance"`
-		Remaining *float64 `json:"remaining"`
-		Available *bool    `json:"is_available"`
-		Data      struct {
-			Available *float64 `json:"available_balance"`
-		} `json:"data"`
-		Balances []struct {
-			Currency string `json:"currency"`
-			Total    string `json:"total_balance"`
-		} `json:"balance_infos"`
-	}
-	if json.NewDecoder(body).Decode(&wire) != nil {
-		return AccountBalanceView{}, platform.Fail(502, "invalid_upstream")
-	}
-	result := AccountBalanceView{Currency: "USD", Kind: "account", Available: wire.Available}
-	var amount *float64
-	switch provider {
-	case "kimi":
-		result.Currency, amount = "CNY", wire.Data.Available
-	case "deepseek":
-		for _, item := range wire.Balances {
-			if item.Currency != "CNY" && item.Currency != "USD" {
-				continue
-			}
-			value, err := strconv.ParseFloat(item.Total, 64)
-			if err == nil && value >= 0 && value < 1e12 {
-				result.Balances = append(result.Balances, AccountBalanceItem{Currency: item.Currency, Balance: value})
-			}
-		}
-		if len(result.Balances) != 0 {
-			result.Currency, amount = result.Balances[0].Currency, &result.Balances[0].Balance
-		}
-	case "sub2api":
-		switch {
-		case wire.Mode == "quota_limited":
-			result.Kind, amount = "key_quota", wire.Remaining
-		case wire.Mode == "unrestricted" && wire.Balance != nil:
-			amount = wire.Balance
-		case wire.Mode == "unrestricted" && wire.Plan != "":
-			result.Kind, amount = "subscription", wire.Remaining
-		}
-	}
-	if amount == nil || !(*amount > -1e12 && *amount < 1e12) {
-		return AccountBalanceView{}, platform.Fail(502, "balance_unavailable")
-	}
-	result.Balance = *amount
-	return result, nil
 }

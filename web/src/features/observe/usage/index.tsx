@@ -32,6 +32,8 @@ function withinWeek(range: Range) {
   return (Date.parse(range.end) - Date.parse(range.start)) / 86400000 < 7;
 }
 
+import {UsageCleanupPanel} from "./usage-cleanup";
+
 export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID: string; queryString?: string; admin?: boolean}) {
   const initial = useMemo(() => new URLSearchParams(queryString), [queryString]);
   const initialUser = initial.get("user") ?? "";
@@ -250,6 +252,7 @@ export function UsageDashboard({keyID, queryString = "", admin = false}: {keyID:
           onFilterAccount={id => setAccountID(String(id))}
           onFilterUser={id => { setUser(String(id)); setKey(""); }}
         />
+        {admin && <UsageCleanupPanel />}
       </WorkspaceContent>
     </WorkspaceStage>
   );

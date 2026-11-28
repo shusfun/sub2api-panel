@@ -35,8 +35,18 @@ type UsageLog struct {
 	CacheReadTokens int64 `json:"cache_read_tokens,omitempty"`
 	// CacheCreationTokens holds the value of the "cache_creation_tokens" field.
 	CacheCreationTokens int64 `json:"cache_creation_tokens,omitempty"`
+	// TotalCost holds the value of the "total_cost" field.
+	TotalCost float64 `json:"total_cost,omitempty"`
 	// ActualCost holds the value of the "actual_cost" field.
 	ActualCost float64 `json:"actual_cost,omitempty"`
+	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
+	AccountRateMultiplier *float64 `json:"account_rate_multiplier,omitempty"`
+	// AccountStatsCost holds the value of the "account_stats_cost" field.
+	AccountStatsCost *float64 `json:"account_stats_cost,omitempty"`
+	// BillingType holds the value of the "billing_type" field.
+	BillingType int8 `json:"billing_type,omitempty"`
+	// DurationMs holds the value of the "duration_ms" field.
+	DurationMs *int `json:"duration_ms,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at,omitempty"`
 	selectValues sql.SelectValues
@@ -47,9 +57,9 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldActualCost:
+		case usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldAccountRateMultiplier, usagelog.FieldAccountStatsCost:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldGroupID, usagelog.FieldAccountID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreationTokens:
+		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldGroupID, usagelog.FieldAccountID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs:
 			values[i] = new(sql.NullInt64)
 		case usagelog.FieldModel:
 			values[i] = new(sql.NullString)
@@ -133,11 +143,44 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CacheCreationTokens = value.Int64
 			}
+		case usagelog.FieldTotalCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_cost", values[i])
+			} else if value.Valid {
+				_m.TotalCost = value.Float64
+			}
 		case usagelog.FieldActualCost:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field actual_cost", values[i])
 			} else if value.Valid {
 				_m.ActualCost = value.Float64
+			}
+		case usagelog.FieldAccountRateMultiplier:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field account_rate_multiplier", values[i])
+			} else if value.Valid {
+				_m.AccountRateMultiplier = new(float64)
+				*_m.AccountRateMultiplier = value.Float64
+			}
+		case usagelog.FieldAccountStatsCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field account_stats_cost", values[i])
+			} else if value.Valid {
+				_m.AccountStatsCost = new(float64)
+				*_m.AccountStatsCost = value.Float64
+			}
+		case usagelog.FieldBillingType:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_type", values[i])
+			} else if value.Valid {
+				_m.BillingType = int8(value.Int64)
+			}
+		case usagelog.FieldDurationMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field duration_ms", values[i])
+			} else if value.Valid {
+				_m.DurationMs = new(int)
+				*_m.DurationMs = int(value.Int64)
 			}
 		case usagelog.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -214,8 +257,29 @@ func (_m *UsageLog) String() string {
 	builder.WriteString("cache_creation_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CacheCreationTokens))
 	builder.WriteString(", ")
+	builder.WriteString("total_cost=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalCost))
+	builder.WriteString(", ")
 	builder.WriteString("actual_cost=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ActualCost))
+	builder.WriteString(", ")
+	if v := _m.AccountRateMultiplier; v != nil {
+		builder.WriteString("account_rate_multiplier=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AccountStatsCost; v != nil {
+		builder.WriteString("account_stats_cost=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("billing_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingType))
+	builder.WriteString(", ")
+	if v := _m.DurationMs; v != nil {
+		builder.WriteString("duration_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

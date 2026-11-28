@@ -14,6 +14,13 @@ import (
 	"sub2api-panel/ent/grant"
 	"sub2api-panel/ent/grantaudit"
 	"sub2api-panel/ent/issue"
+	"sub2api-panel/ent/ledgeraccount"
+	"sub2api-panel/ent/ledgeralert"
+	"sub2api-panel/ent/ledgerday"
+	"sub2api-panel/ent/ledgerevent"
+	"sub2api-panel/ent/ledgerhour"
+	"sub2api-panel/ent/ledgersample"
+	"sub2api-panel/ent/ledgerwallet"
 	"sub2api-panel/ent/patrolpolicy"
 	"sub2api-panel/ent/patrolrun"
 	"sub2api-panel/ent/probetemplate"
@@ -39,6 +46,20 @@ type Client struct {
 	GrantAudit *GrantAuditClient
 	// Issue is the client for interacting with the Issue builders.
 	Issue *IssueClient
+	// LedgerAccount is the client for interacting with the LedgerAccount builders.
+	LedgerAccount *LedgerAccountClient
+	// LedgerAlert is the client for interacting with the LedgerAlert builders.
+	LedgerAlert *LedgerAlertClient
+	// LedgerDay is the client for interacting with the LedgerDay builders.
+	LedgerDay *LedgerDayClient
+	// LedgerEvent is the client for interacting with the LedgerEvent builders.
+	LedgerEvent *LedgerEventClient
+	// LedgerHour is the client for interacting with the LedgerHour builders.
+	LedgerHour *LedgerHourClient
+	// LedgerSample is the client for interacting with the LedgerSample builders.
+	LedgerSample *LedgerSampleClient
+	// LedgerWallet is the client for interacting with the LedgerWallet builders.
+	LedgerWallet *LedgerWalletClient
 	// PatrolPolicy is the client for interacting with the PatrolPolicy builders.
 	PatrolPolicy *PatrolPolicyClient
 	// PatrolRun is the client for interacting with the PatrolRun builders.
@@ -69,6 +90,13 @@ func (c *Client) init() {
 	c.Grant = NewGrantClient(c.config)
 	c.GrantAudit = NewGrantAuditClient(c.config)
 	c.Issue = NewIssueClient(c.config)
+	c.LedgerAccount = NewLedgerAccountClient(c.config)
+	c.LedgerAlert = NewLedgerAlertClient(c.config)
+	c.LedgerDay = NewLedgerDayClient(c.config)
+	c.LedgerEvent = NewLedgerEventClient(c.config)
+	c.LedgerHour = NewLedgerHourClient(c.config)
+	c.LedgerSample = NewLedgerSampleClient(c.config)
+	c.LedgerWallet = NewLedgerWalletClient(c.config)
 	c.PatrolPolicy = NewPatrolPolicyClient(c.config)
 	c.PatrolRun = NewPatrolRunClient(c.config)
 	c.ProbeTemplate = NewProbeTemplateClient(c.config)
@@ -172,6 +200,13 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Grant:            NewGrantClient(cfg),
 		GrantAudit:       NewGrantAuditClient(cfg),
 		Issue:            NewIssueClient(cfg),
+		LedgerAccount:    NewLedgerAccountClient(cfg),
+		LedgerAlert:      NewLedgerAlertClient(cfg),
+		LedgerDay:        NewLedgerDayClient(cfg),
+		LedgerEvent:      NewLedgerEventClient(cfg),
+		LedgerHour:       NewLedgerHourClient(cfg),
+		LedgerSample:     NewLedgerSampleClient(cfg),
+		LedgerWallet:     NewLedgerWalletClient(cfg),
 		PatrolPolicy:     NewPatrolPolicyClient(cfg),
 		PatrolRun:        NewPatrolRunClient(cfg),
 		ProbeTemplate:    NewProbeTemplateClient(cfg),
@@ -202,6 +237,13 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Grant:            NewGrantClient(cfg),
 		GrantAudit:       NewGrantAuditClient(cfg),
 		Issue:            NewIssueClient(cfg),
+		LedgerAccount:    NewLedgerAccountClient(cfg),
+		LedgerAlert:      NewLedgerAlertClient(cfg),
+		LedgerDay:        NewLedgerDayClient(cfg),
+		LedgerEvent:      NewLedgerEventClient(cfg),
+		LedgerHour:       NewLedgerHourClient(cfg),
+		LedgerSample:     NewLedgerSampleClient(cfg),
+		LedgerWallet:     NewLedgerWalletClient(cfg),
 		PatrolPolicy:     NewPatrolPolicyClient(cfg),
 		PatrolRun:        NewPatrolRunClient(cfg),
 		ProbeTemplate:    NewProbeTemplateClient(cfg),
@@ -239,9 +281,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Grant, c.GrantAudit, c.Issue, c.PatrolPolicy, c.PatrolRun, c.ProbeTemplate,
-		c.RuntimeSetting, c.UsageCursor, c.UsageObservation, c.UsageSnapshot,
-		c.UsageVersion,
+		c.Grant, c.GrantAudit, c.Issue, c.LedgerAccount, c.LedgerAlert, c.LedgerDay,
+		c.LedgerEvent, c.LedgerHour, c.LedgerSample, c.LedgerWallet, c.PatrolPolicy,
+		c.PatrolRun, c.ProbeTemplate, c.RuntimeSetting, c.UsageCursor,
+		c.UsageObservation, c.UsageSnapshot, c.UsageVersion,
 	} {
 		n.Use(hooks...)
 	}
@@ -251,9 +294,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Grant, c.GrantAudit, c.Issue, c.PatrolPolicy, c.PatrolRun, c.ProbeTemplate,
-		c.RuntimeSetting, c.UsageCursor, c.UsageObservation, c.UsageSnapshot,
-		c.UsageVersion,
+		c.Grant, c.GrantAudit, c.Issue, c.LedgerAccount, c.LedgerAlert, c.LedgerDay,
+		c.LedgerEvent, c.LedgerHour, c.LedgerSample, c.LedgerWallet, c.PatrolPolicy,
+		c.PatrolRun, c.ProbeTemplate, c.RuntimeSetting, c.UsageCursor,
+		c.UsageObservation, c.UsageSnapshot, c.UsageVersion,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -268,6 +312,20 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.GrantAudit.mutate(ctx, m)
 	case *IssueMutation:
 		return c.Issue.mutate(ctx, m)
+	case *LedgerAccountMutation:
+		return c.LedgerAccount.mutate(ctx, m)
+	case *LedgerAlertMutation:
+		return c.LedgerAlert.mutate(ctx, m)
+	case *LedgerDayMutation:
+		return c.LedgerDay.mutate(ctx, m)
+	case *LedgerEventMutation:
+		return c.LedgerEvent.mutate(ctx, m)
+	case *LedgerHourMutation:
+		return c.LedgerHour.mutate(ctx, m)
+	case *LedgerSampleMutation:
+		return c.LedgerSample.mutate(ctx, m)
+	case *LedgerWalletMutation:
+		return c.LedgerWallet.mutate(ctx, m)
 	case *PatrolPolicyMutation:
 		return c.PatrolPolicy.mutate(ctx, m)
 	case *PatrolRunMutation:
@@ -685,6 +743,937 @@ func (c *IssueClient) mutate(ctx context.Context, m *IssueMutation) (Value, erro
 		return (&IssueDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Issue mutation op: %q", m.Op())
+	}
+}
+
+// LedgerAccountClient is a client for the LedgerAccount schema.
+type LedgerAccountClient struct {
+	config
+}
+
+// NewLedgerAccountClient returns a client for the LedgerAccount from the given config.
+func NewLedgerAccountClient(c config) *LedgerAccountClient {
+	return &LedgerAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgeraccount.Hooks(f(g(h())))`.
+func (c *LedgerAccountClient) Use(hooks ...Hook) {
+	c.hooks.LedgerAccount = append(c.hooks.LedgerAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgeraccount.Intercept(f(g(h())))`.
+func (c *LedgerAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerAccount = append(c.inters.LedgerAccount, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerAccount entity.
+func (c *LedgerAccountClient) Create() *LedgerAccountCreate {
+	mutation := newLedgerAccountMutation(c.config, OpCreate)
+	return &LedgerAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerAccount entities.
+func (c *LedgerAccountClient) CreateBulk(builders ...*LedgerAccountCreate) *LedgerAccountCreateBulk {
+	return &LedgerAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerAccountClient) MapCreateBulk(slice any, setFunc func(*LedgerAccountCreate, int)) *LedgerAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerAccountCreateBulk{err: fmt.Errorf("calling to LedgerAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerAccount.
+func (c *LedgerAccountClient) Update() *LedgerAccountUpdate {
+	mutation := newLedgerAccountMutation(c.config, OpUpdate)
+	return &LedgerAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerAccountClient) UpdateOne(_m *LedgerAccount) *LedgerAccountUpdateOne {
+	mutation := newLedgerAccountMutation(c.config, OpUpdateOne, withLedgerAccount(_m))
+	return &LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerAccountClient) UpdateOneID(id int) *LedgerAccountUpdateOne {
+	mutation := newLedgerAccountMutation(c.config, OpUpdateOne, withLedgerAccountID(id))
+	return &LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerAccount.
+func (c *LedgerAccountClient) Delete() *LedgerAccountDelete {
+	mutation := newLedgerAccountMutation(c.config, OpDelete)
+	return &LedgerAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerAccountClient) DeleteOne(_m *LedgerAccount) *LedgerAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerAccountClient) DeleteOneID(id int) *LedgerAccountDeleteOne {
+	builder := c.Delete().Where(ledgeraccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerAccount.
+func (c *LedgerAccountClient) Query() *LedgerAccountQuery {
+	return &LedgerAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerAccount entity by its id.
+func (c *LedgerAccountClient) Get(ctx context.Context, id int) (*LedgerAccount, error) {
+	return c.Query().Where(ledgeraccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerAccountClient) GetX(ctx context.Context, id int) *LedgerAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerAccountClient) Hooks() []Hook {
+	return c.hooks.LedgerAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerAccountClient) Interceptors() []Interceptor {
+	return c.inters.LedgerAccount
+}
+
+func (c *LedgerAccountClient) mutate(ctx context.Context, m *LedgerAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerAccount mutation op: %q", m.Op())
+	}
+}
+
+// LedgerAlertClient is a client for the LedgerAlert schema.
+type LedgerAlertClient struct {
+	config
+}
+
+// NewLedgerAlertClient returns a client for the LedgerAlert from the given config.
+func NewLedgerAlertClient(c config) *LedgerAlertClient {
+	return &LedgerAlertClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgeralert.Hooks(f(g(h())))`.
+func (c *LedgerAlertClient) Use(hooks ...Hook) {
+	c.hooks.LedgerAlert = append(c.hooks.LedgerAlert, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgeralert.Intercept(f(g(h())))`.
+func (c *LedgerAlertClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerAlert = append(c.inters.LedgerAlert, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerAlert entity.
+func (c *LedgerAlertClient) Create() *LedgerAlertCreate {
+	mutation := newLedgerAlertMutation(c.config, OpCreate)
+	return &LedgerAlertCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerAlert entities.
+func (c *LedgerAlertClient) CreateBulk(builders ...*LedgerAlertCreate) *LedgerAlertCreateBulk {
+	return &LedgerAlertCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerAlertClient) MapCreateBulk(slice any, setFunc func(*LedgerAlertCreate, int)) *LedgerAlertCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerAlertCreateBulk{err: fmt.Errorf("calling to LedgerAlertClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerAlertCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerAlertCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerAlert.
+func (c *LedgerAlertClient) Update() *LedgerAlertUpdate {
+	mutation := newLedgerAlertMutation(c.config, OpUpdate)
+	return &LedgerAlertUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerAlertClient) UpdateOne(_m *LedgerAlert) *LedgerAlertUpdateOne {
+	mutation := newLedgerAlertMutation(c.config, OpUpdateOne, withLedgerAlert(_m))
+	return &LedgerAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerAlertClient) UpdateOneID(id int) *LedgerAlertUpdateOne {
+	mutation := newLedgerAlertMutation(c.config, OpUpdateOne, withLedgerAlertID(id))
+	return &LedgerAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerAlert.
+func (c *LedgerAlertClient) Delete() *LedgerAlertDelete {
+	mutation := newLedgerAlertMutation(c.config, OpDelete)
+	return &LedgerAlertDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerAlertClient) DeleteOne(_m *LedgerAlert) *LedgerAlertDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerAlertClient) DeleteOneID(id int) *LedgerAlertDeleteOne {
+	builder := c.Delete().Where(ledgeralert.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerAlertDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerAlert.
+func (c *LedgerAlertClient) Query() *LedgerAlertQuery {
+	return &LedgerAlertQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerAlert},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerAlert entity by its id.
+func (c *LedgerAlertClient) Get(ctx context.Context, id int) (*LedgerAlert, error) {
+	return c.Query().Where(ledgeralert.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerAlertClient) GetX(ctx context.Context, id int) *LedgerAlert {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerAlertClient) Hooks() []Hook {
+	return c.hooks.LedgerAlert
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerAlertClient) Interceptors() []Interceptor {
+	return c.inters.LedgerAlert
+}
+
+func (c *LedgerAlertClient) mutate(ctx context.Context, m *LedgerAlertMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerAlertCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerAlertUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerAlertUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerAlertDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerAlert mutation op: %q", m.Op())
+	}
+}
+
+// LedgerDayClient is a client for the LedgerDay schema.
+type LedgerDayClient struct {
+	config
+}
+
+// NewLedgerDayClient returns a client for the LedgerDay from the given config.
+func NewLedgerDayClient(c config) *LedgerDayClient {
+	return &LedgerDayClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerday.Hooks(f(g(h())))`.
+func (c *LedgerDayClient) Use(hooks ...Hook) {
+	c.hooks.LedgerDay = append(c.hooks.LedgerDay, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerday.Intercept(f(g(h())))`.
+func (c *LedgerDayClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerDay = append(c.inters.LedgerDay, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerDay entity.
+func (c *LedgerDayClient) Create() *LedgerDayCreate {
+	mutation := newLedgerDayMutation(c.config, OpCreate)
+	return &LedgerDayCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerDay entities.
+func (c *LedgerDayClient) CreateBulk(builders ...*LedgerDayCreate) *LedgerDayCreateBulk {
+	return &LedgerDayCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerDayClient) MapCreateBulk(slice any, setFunc func(*LedgerDayCreate, int)) *LedgerDayCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerDayCreateBulk{err: fmt.Errorf("calling to LedgerDayClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerDayCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerDayCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerDay.
+func (c *LedgerDayClient) Update() *LedgerDayUpdate {
+	mutation := newLedgerDayMutation(c.config, OpUpdate)
+	return &LedgerDayUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerDayClient) UpdateOne(_m *LedgerDay) *LedgerDayUpdateOne {
+	mutation := newLedgerDayMutation(c.config, OpUpdateOne, withLedgerDay(_m))
+	return &LedgerDayUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerDayClient) UpdateOneID(id int) *LedgerDayUpdateOne {
+	mutation := newLedgerDayMutation(c.config, OpUpdateOne, withLedgerDayID(id))
+	return &LedgerDayUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerDay.
+func (c *LedgerDayClient) Delete() *LedgerDayDelete {
+	mutation := newLedgerDayMutation(c.config, OpDelete)
+	return &LedgerDayDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerDayClient) DeleteOne(_m *LedgerDay) *LedgerDayDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerDayClient) DeleteOneID(id int) *LedgerDayDeleteOne {
+	builder := c.Delete().Where(ledgerday.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerDayDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerDay.
+func (c *LedgerDayClient) Query() *LedgerDayQuery {
+	return &LedgerDayQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerDay},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerDay entity by its id.
+func (c *LedgerDayClient) Get(ctx context.Context, id int) (*LedgerDay, error) {
+	return c.Query().Where(ledgerday.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerDayClient) GetX(ctx context.Context, id int) *LedgerDay {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerDayClient) Hooks() []Hook {
+	return c.hooks.LedgerDay
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerDayClient) Interceptors() []Interceptor {
+	return c.inters.LedgerDay
+}
+
+func (c *LedgerDayClient) mutate(ctx context.Context, m *LedgerDayMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerDayCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerDayUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerDayUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerDayDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerDay mutation op: %q", m.Op())
+	}
+}
+
+// LedgerEventClient is a client for the LedgerEvent schema.
+type LedgerEventClient struct {
+	config
+}
+
+// NewLedgerEventClient returns a client for the LedgerEvent from the given config.
+func NewLedgerEventClient(c config) *LedgerEventClient {
+	return &LedgerEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerevent.Hooks(f(g(h())))`.
+func (c *LedgerEventClient) Use(hooks ...Hook) {
+	c.hooks.LedgerEvent = append(c.hooks.LedgerEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerevent.Intercept(f(g(h())))`.
+func (c *LedgerEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerEvent = append(c.inters.LedgerEvent, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerEvent entity.
+func (c *LedgerEventClient) Create() *LedgerEventCreate {
+	mutation := newLedgerEventMutation(c.config, OpCreate)
+	return &LedgerEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerEvent entities.
+func (c *LedgerEventClient) CreateBulk(builders ...*LedgerEventCreate) *LedgerEventCreateBulk {
+	return &LedgerEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerEventClient) MapCreateBulk(slice any, setFunc func(*LedgerEventCreate, int)) *LedgerEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerEventCreateBulk{err: fmt.Errorf("calling to LedgerEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerEvent.
+func (c *LedgerEventClient) Update() *LedgerEventUpdate {
+	mutation := newLedgerEventMutation(c.config, OpUpdate)
+	return &LedgerEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerEventClient) UpdateOne(_m *LedgerEvent) *LedgerEventUpdateOne {
+	mutation := newLedgerEventMutation(c.config, OpUpdateOne, withLedgerEvent(_m))
+	return &LedgerEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerEventClient) UpdateOneID(id int) *LedgerEventUpdateOne {
+	mutation := newLedgerEventMutation(c.config, OpUpdateOne, withLedgerEventID(id))
+	return &LedgerEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerEvent.
+func (c *LedgerEventClient) Delete() *LedgerEventDelete {
+	mutation := newLedgerEventMutation(c.config, OpDelete)
+	return &LedgerEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerEventClient) DeleteOne(_m *LedgerEvent) *LedgerEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerEventClient) DeleteOneID(id int) *LedgerEventDeleteOne {
+	builder := c.Delete().Where(ledgerevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerEventDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerEvent.
+func (c *LedgerEventClient) Query() *LedgerEventQuery {
+	return &LedgerEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerEvent entity by its id.
+func (c *LedgerEventClient) Get(ctx context.Context, id int) (*LedgerEvent, error) {
+	return c.Query().Where(ledgerevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerEventClient) GetX(ctx context.Context, id int) *LedgerEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerEventClient) Hooks() []Hook {
+	return c.hooks.LedgerEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerEventClient) Interceptors() []Interceptor {
+	return c.inters.LedgerEvent
+}
+
+func (c *LedgerEventClient) mutate(ctx context.Context, m *LedgerEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerEvent mutation op: %q", m.Op())
+	}
+}
+
+// LedgerHourClient is a client for the LedgerHour schema.
+type LedgerHourClient struct {
+	config
+}
+
+// NewLedgerHourClient returns a client for the LedgerHour from the given config.
+func NewLedgerHourClient(c config) *LedgerHourClient {
+	return &LedgerHourClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerhour.Hooks(f(g(h())))`.
+func (c *LedgerHourClient) Use(hooks ...Hook) {
+	c.hooks.LedgerHour = append(c.hooks.LedgerHour, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerhour.Intercept(f(g(h())))`.
+func (c *LedgerHourClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerHour = append(c.inters.LedgerHour, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerHour entity.
+func (c *LedgerHourClient) Create() *LedgerHourCreate {
+	mutation := newLedgerHourMutation(c.config, OpCreate)
+	return &LedgerHourCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerHour entities.
+func (c *LedgerHourClient) CreateBulk(builders ...*LedgerHourCreate) *LedgerHourCreateBulk {
+	return &LedgerHourCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerHourClient) MapCreateBulk(slice any, setFunc func(*LedgerHourCreate, int)) *LedgerHourCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerHourCreateBulk{err: fmt.Errorf("calling to LedgerHourClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerHourCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerHourCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerHour.
+func (c *LedgerHourClient) Update() *LedgerHourUpdate {
+	mutation := newLedgerHourMutation(c.config, OpUpdate)
+	return &LedgerHourUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerHourClient) UpdateOne(_m *LedgerHour) *LedgerHourUpdateOne {
+	mutation := newLedgerHourMutation(c.config, OpUpdateOne, withLedgerHour(_m))
+	return &LedgerHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerHourClient) UpdateOneID(id int) *LedgerHourUpdateOne {
+	mutation := newLedgerHourMutation(c.config, OpUpdateOne, withLedgerHourID(id))
+	return &LedgerHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerHour.
+func (c *LedgerHourClient) Delete() *LedgerHourDelete {
+	mutation := newLedgerHourMutation(c.config, OpDelete)
+	return &LedgerHourDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerHourClient) DeleteOne(_m *LedgerHour) *LedgerHourDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerHourClient) DeleteOneID(id int) *LedgerHourDeleteOne {
+	builder := c.Delete().Where(ledgerhour.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerHourDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerHour.
+func (c *LedgerHourClient) Query() *LedgerHourQuery {
+	return &LedgerHourQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerHour},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerHour entity by its id.
+func (c *LedgerHourClient) Get(ctx context.Context, id int) (*LedgerHour, error) {
+	return c.Query().Where(ledgerhour.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerHourClient) GetX(ctx context.Context, id int) *LedgerHour {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerHourClient) Hooks() []Hook {
+	return c.hooks.LedgerHour
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerHourClient) Interceptors() []Interceptor {
+	return c.inters.LedgerHour
+}
+
+func (c *LedgerHourClient) mutate(ctx context.Context, m *LedgerHourMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerHourCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerHourUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerHourUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerHourDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerHour mutation op: %q", m.Op())
+	}
+}
+
+// LedgerSampleClient is a client for the LedgerSample schema.
+type LedgerSampleClient struct {
+	config
+}
+
+// NewLedgerSampleClient returns a client for the LedgerSample from the given config.
+func NewLedgerSampleClient(c config) *LedgerSampleClient {
+	return &LedgerSampleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgersample.Hooks(f(g(h())))`.
+func (c *LedgerSampleClient) Use(hooks ...Hook) {
+	c.hooks.LedgerSample = append(c.hooks.LedgerSample, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgersample.Intercept(f(g(h())))`.
+func (c *LedgerSampleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerSample = append(c.inters.LedgerSample, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerSample entity.
+func (c *LedgerSampleClient) Create() *LedgerSampleCreate {
+	mutation := newLedgerSampleMutation(c.config, OpCreate)
+	return &LedgerSampleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerSample entities.
+func (c *LedgerSampleClient) CreateBulk(builders ...*LedgerSampleCreate) *LedgerSampleCreateBulk {
+	return &LedgerSampleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerSampleClient) MapCreateBulk(slice any, setFunc func(*LedgerSampleCreate, int)) *LedgerSampleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerSampleCreateBulk{err: fmt.Errorf("calling to LedgerSampleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerSampleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerSampleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerSample.
+func (c *LedgerSampleClient) Update() *LedgerSampleUpdate {
+	mutation := newLedgerSampleMutation(c.config, OpUpdate)
+	return &LedgerSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerSampleClient) UpdateOne(_m *LedgerSample) *LedgerSampleUpdateOne {
+	mutation := newLedgerSampleMutation(c.config, OpUpdateOne, withLedgerSample(_m))
+	return &LedgerSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerSampleClient) UpdateOneID(id int) *LedgerSampleUpdateOne {
+	mutation := newLedgerSampleMutation(c.config, OpUpdateOne, withLedgerSampleID(id))
+	return &LedgerSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerSample.
+func (c *LedgerSampleClient) Delete() *LedgerSampleDelete {
+	mutation := newLedgerSampleMutation(c.config, OpDelete)
+	return &LedgerSampleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerSampleClient) DeleteOne(_m *LedgerSample) *LedgerSampleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerSampleClient) DeleteOneID(id int) *LedgerSampleDeleteOne {
+	builder := c.Delete().Where(ledgersample.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerSampleDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerSample.
+func (c *LedgerSampleClient) Query() *LedgerSampleQuery {
+	return &LedgerSampleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerSample},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerSample entity by its id.
+func (c *LedgerSampleClient) Get(ctx context.Context, id int) (*LedgerSample, error) {
+	return c.Query().Where(ledgersample.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerSampleClient) GetX(ctx context.Context, id int) *LedgerSample {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerSampleClient) Hooks() []Hook {
+	return c.hooks.LedgerSample
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerSampleClient) Interceptors() []Interceptor {
+	return c.inters.LedgerSample
+}
+
+func (c *LedgerSampleClient) mutate(ctx context.Context, m *LedgerSampleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerSampleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerSampleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerSample mutation op: %q", m.Op())
+	}
+}
+
+// LedgerWalletClient is a client for the LedgerWallet schema.
+type LedgerWalletClient struct {
+	config
+}
+
+// NewLedgerWalletClient returns a client for the LedgerWallet from the given config.
+func NewLedgerWalletClient(c config) *LedgerWalletClient {
+	return &LedgerWalletClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ledgerwallet.Hooks(f(g(h())))`.
+func (c *LedgerWalletClient) Use(hooks ...Hook) {
+	c.hooks.LedgerWallet = append(c.hooks.LedgerWallet, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ledgerwallet.Intercept(f(g(h())))`.
+func (c *LedgerWalletClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LedgerWallet = append(c.inters.LedgerWallet, interceptors...)
+}
+
+// Create returns a builder for creating a LedgerWallet entity.
+func (c *LedgerWalletClient) Create() *LedgerWalletCreate {
+	mutation := newLedgerWalletMutation(c.config, OpCreate)
+	return &LedgerWalletCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LedgerWallet entities.
+func (c *LedgerWalletClient) CreateBulk(builders ...*LedgerWalletCreate) *LedgerWalletCreateBulk {
+	return &LedgerWalletCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LedgerWalletClient) MapCreateBulk(slice any, setFunc func(*LedgerWalletCreate, int)) *LedgerWalletCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LedgerWalletCreateBulk{err: fmt.Errorf("calling to LedgerWalletClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LedgerWalletCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LedgerWalletCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LedgerWallet.
+func (c *LedgerWalletClient) Update() *LedgerWalletUpdate {
+	mutation := newLedgerWalletMutation(c.config, OpUpdate)
+	return &LedgerWalletUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LedgerWalletClient) UpdateOne(_m *LedgerWallet) *LedgerWalletUpdateOne {
+	mutation := newLedgerWalletMutation(c.config, OpUpdateOne, withLedgerWallet(_m))
+	return &LedgerWalletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LedgerWalletClient) UpdateOneID(id int) *LedgerWalletUpdateOne {
+	mutation := newLedgerWalletMutation(c.config, OpUpdateOne, withLedgerWalletID(id))
+	return &LedgerWalletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LedgerWallet.
+func (c *LedgerWalletClient) Delete() *LedgerWalletDelete {
+	mutation := newLedgerWalletMutation(c.config, OpDelete)
+	return &LedgerWalletDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LedgerWalletClient) DeleteOne(_m *LedgerWallet) *LedgerWalletDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LedgerWalletClient) DeleteOneID(id int) *LedgerWalletDeleteOne {
+	builder := c.Delete().Where(ledgerwallet.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LedgerWalletDeleteOne{builder}
+}
+
+// Query returns a query builder for LedgerWallet.
+func (c *LedgerWalletClient) Query() *LedgerWalletQuery {
+	return &LedgerWalletQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLedgerWallet},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LedgerWallet entity by its id.
+func (c *LedgerWalletClient) Get(ctx context.Context, id int) (*LedgerWallet, error) {
+	return c.Query().Where(ledgerwallet.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LedgerWalletClient) GetX(ctx context.Context, id int) *LedgerWallet {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LedgerWalletClient) Hooks() []Hook {
+	return c.hooks.LedgerWallet
+}
+
+// Interceptors returns the client interceptors.
+func (c *LedgerWalletClient) Interceptors() []Interceptor {
+	return c.inters.LedgerWallet
+}
+
+func (c *LedgerWalletClient) mutate(ctx context.Context, m *LedgerWalletMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LedgerWalletCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LedgerWalletUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LedgerWalletUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LedgerWalletDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LedgerWallet mutation op: %q", m.Op())
 	}
 }
 
@@ -1755,12 +2744,14 @@ func (c *UsageVersionClient) mutate(ctx context.Context, m *UsageVersionMutation
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Grant, GrantAudit, Issue, PatrolPolicy, PatrolRun, ProbeTemplate,
+		Grant, GrantAudit, Issue, LedgerAccount, LedgerAlert, LedgerDay, LedgerEvent,
+		LedgerHour, LedgerSample, LedgerWallet, PatrolPolicy, PatrolRun, ProbeTemplate,
 		RuntimeSetting, UsageCursor, UsageObservation, UsageSnapshot,
 		UsageVersion []ent.Hook
 	}
 	inters struct {
-		Grant, GrantAudit, Issue, PatrolPolicy, PatrolRun, ProbeTemplate,
+		Grant, GrantAudit, Issue, LedgerAccount, LedgerAlert, LedgerDay, LedgerEvent,
+		LedgerHour, LedgerSample, LedgerWallet, PatrolPolicy, PatrolRun, ProbeTemplate,
 		RuntimeSetting, UsageCursor, UsageObservation, UsageSnapshot,
 		UsageVersion []ent.Interceptor
 	}

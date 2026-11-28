@@ -47,19 +47,43 @@ func (h *handler) accountBalanceSettings(w http.ResponseWriter, r *http.Request,
 		}
 		next.BaseURL = strings.TrimSpace(next.BaseURL)
 		next.Key = strings.TrimSpace(next.Key)
-		if next.Provider != "sub2api" && (next.Provider != raw.Platform || (next.Provider != "deepseek" && next.Provider != "kimi")) {
+		next.AccessToken = strings.TrimSpace(next.AccessToken)
+		hosted := next.Provider == "sub2api" || next.Provider == "newapi" || next.Provider == "oneapi"
+		if !hosted && (next.Provider != raw.Platform || (next.Provider != "deepseek" && next.Provider != "kimi")) {
 			return platform.Fail(400, "invalid_input")
+		}
+		// 留空表示沿用旧值：只在站点类型与地址都没变时沿用，换站点必须重新填。
+		if next.Provider == config.Provider && next.BaseURL == config.BaseURL {
+			if next.Key == "" {
+				next.Key = config.Key
+			}
+			if next.AccessToken == "" {
+				next.AccessToken = config.AccessToken
+				if next.UpstreamUserID == 0 {
+					next.UpstreamUserID = config.UpstreamUserID
+				}
+			}
+		}
+		if !hosted {
+			next.AccessToken, next.UpstreamUserID = "", 0
 		}
 		if next.Enabled || next.BaseURL != "" || config.Key != "" {
 			if _, err := core.BalanceEndpoint(next); err != nil {
 				return err
 			}
 		}
-		if next.Key == "" && next.Provider == config.Provider && next.BaseURL == config.BaseURL {
-			next.Key = config.Key
-		}
-		if (next.Enabled && next.Key == "") || len(next.Key) > 4096 || strings.ContainsAny(next.Key, "\r\n") {
+		if (next.Enabled && next.Key == "" && next.AccessToken == "") ||
+			len(next.Key) > 4096 || len(next.AccessToken) > 4096 ||
+			strings.ContainsAny(next.Key+next.AccessToken, "\r\n") ||
+			next.UpstreamUserID < 0 ||
+			(next.Provider == "newapi" && next.AccessToken != "" && next.UpstreamUserID < 1) {
 			return platform.Fail(400, "invalid_input")
+		}
+		// 保存前先试采一次，失败不保存；试采不持有监控锁，避免网络等待阻塞其他账号。
+		if next.Enabled {
+			if _, err := h.s.Balances.TrialFetch(r.Context(), next); err != nil {
+				return platform.Fail(502, "balance_unavailable")
+			}
 		}
 		h.s.Balances.Lock()
 		defer h.s.Balances.Unlock()
@@ -76,7 +100,7 @@ func (h *handler) accountBalanceSettings(w http.ResponseWriter, r *http.Request,
 		h.s.Balances.DeleteStateLocked(id)
 		config = next
 	case "POST":
-		if row == nil || config.Key == "" {
+		if row == nil || (config.Key == "" && config.AccessToken == "") {
 			return platform.Fail(400, "invalid_input")
 		}
 		completed := h.s.Balances.SampleIfDue(r.Context(), id, row.Value, config, true)
@@ -97,6 +121,6 @@ func (h *handler) accountBalanceSettings(w http.ResponseWriter, r *http.Request,
 		Provider   string `json:"provider"`
 		Base       string `json:"base_url"`
 		Configured bool   `json:"configured"`
-	}{config.Enabled, config.Provider, config.BaseURL, config.Key != ""})
+	}{config.Enabled, config.Provider, config.BaseURL, config.Key != "" || config.AccessToken != ""})
 	return nil
 }

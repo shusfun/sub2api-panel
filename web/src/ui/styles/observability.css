@@ -602,6 +602,7 @@
     height: 7px;
     border-radius: var(--weir-radius-full);
   }
+  .obs-pill-btn[data-tone="muted"] .obs-pill-dot { background: var(--weir-ink-4); }
   .obs-pill-btn[data-tone="ok"] .obs-pill-dot { background: var(--weir-ok); }
   .obs-pill-btn[data-tone="warn"] .obs-pill-dot { background: var(--weir-warn); }
   .obs-pill-btn[data-tone="bad"] .obs-pill-dot { background: var(--weir-bad); }

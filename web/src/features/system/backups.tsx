@@ -11,6 +11,8 @@ import {
   WorkspaceContent, toast, type Column,
 } from "@/ui";
 
+import {ImageStorageSection} from "./image-storage";
+
 const base = "/admin/backups";
 const rowSchema = z.object({
   id: z.string(), status: z.string(), file_name: z.string(), size_bytes: z.number(), started_at: z.string(),
@@ -86,6 +88,7 @@ export function BackupWorkspace({stepUpEnabled = true}: {stepUpEnabled?: boolean
     </InsetGroup>
 
     <Resource state={storage}>{value => <StorageForm initial={value} stepUp={stepUpEnabled} />}</Resource>
+    <ImageStorageSection stepUp={stepUpEnabled} />
     <Resource state={schedule}>{value => <ScheduleForm initial={value} />}</Resource>
 
     {dialog?.kind === "create" && (
@@ -319,10 +322,13 @@ function StorageForm({initial, stepUp}: {initial: z.infer<typeof storageSchema>;
   );
 }
 
+// 官方未配置计划时 cron_expr 为空串；表单显示默认周期，脏状态也按同一默认值比较。
+const defaultCron = "0 2 * * *";
+
 function ScheduleForm({initial}: {initial: z.infer<typeof scheduleSchema>}) {
   const [saved, setSaved] = useState(initial);
   const [enabled, setEnabled] = useState(initial.enabled);
-  const [cronExpr, setCronExpr] = useState(initial.cron_expr || "0 2 * * *");
+  const [cronExpr, setCronExpr] = useState(initial.cron_expr || defaultCron);
   const [retainDays, setRetainDays] = useState(String(initial.retain_days));
   const [retainCount, setRetainCount] = useState(String(initial.retain_count));
   const [archive, setArchive] = useState(initial.monthly_archive?.enabled ?? false);
@@ -333,7 +339,7 @@ function ScheduleForm({initial}: {initial: z.infer<typeof scheduleSchema>}) {
 
   const dirty =
     enabled !== saved.enabled ||
-    cronExpr !== saved.cron_expr ||
+    cronExpr !== (saved.cron_expr || defaultCron) ||
     Number(retainDays) !== saved.retain_days ||
     Number(retainCount) !== saved.retain_count ||
     archive !== (saved.monthly_archive?.enabled ?? false) ||
@@ -415,7 +421,7 @@ function ScheduleForm({initial}: {initial: z.infer<typeof scheduleSchema>}) {
             submitLabel="保存定时设置"
             onReset={() => {
               setEnabled(saved.enabled);
-              setCronExpr(saved.cron_expr || "0 2 * * *");
+              setCronExpr(saved.cron_expr || defaultCron);
               setRetainDays(String(saved.retain_days));
               setRetainCount(String(saved.retain_count));
               setArchive(saved.monthly_archive?.enabled ?? false);

@@ -335,6 +335,25 @@ func (f *fixture) previewCodes() []map[string]any {
 		if entry.Value != nil {
 			row["value"] = *entry.Value
 		}
+		if entry.Type == "subscription" {
+			// 订阅码的目录面值即开通天数，并关联目录里第一个订阅分组，与官方响应一致。
+			if entry.Value != nil {
+				row["validity_days"] = int(*entry.Value)
+			}
+			for index, group := range f.preview.Groups {
+				if group.Type == "subscription" {
+					id := int64(previewGroupBase + index)
+					row["group_id"] = id
+					row["group"] = map[string]any{"id": id, "name": previewCatalogName(group.Platform, "分组", index)}
+					break
+				}
+			}
+		}
+		if entry.Status == "used" {
+			// 已使用的码必须带兑换人与兑换时间，与官方响应一致。
+			row["used_by"], row["used_at"] = int64(2), "2026-11-21T09:00:00Z"
+			row["user"] = map[string]any{"id": int64(2), "email": previewEmail(2)}
+		}
 		rows = append(rows, row)
 	}
 	return rows

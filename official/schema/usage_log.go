@@ -27,7 +27,12 @@ func (UsageLog) Fields() []ent.Field {
 		field.Int64("output_tokens").Default(0).Immutable(),
 		field.Int64("cache_read_tokens").Default(0).Immutable(),
 		field.Int64("cache_creation_tokens").Default(0).Immutable(),
+		field.Float("total_cost").Default(0).Immutable(),
 		field.Float("actual_cost").Immutable(),
+		field.Float("account_rate_multiplier").Optional().Nillable().Immutable(),
+		field.Float("account_stats_cost").Optional().Nillable().Immutable(),
+		field.Int8("billing_type").Default(0).Immutable(),
+		field.Int("duration_ms").Optional().Nillable().Immutable(),
 		field.Time("created_at").Immutable(),
 	}
 }

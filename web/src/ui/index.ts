@@ -30,6 +30,7 @@ export {CopyIcon} from "./icons/copy-icon";
 export {MenuToggle} from "./icons/menu-toggle";
 export {ThemeIcon} from "./icons/theme-icon";
 
+export {AccountMenu, type AccountMenuLink} from "./patterns/account-menu";
 export {Brand, ThemeControl, themeNames, useTheme, type Theme} from "./patterns/appearance";
 export {ChoiceCards, type ChoiceOption} from "./patterns/choice-cards";
 export {SearchSelect, type SelectOption} from "./patterns/combobox";
@@ -46,6 +47,7 @@ export {Form, FormActions, FormGrid, FormSection, type FormErrors} from "./patte
 export {CollapsibleSection, InsetGroup, InsetRow} from "./patterns/inset-group";
 export {Inspector} from "./patterns/inspector";
 export {Menu, MenuItem, MenuSeparator, MoreActions} from "./patterns/menu";
+export {NotificationBell, type NotificationItem} from "./patterns/notification-bell";
 export {ConfirmDialog, Overlay} from "./patterns/overlay";
 export {
   AccessRuleBuilder,
@@ -67,6 +69,7 @@ export {StepUpDialog, useTotpStatus} from "./patterns/step-up-dialog";
 export {DetailHeader, RefreshButton, Tabs, type TabItem} from "./patterns/tabs";
 export {TagInput} from "./patterns/tag-input";
 export {ToastViewport, dismissToast, toast, type ToastTone} from "./patterns/toast";
+export {Verdict} from "./patterns/verdict";
 
 export {BatchBar} from "./data/batch-bar";
 export {DataTable, PagedTable, type Column, type TableSelection, type TableSort} from "./data/data-table";
@@ -91,6 +94,7 @@ export {RouteChain} from "./domain/route-chain";
 
 export {useChartPalette} from "./charts/chart";
 export {DonutChart} from "./charts/donut-chart";
+export {KpiStrip, type KpiItem} from "./charts/kpi-strip";
 export {QualitySparkBars, type SparkBarSlot, type SparkBarVerdict} from "./charts/spark-bars";
 export {
   MetricStrip,

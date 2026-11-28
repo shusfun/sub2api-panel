@@ -5,8 +5,8 @@ import {compact, count, durationText, smartMoney, uptimeText} from "@/lib/format
 import type {adminOverview, opsConcurrencySchema, opsOverviewSchema} from "@/schemas";
 import {navigateTo} from "@/app/route";
 import {
-  Button, DataTable, EmptyState, EntityLink, MeterBar, MetricStrip, MetricTrend, Panel,
-  PlatformBadge, RankedBarList, SegmentBar, Stack, StatusBanner, useChartPalette,
+  Button, DataTable, EmptyState, EntityLink, KpiStrip, MeterBar, MetricTrend, Panel,
+  PlatformBadge, RankedBarList, SegmentBar, Stack, Verdict, useChartPalette,
   type HeroChartTab,
 } from "@/ui";
 
@@ -103,10 +103,10 @@ export function OpsLiveOverview({
 
   return (
     <>
-      <StatusBanner
+      <Verdict
         tone={!ops ? "info" : firingCount > 0 || (sla !== undefined && sla < 95) ? "bad" : attention.length ? "warn" : "ok"}
         title={!ops ? "正在读取运行状态" : attention.length ? `${attention.length} 项需要处理` : "运行正常"}
-        subtitle={attention.length ? attention.join(" · ") : uptime ? `已连续运行 ${uptime}` : undefined}
+        detail={attention.length ? attention.join(" · ") : uptime ? `已连续运行 ${uptime}` : undefined}
         actions={
           <>
             {firingCount > 0 && <Button size="sm" variant="outline" onClick={() => onOpenTab("alerts")}><Bell aria-hidden />查看告警</Button>}
@@ -115,22 +115,24 @@ export function OpsLiveOverview({
           </>
         }
       />
-      <MetricStrip
+      <KpiStrip
         items={[
-          {id: "qps", label: "当前吞吐", value: conc ? conc.qps.current.toFixed(1) : ops ? ops.overview.qps.current.toFixed(1) : null, unit: "req/s", hint: conc ? `峰值 ${conc.qps.peak.toFixed(1)}` : undefined, tone: "accent"},
+          {id: "qps", label: "当前吞吐 req/s", value: conc ? conc.qps.current.toFixed(1) : ops ? ops.overview.qps.current.toFixed(1) : "—", delta: conc ? `峰值 ${conc.qps.peak.toFixed(1)}` : undefined, spark: (ops?.throughput_points ?? []).map(p => p.qps)},
           {
             id: "sla",
             label: "成功率",
-            value: sla !== undefined ? `${sla.toFixed(sla >= 99.95 ? 0 : 1)}%` : null,
-            hint: ops ? `${count.format(ops.overview.error_count_total)} 次报错 · 429×${ops.overview.upstream_429_count}` : undefined,
+            value: sla !== undefined ? `${sla.toFixed(sla >= 99.95 ? 0 : 1)}%` : "—",
+            delta: ops ? `${count.format(ops.overview.error_count_total)} 次报错 · 429×${ops.overview.upstream_429_count}` : undefined,
             tone: sla === undefined ? "neutral" : sla < 95 ? "bad" : sla < 99 ? "warn" : "ok",
+            spark: (ops?.error_points ?? []).map(p => p.error_count_sla + p.upstream_429_count),
             onClick: () => onOpenTab("errors"),
+            actionLabel: "查看报错",
           },
-          {id: "latency", label: "平均响应", value: ops?.overview.duration.avg_ms != null ? durationText(ops.overview.duration.avg_ms) : null, tone: "cyan"},
+          {id: "latency", label: "平均响应", value: ops?.overview.duration.avg_ms != null ? durationText(ops.overview.duration.avg_ms) : "—", tone: "cyan"},
           ...(conc && !conc.enabled ? [] : [
-            {id: "conc", label: "并发占用", value: conc?.enabled ? count.format(totalInUse) : null, hint: conc?.enabled ? (totalWaiting > 0 ? `${totalWaiting} 个请求排队中` : "无排队") : undefined, tone: totalWaiting > 0 ? "warn" as const : "neutral" as const},
+            {id: "conc", label: "并发占用", value: conc?.enabled ? count.format(totalInUse) : "—", delta: conc?.enabled ? (totalWaiting > 0 ? `${totalWaiting} 个请求排队中` : "无排队") : undefined, tone: totalWaiting > 0 ? "warn" as const : "neutral" as const},
           ]),
-          {id: "cost", label: "今日扣费", value: dash?.traffic ? smartMoney(dash.traffic.today_cost) : null, hint: dash?.traffic ? `${compact.format(dash.traffic.today_tokens)} Token` : undefined, tone: "violet", onClick: () => navigateTo("usage", {period: "today"})},
+          {id: "cost", label: "今日扣费", value: dash?.traffic ? smartMoney(dash.traffic.today_cost) : "—", delta: dash?.traffic ? `${compact.format(dash.traffic.today_tokens)} Token` : undefined, tone: "violet", spark: (dash?.trend ?? []).map(d => d.actual_cost), onClick: () => navigateTo("usage", {period: "today"}), actionLabel: "查看今日用量"},
         ]}
       />
       <div className="split-grid-2">

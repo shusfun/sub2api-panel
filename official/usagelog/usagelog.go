@@ -29,8 +29,18 @@ const (
 	FieldCacheReadTokens = "cache_read_tokens"
 	// FieldCacheCreationTokens holds the string denoting the cache_creation_tokens field in the database.
 	FieldCacheCreationTokens = "cache_creation_tokens"
+	// FieldTotalCost holds the string denoting the total_cost field in the database.
+	FieldTotalCost = "total_cost"
 	// FieldActualCost holds the string denoting the actual_cost field in the database.
 	FieldActualCost = "actual_cost"
+	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
+	FieldAccountRateMultiplier = "account_rate_multiplier"
+	// FieldAccountStatsCost holds the string denoting the account_stats_cost field in the database.
+	FieldAccountStatsCost = "account_stats_cost"
+	// FieldBillingType holds the string denoting the billing_type field in the database.
+	FieldBillingType = "billing_type"
+	// FieldDurationMs holds the string denoting the duration_ms field in the database.
+	FieldDurationMs = "duration_ms"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// Table holds the table name of the usagelog in the database.
@@ -49,7 +59,12 @@ var Columns = []string{
 	FieldOutputTokens,
 	FieldCacheReadTokens,
 	FieldCacheCreationTokens,
+	FieldTotalCost,
 	FieldActualCost,
+	FieldAccountRateMultiplier,
+	FieldAccountStatsCost,
+	FieldBillingType,
+	FieldDurationMs,
 	FieldCreatedAt,
 }
 
@@ -74,6 +89,10 @@ var (
 	DefaultCacheReadTokens int64
 	// DefaultCacheCreationTokens holds the default value on creation for the "cache_creation_tokens" field.
 	DefaultCacheCreationTokens int64
+	// DefaultTotalCost holds the default value on creation for the "total_cost" field.
+	DefaultTotalCost float64
+	// DefaultBillingType holds the default value on creation for the "billing_type" field.
+	DefaultBillingType int8
 )
 
 // OrderOption defines the ordering options for the UsageLog queries.
@@ -129,9 +148,34 @@ func ByCacheCreationTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCacheCreationTokens, opts...).ToFunc()
 }
 
+// ByTotalCost orders the results by the total_cost field.
+func ByTotalCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalCost, opts...).ToFunc()
+}
+
 // ByActualCost orders the results by the actual_cost field.
 func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActualCost, opts...).ToFunc()
+}
+
+// ByAccountRateMultiplier orders the results by the account_rate_multiplier field.
+func ByAccountRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountRateMultiplier, opts...).ToFunc()
+}
+
+// ByAccountStatsCost orders the results by the account_stats_cost field.
+func ByAccountStatsCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAccountStatsCost, opts...).ToFunc()
+}
+
+// ByBillingType orders the results by the billing_type field.
+func ByBillingType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingType, opts...).ToFunc()
+}
+
+// ByDurationMs orders the results by the duration_ms field.
+func ByDurationMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDurationMs, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

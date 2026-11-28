@@ -142,6 +142,7 @@ func RunBrowserFixture(t *testing.T) {
 		}
 	}
 	seedPreviewPatrol(t, f.panel)
+	seedPreviewLedger(t, f)
 	previewMux := http.NewServeMux()
 	previewMux.Handle("/", f.app)
 	previewMux.HandleFunc("GET /v1/usage", f.previewPublicKeyUsage)

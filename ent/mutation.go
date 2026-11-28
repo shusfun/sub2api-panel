@@ -9,6 +9,13 @@ import (
 	"sub2api-panel/ent/grant"
 	"sub2api-panel/ent/grantaudit"
 	"sub2api-panel/ent/issue"
+	"sub2api-panel/ent/ledgeraccount"
+	"sub2api-panel/ent/ledgeralert"
+	"sub2api-panel/ent/ledgerday"
+	"sub2api-panel/ent/ledgerevent"
+	"sub2api-panel/ent/ledgerhour"
+	"sub2api-panel/ent/ledgersample"
+	"sub2api-panel/ent/ledgerwallet"
 	"sub2api-panel/ent/patrolpolicy"
 	"sub2api-panel/ent/patrolrun"
 	"sub2api-panel/ent/predicate"
@@ -38,6 +45,13 @@ const (
 	TypeGrant            = "Grant"
 	TypeGrantAudit       = "GrantAudit"
 	TypeIssue            = "Issue"
+	TypeLedgerAccount    = "LedgerAccount"
+	TypeLedgerAlert      = "LedgerAlert"
+	TypeLedgerDay        = "LedgerDay"
+	TypeLedgerEvent      = "LedgerEvent"
+	TypeLedgerHour       = "LedgerHour"
+	TypeLedgerSample     = "LedgerSample"
+	TypeLedgerWallet     = "LedgerWallet"
 	TypePatrolPolicy     = "PatrolPolicy"
 	TypePatrolRun        = "PatrolRun"
 	TypeProbeTemplate    = "ProbeTemplate"
@@ -2560,6 +2574,7236 @@ func (m *IssueMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *IssueMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Issue edge %s", name)
+}
+
+// LedgerAccountMutation represents an operation that mutates the LedgerAccount nodes in the graph.
+type LedgerAccountMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	account_id      *int64
+	addaccount_id   *int64
+	wallet_id       *int64
+	addwallet_id    *int64
+	key_fingerprint *string
+	name            *string
+	platform        *string
+	deleted_at      *int64
+	adddeleted_at   *int64
+	created         *int64
+	addcreated      *int64
+	updated         *int64
+	addupdated      *int64
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*LedgerAccount, error)
+	predicates      []predicate.LedgerAccount
+}
+
+var _ ent.Mutation = (*LedgerAccountMutation)(nil)
+
+// ledgeraccountOption allows management of the mutation configuration using functional options.
+type ledgeraccountOption func(*LedgerAccountMutation)
+
+// newLedgerAccountMutation creates new mutation for the LedgerAccount entity.
+func newLedgerAccountMutation(c config, op Op, opts ...ledgeraccountOption) *LedgerAccountMutation {
+	m := &LedgerAccountMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerAccount,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerAccountID sets the ID field of the mutation.
+func withLedgerAccountID(id int) ledgeraccountOption {
+	return func(m *LedgerAccountMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerAccount
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerAccount, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerAccount.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerAccount sets the old LedgerAccount of the mutation.
+func withLedgerAccount(node *LedgerAccount) ledgeraccountOption {
+	return func(m *LedgerAccountMutation) {
+		m.oldValue = func(context.Context) (*LedgerAccount, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerAccountMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerAccountMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerAccountMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerAccountMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerAccount.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerAccountMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerAccountMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerAccountMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerAccountMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerAccountMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetWalletID sets the "wallet_id" field.
+func (m *LedgerAccountMutation) SetWalletID(i int64) {
+	m.wallet_id = &i
+	m.addwallet_id = nil
+}
+
+// WalletID returns the value of the "wallet_id" field in the mutation.
+func (m *LedgerAccountMutation) WalletID() (r int64, exists bool) {
+	v := m.wallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletID returns the old "wallet_id" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldWalletID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletID: %w", err)
+	}
+	return oldValue.WalletID, nil
+}
+
+// AddWalletID adds i to the "wallet_id" field.
+func (m *LedgerAccountMutation) AddWalletID(i int64) {
+	if m.addwallet_id != nil {
+		*m.addwallet_id += i
+	} else {
+		m.addwallet_id = &i
+	}
+}
+
+// AddedWalletID returns the value that was added to the "wallet_id" field in this mutation.
+func (m *LedgerAccountMutation) AddedWalletID() (r int64, exists bool) {
+	v := m.addwallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWalletID resets all changes to the "wallet_id" field.
+func (m *LedgerAccountMutation) ResetWalletID() {
+	m.wallet_id = nil
+	m.addwallet_id = nil
+}
+
+// SetKeyFingerprint sets the "key_fingerprint" field.
+func (m *LedgerAccountMutation) SetKeyFingerprint(s string) {
+	m.key_fingerprint = &s
+}
+
+// KeyFingerprint returns the value of the "key_fingerprint" field in the mutation.
+func (m *LedgerAccountMutation) KeyFingerprint() (r string, exists bool) {
+	v := m.key_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyFingerprint returns the old "key_fingerprint" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldKeyFingerprint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyFingerprint: %w", err)
+	}
+	return oldValue.KeyFingerprint, nil
+}
+
+// ResetKeyFingerprint resets all changes to the "key_fingerprint" field.
+func (m *LedgerAccountMutation) ResetKeyFingerprint() {
+	m.key_fingerprint = nil
+}
+
+// SetName sets the "name" field.
+func (m *LedgerAccountMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *LedgerAccountMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *LedgerAccountMutation) ResetName() {
+	m.name = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *LedgerAccountMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *LedgerAccountMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *LedgerAccountMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *LedgerAccountMutation) SetDeletedAt(i int64) {
+	m.deleted_at = &i
+	m.adddeleted_at = nil
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *LedgerAccountMutation) DeletedAt() (r int64, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldDeletedAt(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// AddDeletedAt adds i to the "deleted_at" field.
+func (m *LedgerAccountMutation) AddDeletedAt(i int64) {
+	if m.adddeleted_at != nil {
+		*m.adddeleted_at += i
+	} else {
+		m.adddeleted_at = &i
+	}
+}
+
+// AddedDeletedAt returns the value that was added to the "deleted_at" field in this mutation.
+func (m *LedgerAccountMutation) AddedDeletedAt() (r int64, exists bool) {
+	v := m.adddeleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *LedgerAccountMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.adddeleted_at = nil
+	m.clearedFields[ledgeraccount.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *LedgerAccountMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[ledgeraccount.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *LedgerAccountMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	m.adddeleted_at = nil
+	delete(m.clearedFields, ledgeraccount.FieldDeletedAt)
+}
+
+// SetCreated sets the "created" field.
+func (m *LedgerAccountMutation) SetCreated(i int64) {
+	m.created = &i
+	m.addcreated = nil
+}
+
+// Created returns the value of the "created" field in the mutation.
+func (m *LedgerAccountMutation) Created() (r int64, exists bool) {
+	v := m.created
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreated returns the old "created" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldCreated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreated: %w", err)
+	}
+	return oldValue.Created, nil
+}
+
+// AddCreated adds i to the "created" field.
+func (m *LedgerAccountMutation) AddCreated(i int64) {
+	if m.addcreated != nil {
+		*m.addcreated += i
+	} else {
+		m.addcreated = &i
+	}
+}
+
+// AddedCreated returns the value that was added to the "created" field in this mutation.
+func (m *LedgerAccountMutation) AddedCreated() (r int64, exists bool) {
+	v := m.addcreated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreated resets all changes to the "created" field.
+func (m *LedgerAccountMutation) ResetCreated() {
+	m.created = nil
+	m.addcreated = nil
+}
+
+// SetUpdated sets the "updated" field.
+func (m *LedgerAccountMutation) SetUpdated(i int64) {
+	m.updated = &i
+	m.addupdated = nil
+}
+
+// Updated returns the value of the "updated" field in the mutation.
+func (m *LedgerAccountMutation) Updated() (r int64, exists bool) {
+	v := m.updated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdated returns the old "updated" field's value of the LedgerAccount entity.
+// If the LedgerAccount object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAccountMutation) OldUpdated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdated: %w", err)
+	}
+	return oldValue.Updated, nil
+}
+
+// AddUpdated adds i to the "updated" field.
+func (m *LedgerAccountMutation) AddUpdated(i int64) {
+	if m.addupdated != nil {
+		*m.addupdated += i
+	} else {
+		m.addupdated = &i
+	}
+}
+
+// AddedUpdated returns the value that was added to the "updated" field in this mutation.
+func (m *LedgerAccountMutation) AddedUpdated() (r int64, exists bool) {
+	v := m.addupdated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdated resets all changes to the "updated" field.
+func (m *LedgerAccountMutation) ResetUpdated() {
+	m.updated = nil
+	m.addupdated = nil
+}
+
+// Where appends a list predicates to the LedgerAccountMutation builder.
+func (m *LedgerAccountMutation) Where(ps ...predicate.LedgerAccount) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerAccountMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerAccountMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerAccount, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerAccountMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerAccountMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerAccount).
+func (m *LedgerAccountMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerAccountMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.account_id != nil {
+		fields = append(fields, ledgeraccount.FieldAccountID)
+	}
+	if m.wallet_id != nil {
+		fields = append(fields, ledgeraccount.FieldWalletID)
+	}
+	if m.key_fingerprint != nil {
+		fields = append(fields, ledgeraccount.FieldKeyFingerprint)
+	}
+	if m.name != nil {
+		fields = append(fields, ledgeraccount.FieldName)
+	}
+	if m.platform != nil {
+		fields = append(fields, ledgeraccount.FieldPlatform)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, ledgeraccount.FieldDeletedAt)
+	}
+	if m.created != nil {
+		fields = append(fields, ledgeraccount.FieldCreated)
+	}
+	if m.updated != nil {
+		fields = append(fields, ledgeraccount.FieldUpdated)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerAccountMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		return m.AccountID()
+	case ledgeraccount.FieldWalletID:
+		return m.WalletID()
+	case ledgeraccount.FieldKeyFingerprint:
+		return m.KeyFingerprint()
+	case ledgeraccount.FieldName:
+		return m.Name()
+	case ledgeraccount.FieldPlatform:
+		return m.Platform()
+	case ledgeraccount.FieldDeletedAt:
+		return m.DeletedAt()
+	case ledgeraccount.FieldCreated:
+		return m.Created()
+	case ledgeraccount.FieldUpdated:
+		return m.Updated()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerAccountMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgeraccount.FieldWalletID:
+		return m.OldWalletID(ctx)
+	case ledgeraccount.FieldKeyFingerprint:
+		return m.OldKeyFingerprint(ctx)
+	case ledgeraccount.FieldName:
+		return m.OldName(ctx)
+	case ledgeraccount.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case ledgeraccount.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case ledgeraccount.FieldCreated:
+		return m.OldCreated(ctx)
+	case ledgeraccount.FieldUpdated:
+		return m.OldUpdated(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerAccount field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerAccountMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgeraccount.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletID(v)
+		return nil
+	case ledgeraccount.FieldKeyFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyFingerprint(v)
+		return nil
+	case ledgeraccount.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case ledgeraccount.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case ledgeraccount.FieldDeletedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case ledgeraccount.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreated(v)
+		return nil
+	case ledgeraccount.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAccount field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerAccountMutation) AddedFields() []string {
+	var fields []string
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgeraccount.FieldAccountID)
+	}
+	if m.addwallet_id != nil {
+		fields = append(fields, ledgeraccount.FieldWalletID)
+	}
+	if m.adddeleted_at != nil {
+		fields = append(fields, ledgeraccount.FieldDeletedAt)
+	}
+	if m.addcreated != nil {
+		fields = append(fields, ledgeraccount.FieldCreated)
+	}
+	if m.addupdated != nil {
+		fields = append(fields, ledgeraccount.FieldUpdated)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerAccountMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgeraccount.FieldWalletID:
+		return m.AddedWalletID()
+	case ledgeraccount.FieldDeletedAt:
+		return m.AddedDeletedAt()
+	case ledgeraccount.FieldCreated:
+		return m.AddedCreated()
+	case ledgeraccount.FieldUpdated:
+		return m.AddedUpdated()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerAccountMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgeraccount.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletID(v)
+		return nil
+	case ledgeraccount.FieldDeletedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDeletedAt(v)
+		return nil
+	case ledgeraccount.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreated(v)
+		return nil
+	case ledgeraccount.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAccount numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerAccountMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgeraccount.FieldDeletedAt) {
+		fields = append(fields, ledgeraccount.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerAccountMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerAccountMutation) ClearField(name string) error {
+	switch name {
+	case ledgeraccount.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAccount nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerAccountMutation) ResetField(name string) error {
+	switch name {
+	case ledgeraccount.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgeraccount.FieldWalletID:
+		m.ResetWalletID()
+		return nil
+	case ledgeraccount.FieldKeyFingerprint:
+		m.ResetKeyFingerprint()
+		return nil
+	case ledgeraccount.FieldName:
+		m.ResetName()
+		return nil
+	case ledgeraccount.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case ledgeraccount.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case ledgeraccount.FieldCreated:
+		m.ResetCreated()
+		return nil
+	case ledgeraccount.FieldUpdated:
+		m.ResetUpdated()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAccount field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerAccountMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerAccountMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerAccountMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerAccountMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerAccountMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerAccountMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerAccountMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerAccount unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerAccountMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerAccount edge %s", name)
+}
+
+// LedgerAlertMutation represents an operation that mutates the LedgerAlert nodes in the graph.
+type LedgerAlertMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	account_id      *int64
+	addaccount_id   *int64
+	wallet_id       *int64
+	addwallet_id    *int64
+	kind            *string
+	severity        *string
+	status          *string
+	opened_at       *int64
+	addopened_at    *int64
+	resolved_at     *int64
+	addresolved_at  *int64
+	value           *float64
+	addvalue        *float64
+	read_at         *int64
+	addread_at      *int64
+	dismissed_at    *int64
+	adddismissed_at *int64
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*LedgerAlert, error)
+	predicates      []predicate.LedgerAlert
+}
+
+var _ ent.Mutation = (*LedgerAlertMutation)(nil)
+
+// ledgeralertOption allows management of the mutation configuration using functional options.
+type ledgeralertOption func(*LedgerAlertMutation)
+
+// newLedgerAlertMutation creates new mutation for the LedgerAlert entity.
+func newLedgerAlertMutation(c config, op Op, opts ...ledgeralertOption) *LedgerAlertMutation {
+	m := &LedgerAlertMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerAlert,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerAlertID sets the ID field of the mutation.
+func withLedgerAlertID(id int) ledgeralertOption {
+	return func(m *LedgerAlertMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerAlert
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerAlert, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerAlert.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerAlert sets the old LedgerAlert of the mutation.
+func withLedgerAlert(node *LedgerAlert) ledgeralertOption {
+	return func(m *LedgerAlertMutation) {
+		m.oldValue = func(context.Context) (*LedgerAlert, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerAlertMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerAlertMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerAlertMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerAlertMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerAlert.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerAlertMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerAlertMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerAlertMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerAlertMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerAlertMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetWalletID sets the "wallet_id" field.
+func (m *LedgerAlertMutation) SetWalletID(i int64) {
+	m.wallet_id = &i
+	m.addwallet_id = nil
+}
+
+// WalletID returns the value of the "wallet_id" field in the mutation.
+func (m *LedgerAlertMutation) WalletID() (r int64, exists bool) {
+	v := m.wallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletID returns the old "wallet_id" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldWalletID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletID: %w", err)
+	}
+	return oldValue.WalletID, nil
+}
+
+// AddWalletID adds i to the "wallet_id" field.
+func (m *LedgerAlertMutation) AddWalletID(i int64) {
+	if m.addwallet_id != nil {
+		*m.addwallet_id += i
+	} else {
+		m.addwallet_id = &i
+	}
+}
+
+// AddedWalletID returns the value that was added to the "wallet_id" field in this mutation.
+func (m *LedgerAlertMutation) AddedWalletID() (r int64, exists bool) {
+	v := m.addwallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWalletID clears the value of the "wallet_id" field.
+func (m *LedgerAlertMutation) ClearWalletID() {
+	m.wallet_id = nil
+	m.addwallet_id = nil
+	m.clearedFields[ledgeralert.FieldWalletID] = struct{}{}
+}
+
+// WalletIDCleared returns if the "wallet_id" field was cleared in this mutation.
+func (m *LedgerAlertMutation) WalletIDCleared() bool {
+	_, ok := m.clearedFields[ledgeralert.FieldWalletID]
+	return ok
+}
+
+// ResetWalletID resets all changes to the "wallet_id" field.
+func (m *LedgerAlertMutation) ResetWalletID() {
+	m.wallet_id = nil
+	m.addwallet_id = nil
+	delete(m.clearedFields, ledgeralert.FieldWalletID)
+}
+
+// SetKind sets the "kind" field.
+func (m *LedgerAlertMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *LedgerAlertMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *LedgerAlertMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetSeverity sets the "severity" field.
+func (m *LedgerAlertMutation) SetSeverity(s string) {
+	m.severity = &s
+}
+
+// Severity returns the value of the "severity" field in the mutation.
+func (m *LedgerAlertMutation) Severity() (r string, exists bool) {
+	v := m.severity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeverity returns the old "severity" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldSeverity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeverity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeverity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeverity: %w", err)
+	}
+	return oldValue.Severity, nil
+}
+
+// ResetSeverity resets all changes to the "severity" field.
+func (m *LedgerAlertMutation) ResetSeverity() {
+	m.severity = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *LedgerAlertMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LedgerAlertMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LedgerAlertMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetOpenedAt sets the "opened_at" field.
+func (m *LedgerAlertMutation) SetOpenedAt(i int64) {
+	m.opened_at = &i
+	m.addopened_at = nil
+}
+
+// OpenedAt returns the value of the "opened_at" field in the mutation.
+func (m *LedgerAlertMutation) OpenedAt() (r int64, exists bool) {
+	v := m.opened_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOpenedAt returns the old "opened_at" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldOpenedAt(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOpenedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOpenedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOpenedAt: %w", err)
+	}
+	return oldValue.OpenedAt, nil
+}
+
+// AddOpenedAt adds i to the "opened_at" field.
+func (m *LedgerAlertMutation) AddOpenedAt(i int64) {
+	if m.addopened_at != nil {
+		*m.addopened_at += i
+	} else {
+		m.addopened_at = &i
+	}
+}
+
+// AddedOpenedAt returns the value that was added to the "opened_at" field in this mutation.
+func (m *LedgerAlertMutation) AddedOpenedAt() (r int64, exists bool) {
+	v := m.addopened_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOpenedAt resets all changes to the "opened_at" field.
+func (m *LedgerAlertMutation) ResetOpenedAt() {
+	m.opened_at = nil
+	m.addopened_at = nil
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *LedgerAlertMutation) SetResolvedAt(i int64) {
+	m.resolved_at = &i
+	m.addresolved_at = nil
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *LedgerAlertMutation) ResolvedAt() (r int64, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldResolvedAt(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// AddResolvedAt adds i to the "resolved_at" field.
+func (m *LedgerAlertMutation) AddResolvedAt(i int64) {
+	if m.addresolved_at != nil {
+		*m.addresolved_at += i
+	} else {
+		m.addresolved_at = &i
+	}
+}
+
+// AddedResolvedAt returns the value that was added to the "resolved_at" field in this mutation.
+func (m *LedgerAlertMutation) AddedResolvedAt() (r int64, exists bool) {
+	v := m.addresolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *LedgerAlertMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.addresolved_at = nil
+	m.clearedFields[ledgeralert.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *LedgerAlertMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[ledgeralert.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *LedgerAlertMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	m.addresolved_at = nil
+	delete(m.clearedFields, ledgeralert.FieldResolvedAt)
+}
+
+// SetValue sets the "value" field.
+func (m *LedgerAlertMutation) SetValue(f float64) {
+	m.value = &f
+	m.addvalue = nil
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *LedgerAlertMutation) Value() (r float64, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldValue(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// AddValue adds f to the "value" field.
+func (m *LedgerAlertMutation) AddValue(f float64) {
+	if m.addvalue != nil {
+		*m.addvalue += f
+	} else {
+		m.addvalue = &f
+	}
+}
+
+// AddedValue returns the value that was added to the "value" field in this mutation.
+func (m *LedgerAlertMutation) AddedValue() (r float64, exists bool) {
+	v := m.addvalue
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *LedgerAlertMutation) ResetValue() {
+	m.value = nil
+	m.addvalue = nil
+}
+
+// SetReadAt sets the "read_at" field.
+func (m *LedgerAlertMutation) SetReadAt(i int64) {
+	m.read_at = &i
+	m.addread_at = nil
+}
+
+// ReadAt returns the value of the "read_at" field in the mutation.
+func (m *LedgerAlertMutation) ReadAt() (r int64, exists bool) {
+	v := m.read_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReadAt returns the old "read_at" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldReadAt(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReadAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReadAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReadAt: %w", err)
+	}
+	return oldValue.ReadAt, nil
+}
+
+// AddReadAt adds i to the "read_at" field.
+func (m *LedgerAlertMutation) AddReadAt(i int64) {
+	if m.addread_at != nil {
+		*m.addread_at += i
+	} else {
+		m.addread_at = &i
+	}
+}
+
+// AddedReadAt returns the value that was added to the "read_at" field in this mutation.
+func (m *LedgerAlertMutation) AddedReadAt() (r int64, exists bool) {
+	v := m.addread_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReadAt clears the value of the "read_at" field.
+func (m *LedgerAlertMutation) ClearReadAt() {
+	m.read_at = nil
+	m.addread_at = nil
+	m.clearedFields[ledgeralert.FieldReadAt] = struct{}{}
+}
+
+// ReadAtCleared returns if the "read_at" field was cleared in this mutation.
+func (m *LedgerAlertMutation) ReadAtCleared() bool {
+	_, ok := m.clearedFields[ledgeralert.FieldReadAt]
+	return ok
+}
+
+// ResetReadAt resets all changes to the "read_at" field.
+func (m *LedgerAlertMutation) ResetReadAt() {
+	m.read_at = nil
+	m.addread_at = nil
+	delete(m.clearedFields, ledgeralert.FieldReadAt)
+}
+
+// SetDismissedAt sets the "dismissed_at" field.
+func (m *LedgerAlertMutation) SetDismissedAt(i int64) {
+	m.dismissed_at = &i
+	m.adddismissed_at = nil
+}
+
+// DismissedAt returns the value of the "dismissed_at" field in the mutation.
+func (m *LedgerAlertMutation) DismissedAt() (r int64, exists bool) {
+	v := m.dismissed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDismissedAt returns the old "dismissed_at" field's value of the LedgerAlert entity.
+// If the LedgerAlert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerAlertMutation) OldDismissedAt(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDismissedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDismissedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDismissedAt: %w", err)
+	}
+	return oldValue.DismissedAt, nil
+}
+
+// AddDismissedAt adds i to the "dismissed_at" field.
+func (m *LedgerAlertMutation) AddDismissedAt(i int64) {
+	if m.adddismissed_at != nil {
+		*m.adddismissed_at += i
+	} else {
+		m.adddismissed_at = &i
+	}
+}
+
+// AddedDismissedAt returns the value that was added to the "dismissed_at" field in this mutation.
+func (m *LedgerAlertMutation) AddedDismissedAt() (r int64, exists bool) {
+	v := m.adddismissed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearDismissedAt clears the value of the "dismissed_at" field.
+func (m *LedgerAlertMutation) ClearDismissedAt() {
+	m.dismissed_at = nil
+	m.adddismissed_at = nil
+	m.clearedFields[ledgeralert.FieldDismissedAt] = struct{}{}
+}
+
+// DismissedAtCleared returns if the "dismissed_at" field was cleared in this mutation.
+func (m *LedgerAlertMutation) DismissedAtCleared() bool {
+	_, ok := m.clearedFields[ledgeralert.FieldDismissedAt]
+	return ok
+}
+
+// ResetDismissedAt resets all changes to the "dismissed_at" field.
+func (m *LedgerAlertMutation) ResetDismissedAt() {
+	m.dismissed_at = nil
+	m.adddismissed_at = nil
+	delete(m.clearedFields, ledgeralert.FieldDismissedAt)
+}
+
+// Where appends a list predicates to the LedgerAlertMutation builder.
+func (m *LedgerAlertMutation) Where(ps ...predicate.LedgerAlert) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerAlertMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerAlertMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerAlert, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerAlertMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerAlertMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerAlert).
+func (m *LedgerAlertMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerAlertMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.account_id != nil {
+		fields = append(fields, ledgeralert.FieldAccountID)
+	}
+	if m.wallet_id != nil {
+		fields = append(fields, ledgeralert.FieldWalletID)
+	}
+	if m.kind != nil {
+		fields = append(fields, ledgeralert.FieldKind)
+	}
+	if m.severity != nil {
+		fields = append(fields, ledgeralert.FieldSeverity)
+	}
+	if m.status != nil {
+		fields = append(fields, ledgeralert.FieldStatus)
+	}
+	if m.opened_at != nil {
+		fields = append(fields, ledgeralert.FieldOpenedAt)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, ledgeralert.FieldResolvedAt)
+	}
+	if m.value != nil {
+		fields = append(fields, ledgeralert.FieldValue)
+	}
+	if m.read_at != nil {
+		fields = append(fields, ledgeralert.FieldReadAt)
+	}
+	if m.dismissed_at != nil {
+		fields = append(fields, ledgeralert.FieldDismissedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerAlertMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		return m.AccountID()
+	case ledgeralert.FieldWalletID:
+		return m.WalletID()
+	case ledgeralert.FieldKind:
+		return m.Kind()
+	case ledgeralert.FieldSeverity:
+		return m.Severity()
+	case ledgeralert.FieldStatus:
+		return m.Status()
+	case ledgeralert.FieldOpenedAt:
+		return m.OpenedAt()
+	case ledgeralert.FieldResolvedAt:
+		return m.ResolvedAt()
+	case ledgeralert.FieldValue:
+		return m.Value()
+	case ledgeralert.FieldReadAt:
+		return m.ReadAt()
+	case ledgeralert.FieldDismissedAt:
+		return m.DismissedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerAlertMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgeralert.FieldWalletID:
+		return m.OldWalletID(ctx)
+	case ledgeralert.FieldKind:
+		return m.OldKind(ctx)
+	case ledgeralert.FieldSeverity:
+		return m.OldSeverity(ctx)
+	case ledgeralert.FieldStatus:
+		return m.OldStatus(ctx)
+	case ledgeralert.FieldOpenedAt:
+		return m.OldOpenedAt(ctx)
+	case ledgeralert.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case ledgeralert.FieldValue:
+		return m.OldValue(ctx)
+	case ledgeralert.FieldReadAt:
+		return m.OldReadAt(ctx)
+	case ledgeralert.FieldDismissedAt:
+		return m.OldDismissedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerAlert field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerAlertMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgeralert.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletID(v)
+		return nil
+	case ledgeralert.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case ledgeralert.FieldSeverity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeverity(v)
+		return nil
+	case ledgeralert.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case ledgeralert.FieldOpenedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOpenedAt(v)
+		return nil
+	case ledgeralert.FieldResolvedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case ledgeralert.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	case ledgeralert.FieldReadAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReadAt(v)
+		return nil
+	case ledgeralert.FieldDismissedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDismissedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAlert field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerAlertMutation) AddedFields() []string {
+	var fields []string
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgeralert.FieldAccountID)
+	}
+	if m.addwallet_id != nil {
+		fields = append(fields, ledgeralert.FieldWalletID)
+	}
+	if m.addopened_at != nil {
+		fields = append(fields, ledgeralert.FieldOpenedAt)
+	}
+	if m.addresolved_at != nil {
+		fields = append(fields, ledgeralert.FieldResolvedAt)
+	}
+	if m.addvalue != nil {
+		fields = append(fields, ledgeralert.FieldValue)
+	}
+	if m.addread_at != nil {
+		fields = append(fields, ledgeralert.FieldReadAt)
+	}
+	if m.adddismissed_at != nil {
+		fields = append(fields, ledgeralert.FieldDismissedAt)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerAlertMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgeralert.FieldWalletID:
+		return m.AddedWalletID()
+	case ledgeralert.FieldOpenedAt:
+		return m.AddedOpenedAt()
+	case ledgeralert.FieldResolvedAt:
+		return m.AddedResolvedAt()
+	case ledgeralert.FieldValue:
+		return m.AddedValue()
+	case ledgeralert.FieldReadAt:
+		return m.AddedReadAt()
+	case ledgeralert.FieldDismissedAt:
+		return m.AddedDismissedAt()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerAlertMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgeralert.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletID(v)
+		return nil
+	case ledgeralert.FieldOpenedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOpenedAt(v)
+		return nil
+	case ledgeralert.FieldResolvedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResolvedAt(v)
+		return nil
+	case ledgeralert.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddValue(v)
+		return nil
+	case ledgeralert.FieldReadAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReadAt(v)
+		return nil
+	case ledgeralert.FieldDismissedAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDismissedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAlert numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerAlertMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgeralert.FieldWalletID) {
+		fields = append(fields, ledgeralert.FieldWalletID)
+	}
+	if m.FieldCleared(ledgeralert.FieldResolvedAt) {
+		fields = append(fields, ledgeralert.FieldResolvedAt)
+	}
+	if m.FieldCleared(ledgeralert.FieldReadAt) {
+		fields = append(fields, ledgeralert.FieldReadAt)
+	}
+	if m.FieldCleared(ledgeralert.FieldDismissedAt) {
+		fields = append(fields, ledgeralert.FieldDismissedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerAlertMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerAlertMutation) ClearField(name string) error {
+	switch name {
+	case ledgeralert.FieldWalletID:
+		m.ClearWalletID()
+		return nil
+	case ledgeralert.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	case ledgeralert.FieldReadAt:
+		m.ClearReadAt()
+		return nil
+	case ledgeralert.FieldDismissedAt:
+		m.ClearDismissedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAlert nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerAlertMutation) ResetField(name string) error {
+	switch name {
+	case ledgeralert.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgeralert.FieldWalletID:
+		m.ResetWalletID()
+		return nil
+	case ledgeralert.FieldKind:
+		m.ResetKind()
+		return nil
+	case ledgeralert.FieldSeverity:
+		m.ResetSeverity()
+		return nil
+	case ledgeralert.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case ledgeralert.FieldOpenedAt:
+		m.ResetOpenedAt()
+		return nil
+	case ledgeralert.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case ledgeralert.FieldValue:
+		m.ResetValue()
+		return nil
+	case ledgeralert.FieldReadAt:
+		m.ResetReadAt()
+		return nil
+	case ledgeralert.FieldDismissedAt:
+		m.ResetDismissedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerAlert field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerAlertMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerAlertMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerAlertMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerAlertMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerAlertMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerAlertMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerAlertMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerAlert unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerAlertMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerAlert edge %s", name)
+}
+
+// LedgerDayMutation represents an operation that mutates the LedgerDay nodes in the graph.
+type LedgerDayMutation struct {
+	config
+	op                                Op
+	typ                               string
+	id                                *int
+	account_id                        *int64
+	addaccount_id                     *int64
+	bucket                            *int64
+	addbucket                         *int64
+	requests                          *int64
+	addrequests                       *int64
+	revenue_usd                       *float64
+	addrevenue_usd                    *float64
+	expected_balance_cost_usd         *float64
+	addexpected_balance_cost_usd      *float64
+	expected_subscription_cost_usd    *float64
+	addexpected_subscription_cost_usd *float64
+	actual_cost_usd                   *float64
+	addactual_cost_usd                *float64
+	actual_source                     *string
+	updated                           *int64
+	addupdated                        *int64
+	clearedFields                     map[string]struct{}
+	done                              bool
+	oldValue                          func(context.Context) (*LedgerDay, error)
+	predicates                        []predicate.LedgerDay
+}
+
+var _ ent.Mutation = (*LedgerDayMutation)(nil)
+
+// ledgerdayOption allows management of the mutation configuration using functional options.
+type ledgerdayOption func(*LedgerDayMutation)
+
+// newLedgerDayMutation creates new mutation for the LedgerDay entity.
+func newLedgerDayMutation(c config, op Op, opts ...ledgerdayOption) *LedgerDayMutation {
+	m := &LedgerDayMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerDay,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerDayID sets the ID field of the mutation.
+func withLedgerDayID(id int) ledgerdayOption {
+	return func(m *LedgerDayMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerDay
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerDay, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerDay.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerDay sets the old LedgerDay of the mutation.
+func withLedgerDay(node *LedgerDay) ledgerdayOption {
+	return func(m *LedgerDayMutation) {
+		m.oldValue = func(context.Context) (*LedgerDay, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerDayMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerDayMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerDayMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerDayMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerDay.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerDayMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerDayMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerDayMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerDayMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerDayMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetBucket sets the "bucket" field.
+func (m *LedgerDayMutation) SetBucket(i int64) {
+	m.bucket = &i
+	m.addbucket = nil
+}
+
+// Bucket returns the value of the "bucket" field in the mutation.
+func (m *LedgerDayMutation) Bucket() (r int64, exists bool) {
+	v := m.bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBucket returns the old "bucket" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldBucket(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBucket: %w", err)
+	}
+	return oldValue.Bucket, nil
+}
+
+// AddBucket adds i to the "bucket" field.
+func (m *LedgerDayMutation) AddBucket(i int64) {
+	if m.addbucket != nil {
+		*m.addbucket += i
+	} else {
+		m.addbucket = &i
+	}
+}
+
+// AddedBucket returns the value that was added to the "bucket" field in this mutation.
+func (m *LedgerDayMutation) AddedBucket() (r int64, exists bool) {
+	v := m.addbucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBucket resets all changes to the "bucket" field.
+func (m *LedgerDayMutation) ResetBucket() {
+	m.bucket = nil
+	m.addbucket = nil
+}
+
+// SetRequests sets the "requests" field.
+func (m *LedgerDayMutation) SetRequests(i int64) {
+	m.requests = &i
+	m.addrequests = nil
+}
+
+// Requests returns the value of the "requests" field in the mutation.
+func (m *LedgerDayMutation) Requests() (r int64, exists bool) {
+	v := m.requests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequests returns the old "requests" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldRequests(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequests is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequests requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequests: %w", err)
+	}
+	return oldValue.Requests, nil
+}
+
+// AddRequests adds i to the "requests" field.
+func (m *LedgerDayMutation) AddRequests(i int64) {
+	if m.addrequests != nil {
+		*m.addrequests += i
+	} else {
+		m.addrequests = &i
+	}
+}
+
+// AddedRequests returns the value that was added to the "requests" field in this mutation.
+func (m *LedgerDayMutation) AddedRequests() (r int64, exists bool) {
+	v := m.addrequests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequests resets all changes to the "requests" field.
+func (m *LedgerDayMutation) ResetRequests() {
+	m.requests = nil
+	m.addrequests = nil
+}
+
+// SetRevenueUsd sets the "revenue_usd" field.
+func (m *LedgerDayMutation) SetRevenueUsd(f float64) {
+	m.revenue_usd = &f
+	m.addrevenue_usd = nil
+}
+
+// RevenueUsd returns the value of the "revenue_usd" field in the mutation.
+func (m *LedgerDayMutation) RevenueUsd() (r float64, exists bool) {
+	v := m.revenue_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevenueUsd returns the old "revenue_usd" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldRevenueUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevenueUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevenueUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevenueUsd: %w", err)
+	}
+	return oldValue.RevenueUsd, nil
+}
+
+// AddRevenueUsd adds f to the "revenue_usd" field.
+func (m *LedgerDayMutation) AddRevenueUsd(f float64) {
+	if m.addrevenue_usd != nil {
+		*m.addrevenue_usd += f
+	} else {
+		m.addrevenue_usd = &f
+	}
+}
+
+// AddedRevenueUsd returns the value that was added to the "revenue_usd" field in this mutation.
+func (m *LedgerDayMutation) AddedRevenueUsd() (r float64, exists bool) {
+	v := m.addrevenue_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRevenueUsd resets all changes to the "revenue_usd" field.
+func (m *LedgerDayMutation) ResetRevenueUsd() {
+	m.revenue_usd = nil
+	m.addrevenue_usd = nil
+}
+
+// SetExpectedBalanceCostUsd sets the "expected_balance_cost_usd" field.
+func (m *LedgerDayMutation) SetExpectedBalanceCostUsd(f float64) {
+	m.expected_balance_cost_usd = &f
+	m.addexpected_balance_cost_usd = nil
+}
+
+// ExpectedBalanceCostUsd returns the value of the "expected_balance_cost_usd" field in the mutation.
+func (m *LedgerDayMutation) ExpectedBalanceCostUsd() (r float64, exists bool) {
+	v := m.expected_balance_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedBalanceCostUsd returns the old "expected_balance_cost_usd" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldExpectedBalanceCostUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedBalanceCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedBalanceCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedBalanceCostUsd: %w", err)
+	}
+	return oldValue.ExpectedBalanceCostUsd, nil
+}
+
+// AddExpectedBalanceCostUsd adds f to the "expected_balance_cost_usd" field.
+func (m *LedgerDayMutation) AddExpectedBalanceCostUsd(f float64) {
+	if m.addexpected_balance_cost_usd != nil {
+		*m.addexpected_balance_cost_usd += f
+	} else {
+		m.addexpected_balance_cost_usd = &f
+	}
+}
+
+// AddedExpectedBalanceCostUsd returns the value that was added to the "expected_balance_cost_usd" field in this mutation.
+func (m *LedgerDayMutation) AddedExpectedBalanceCostUsd() (r float64, exists bool) {
+	v := m.addexpected_balance_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExpectedBalanceCostUsd resets all changes to the "expected_balance_cost_usd" field.
+func (m *LedgerDayMutation) ResetExpectedBalanceCostUsd() {
+	m.expected_balance_cost_usd = nil
+	m.addexpected_balance_cost_usd = nil
+}
+
+// SetExpectedSubscriptionCostUsd sets the "expected_subscription_cost_usd" field.
+func (m *LedgerDayMutation) SetExpectedSubscriptionCostUsd(f float64) {
+	m.expected_subscription_cost_usd = &f
+	m.addexpected_subscription_cost_usd = nil
+}
+
+// ExpectedSubscriptionCostUsd returns the value of the "expected_subscription_cost_usd" field in the mutation.
+func (m *LedgerDayMutation) ExpectedSubscriptionCostUsd() (r float64, exists bool) {
+	v := m.expected_subscription_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedSubscriptionCostUsd returns the old "expected_subscription_cost_usd" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldExpectedSubscriptionCostUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedSubscriptionCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedSubscriptionCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedSubscriptionCostUsd: %w", err)
+	}
+	return oldValue.ExpectedSubscriptionCostUsd, nil
+}
+
+// AddExpectedSubscriptionCostUsd adds f to the "expected_subscription_cost_usd" field.
+func (m *LedgerDayMutation) AddExpectedSubscriptionCostUsd(f float64) {
+	if m.addexpected_subscription_cost_usd != nil {
+		*m.addexpected_subscription_cost_usd += f
+	} else {
+		m.addexpected_subscription_cost_usd = &f
+	}
+}
+
+// AddedExpectedSubscriptionCostUsd returns the value that was added to the "expected_subscription_cost_usd" field in this mutation.
+func (m *LedgerDayMutation) AddedExpectedSubscriptionCostUsd() (r float64, exists bool) {
+	v := m.addexpected_subscription_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExpectedSubscriptionCostUsd resets all changes to the "expected_subscription_cost_usd" field.
+func (m *LedgerDayMutation) ResetExpectedSubscriptionCostUsd() {
+	m.expected_subscription_cost_usd = nil
+	m.addexpected_subscription_cost_usd = nil
+}
+
+// SetActualCostUsd sets the "actual_cost_usd" field.
+func (m *LedgerDayMutation) SetActualCostUsd(f float64) {
+	m.actual_cost_usd = &f
+	m.addactual_cost_usd = nil
+}
+
+// ActualCostUsd returns the value of the "actual_cost_usd" field in the mutation.
+func (m *LedgerDayMutation) ActualCostUsd() (r float64, exists bool) {
+	v := m.actual_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActualCostUsd returns the old "actual_cost_usd" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldActualCostUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActualCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActualCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActualCostUsd: %w", err)
+	}
+	return oldValue.ActualCostUsd, nil
+}
+
+// AddActualCostUsd adds f to the "actual_cost_usd" field.
+func (m *LedgerDayMutation) AddActualCostUsd(f float64) {
+	if m.addactual_cost_usd != nil {
+		*m.addactual_cost_usd += f
+	} else {
+		m.addactual_cost_usd = &f
+	}
+}
+
+// AddedActualCostUsd returns the value that was added to the "actual_cost_usd" field in this mutation.
+func (m *LedgerDayMutation) AddedActualCostUsd() (r float64, exists bool) {
+	v := m.addactual_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActualCostUsd clears the value of the "actual_cost_usd" field.
+func (m *LedgerDayMutation) ClearActualCostUsd() {
+	m.actual_cost_usd = nil
+	m.addactual_cost_usd = nil
+	m.clearedFields[ledgerday.FieldActualCostUsd] = struct{}{}
+}
+
+// ActualCostUsdCleared returns if the "actual_cost_usd" field was cleared in this mutation.
+func (m *LedgerDayMutation) ActualCostUsdCleared() bool {
+	_, ok := m.clearedFields[ledgerday.FieldActualCostUsd]
+	return ok
+}
+
+// ResetActualCostUsd resets all changes to the "actual_cost_usd" field.
+func (m *LedgerDayMutation) ResetActualCostUsd() {
+	m.actual_cost_usd = nil
+	m.addactual_cost_usd = nil
+	delete(m.clearedFields, ledgerday.FieldActualCostUsd)
+}
+
+// SetActualSource sets the "actual_source" field.
+func (m *LedgerDayMutation) SetActualSource(s string) {
+	m.actual_source = &s
+}
+
+// ActualSource returns the value of the "actual_source" field in the mutation.
+func (m *LedgerDayMutation) ActualSource() (r string, exists bool) {
+	v := m.actual_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActualSource returns the old "actual_source" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldActualSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActualSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActualSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActualSource: %w", err)
+	}
+	return oldValue.ActualSource, nil
+}
+
+// ResetActualSource resets all changes to the "actual_source" field.
+func (m *LedgerDayMutation) ResetActualSource() {
+	m.actual_source = nil
+}
+
+// SetUpdated sets the "updated" field.
+func (m *LedgerDayMutation) SetUpdated(i int64) {
+	m.updated = &i
+	m.addupdated = nil
+}
+
+// Updated returns the value of the "updated" field in the mutation.
+func (m *LedgerDayMutation) Updated() (r int64, exists bool) {
+	v := m.updated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdated returns the old "updated" field's value of the LedgerDay entity.
+// If the LedgerDay object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerDayMutation) OldUpdated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdated: %w", err)
+	}
+	return oldValue.Updated, nil
+}
+
+// AddUpdated adds i to the "updated" field.
+func (m *LedgerDayMutation) AddUpdated(i int64) {
+	if m.addupdated != nil {
+		*m.addupdated += i
+	} else {
+		m.addupdated = &i
+	}
+}
+
+// AddedUpdated returns the value that was added to the "updated" field in this mutation.
+func (m *LedgerDayMutation) AddedUpdated() (r int64, exists bool) {
+	v := m.addupdated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdated resets all changes to the "updated" field.
+func (m *LedgerDayMutation) ResetUpdated() {
+	m.updated = nil
+	m.addupdated = nil
+}
+
+// Where appends a list predicates to the LedgerDayMutation builder.
+func (m *LedgerDayMutation) Where(ps ...predicate.LedgerDay) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerDayMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerDayMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerDay, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerDayMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerDayMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerDay).
+func (m *LedgerDayMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerDayMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.account_id != nil {
+		fields = append(fields, ledgerday.FieldAccountID)
+	}
+	if m.bucket != nil {
+		fields = append(fields, ledgerday.FieldBucket)
+	}
+	if m.requests != nil {
+		fields = append(fields, ledgerday.FieldRequests)
+	}
+	if m.revenue_usd != nil {
+		fields = append(fields, ledgerday.FieldRevenueUsd)
+	}
+	if m.expected_balance_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldExpectedBalanceCostUsd)
+	}
+	if m.expected_subscription_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldExpectedSubscriptionCostUsd)
+	}
+	if m.actual_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldActualCostUsd)
+	}
+	if m.actual_source != nil {
+		fields = append(fields, ledgerday.FieldActualSource)
+	}
+	if m.updated != nil {
+		fields = append(fields, ledgerday.FieldUpdated)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerDayMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerday.FieldAccountID:
+		return m.AccountID()
+	case ledgerday.FieldBucket:
+		return m.Bucket()
+	case ledgerday.FieldRequests:
+		return m.Requests()
+	case ledgerday.FieldRevenueUsd:
+		return m.RevenueUsd()
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		return m.ExpectedBalanceCostUsd()
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		return m.ExpectedSubscriptionCostUsd()
+	case ledgerday.FieldActualCostUsd:
+		return m.ActualCostUsd()
+	case ledgerday.FieldActualSource:
+		return m.ActualSource()
+	case ledgerday.FieldUpdated:
+		return m.Updated()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerDayMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgerday.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgerday.FieldBucket:
+		return m.OldBucket(ctx)
+	case ledgerday.FieldRequests:
+		return m.OldRequests(ctx)
+	case ledgerday.FieldRevenueUsd:
+		return m.OldRevenueUsd(ctx)
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		return m.OldExpectedBalanceCostUsd(ctx)
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		return m.OldExpectedSubscriptionCostUsd(ctx)
+	case ledgerday.FieldActualCostUsd:
+		return m.OldActualCostUsd(ctx)
+	case ledgerday.FieldActualSource:
+		return m.OldActualSource(ctx)
+	case ledgerday.FieldUpdated:
+		return m.OldUpdated(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerDay field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerDayMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgerday.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgerday.FieldBucket:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBucket(v)
+		return nil
+	case ledgerday.FieldRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequests(v)
+		return nil
+	case ledgerday.FieldRevenueUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevenueUsd(v)
+		return nil
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedBalanceCostUsd(v)
+		return nil
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedSubscriptionCostUsd(v)
+		return nil
+	case ledgerday.FieldActualCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActualCostUsd(v)
+		return nil
+	case ledgerday.FieldActualSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActualSource(v)
+		return nil
+	case ledgerday.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerDay field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerDayMutation) AddedFields() []string {
+	var fields []string
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgerday.FieldAccountID)
+	}
+	if m.addbucket != nil {
+		fields = append(fields, ledgerday.FieldBucket)
+	}
+	if m.addrequests != nil {
+		fields = append(fields, ledgerday.FieldRequests)
+	}
+	if m.addrevenue_usd != nil {
+		fields = append(fields, ledgerday.FieldRevenueUsd)
+	}
+	if m.addexpected_balance_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldExpectedBalanceCostUsd)
+	}
+	if m.addexpected_subscription_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldExpectedSubscriptionCostUsd)
+	}
+	if m.addactual_cost_usd != nil {
+		fields = append(fields, ledgerday.FieldActualCostUsd)
+	}
+	if m.addupdated != nil {
+		fields = append(fields, ledgerday.FieldUpdated)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerDayMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerday.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgerday.FieldBucket:
+		return m.AddedBucket()
+	case ledgerday.FieldRequests:
+		return m.AddedRequests()
+	case ledgerday.FieldRevenueUsd:
+		return m.AddedRevenueUsd()
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		return m.AddedExpectedBalanceCostUsd()
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		return m.AddedExpectedSubscriptionCostUsd()
+	case ledgerday.FieldActualCostUsd:
+		return m.AddedActualCostUsd()
+	case ledgerday.FieldUpdated:
+		return m.AddedUpdated()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerDayMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgerday.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgerday.FieldBucket:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBucket(v)
+		return nil
+	case ledgerday.FieldRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequests(v)
+		return nil
+	case ledgerday.FieldRevenueUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevenueUsd(v)
+		return nil
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedBalanceCostUsd(v)
+		return nil
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedSubscriptionCostUsd(v)
+		return nil
+	case ledgerday.FieldActualCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActualCostUsd(v)
+		return nil
+	case ledgerday.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerDay numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerDayMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgerday.FieldActualCostUsd) {
+		fields = append(fields, ledgerday.FieldActualCostUsd)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerDayMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerDayMutation) ClearField(name string) error {
+	switch name {
+	case ledgerday.FieldActualCostUsd:
+		m.ClearActualCostUsd()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerDay nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerDayMutation) ResetField(name string) error {
+	switch name {
+	case ledgerday.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgerday.FieldBucket:
+		m.ResetBucket()
+		return nil
+	case ledgerday.FieldRequests:
+		m.ResetRequests()
+		return nil
+	case ledgerday.FieldRevenueUsd:
+		m.ResetRevenueUsd()
+		return nil
+	case ledgerday.FieldExpectedBalanceCostUsd:
+		m.ResetExpectedBalanceCostUsd()
+		return nil
+	case ledgerday.FieldExpectedSubscriptionCostUsd:
+		m.ResetExpectedSubscriptionCostUsd()
+		return nil
+	case ledgerday.FieldActualCostUsd:
+		m.ResetActualCostUsd()
+		return nil
+	case ledgerday.FieldActualSource:
+		m.ResetActualSource()
+		return nil
+	case ledgerday.FieldUpdated:
+		m.ResetUpdated()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerDay field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerDayMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerDayMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerDayMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerDayMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerDayMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerDayMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerDayMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerDay unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerDayMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerDay edge %s", name)
+}
+
+// LedgerEventMutation represents an operation that mutates the LedgerEvent nodes in the graph.
+type LedgerEventMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	wallet_id      *int64
+	addwallet_id   *int64
+	account_id     *int64
+	addaccount_id  *int64
+	kind           *string
+	amount_usd     *float64
+	addamount_usd  *float64
+	occurred_at    *int64
+	addoccurred_at *int64
+	source         *string
+	external_id    *string
+	status         *string
+	note           *string
+	created        *int64
+	addcreated     *int64
+	updated        *int64
+	addupdated     *int64
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*LedgerEvent, error)
+	predicates     []predicate.LedgerEvent
+}
+
+var _ ent.Mutation = (*LedgerEventMutation)(nil)
+
+// ledgereventOption allows management of the mutation configuration using functional options.
+type ledgereventOption func(*LedgerEventMutation)
+
+// newLedgerEventMutation creates new mutation for the LedgerEvent entity.
+func newLedgerEventMutation(c config, op Op, opts ...ledgereventOption) *LedgerEventMutation {
+	m := &LedgerEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerEventID sets the ID field of the mutation.
+func withLedgerEventID(id int) ledgereventOption {
+	return func(m *LedgerEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerEvent
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerEvent sets the old LedgerEvent of the mutation.
+func withLedgerEvent(node *LedgerEvent) ledgereventOption {
+	return func(m *LedgerEventMutation) {
+		m.oldValue = func(context.Context) (*LedgerEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerEventMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerEventMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetWalletID sets the "wallet_id" field.
+func (m *LedgerEventMutation) SetWalletID(i int64) {
+	m.wallet_id = &i
+	m.addwallet_id = nil
+}
+
+// WalletID returns the value of the "wallet_id" field in the mutation.
+func (m *LedgerEventMutation) WalletID() (r int64, exists bool) {
+	v := m.wallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletID returns the old "wallet_id" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldWalletID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletID: %w", err)
+	}
+	return oldValue.WalletID, nil
+}
+
+// AddWalletID adds i to the "wallet_id" field.
+func (m *LedgerEventMutation) AddWalletID(i int64) {
+	if m.addwallet_id != nil {
+		*m.addwallet_id += i
+	} else {
+		m.addwallet_id = &i
+	}
+}
+
+// AddedWalletID returns the value that was added to the "wallet_id" field in this mutation.
+func (m *LedgerEventMutation) AddedWalletID() (r int64, exists bool) {
+	v := m.addwallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWalletID resets all changes to the "wallet_id" field.
+func (m *LedgerEventMutation) ResetWalletID() {
+	m.wallet_id = nil
+	m.addwallet_id = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerEventMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerEventMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldAccountID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerEventMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerEventMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAccountID clears the value of the "account_id" field.
+func (m *LedgerEventMutation) ClearAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	m.clearedFields[ledgerevent.FieldAccountID] = struct{}{}
+}
+
+// AccountIDCleared returns if the "account_id" field was cleared in this mutation.
+func (m *LedgerEventMutation) AccountIDCleared() bool {
+	_, ok := m.clearedFields[ledgerevent.FieldAccountID]
+	return ok
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerEventMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+	delete(m.clearedFields, ledgerevent.FieldAccountID)
+}
+
+// SetKind sets the "kind" field.
+func (m *LedgerEventMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *LedgerEventMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *LedgerEventMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetAmountUsd sets the "amount_usd" field.
+func (m *LedgerEventMutation) SetAmountUsd(f float64) {
+	m.amount_usd = &f
+	m.addamount_usd = nil
+}
+
+// AmountUsd returns the value of the "amount_usd" field in the mutation.
+func (m *LedgerEventMutation) AmountUsd() (r float64, exists bool) {
+	v := m.amount_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountUsd returns the old "amount_usd" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldAmountUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountUsd: %w", err)
+	}
+	return oldValue.AmountUsd, nil
+}
+
+// AddAmountUsd adds f to the "amount_usd" field.
+func (m *LedgerEventMutation) AddAmountUsd(f float64) {
+	if m.addamount_usd != nil {
+		*m.addamount_usd += f
+	} else {
+		m.addamount_usd = &f
+	}
+}
+
+// AddedAmountUsd returns the value that was added to the "amount_usd" field in this mutation.
+func (m *LedgerEventMutation) AddedAmountUsd() (r float64, exists bool) {
+	v := m.addamount_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountUsd resets all changes to the "amount_usd" field.
+func (m *LedgerEventMutation) ResetAmountUsd() {
+	m.amount_usd = nil
+	m.addamount_usd = nil
+}
+
+// SetOccurredAt sets the "occurred_at" field.
+func (m *LedgerEventMutation) SetOccurredAt(i int64) {
+	m.occurred_at = &i
+	m.addoccurred_at = nil
+}
+
+// OccurredAt returns the value of the "occurred_at" field in the mutation.
+func (m *LedgerEventMutation) OccurredAt() (r int64, exists bool) {
+	v := m.occurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurredAt returns the old "occurred_at" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldOccurredAt(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurredAt: %w", err)
+	}
+	return oldValue.OccurredAt, nil
+}
+
+// AddOccurredAt adds i to the "occurred_at" field.
+func (m *LedgerEventMutation) AddOccurredAt(i int64) {
+	if m.addoccurred_at != nil {
+		*m.addoccurred_at += i
+	} else {
+		m.addoccurred_at = &i
+	}
+}
+
+// AddedOccurredAt returns the value that was added to the "occurred_at" field in this mutation.
+func (m *LedgerEventMutation) AddedOccurredAt() (r int64, exists bool) {
+	v := m.addoccurred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOccurredAt resets all changes to the "occurred_at" field.
+func (m *LedgerEventMutation) ResetOccurredAt() {
+	m.occurred_at = nil
+	m.addoccurred_at = nil
+}
+
+// SetSource sets the "source" field.
+func (m *LedgerEventMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *LedgerEventMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *LedgerEventMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *LedgerEventMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *LedgerEventMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldExternalID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ClearExternalID clears the value of the "external_id" field.
+func (m *LedgerEventMutation) ClearExternalID() {
+	m.external_id = nil
+	m.clearedFields[ledgerevent.FieldExternalID] = struct{}{}
+}
+
+// ExternalIDCleared returns if the "external_id" field was cleared in this mutation.
+func (m *LedgerEventMutation) ExternalIDCleared() bool {
+	_, ok := m.clearedFields[ledgerevent.FieldExternalID]
+	return ok
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *LedgerEventMutation) ResetExternalID() {
+	m.external_id = nil
+	delete(m.clearedFields, ledgerevent.FieldExternalID)
+}
+
+// SetStatus sets the "status" field.
+func (m *LedgerEventMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *LedgerEventMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *LedgerEventMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetNote sets the "note" field.
+func (m *LedgerEventMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *LedgerEventMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *LedgerEventMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetCreated sets the "created" field.
+func (m *LedgerEventMutation) SetCreated(i int64) {
+	m.created = &i
+	m.addcreated = nil
+}
+
+// Created returns the value of the "created" field in the mutation.
+func (m *LedgerEventMutation) Created() (r int64, exists bool) {
+	v := m.created
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreated returns the old "created" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldCreated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreated: %w", err)
+	}
+	return oldValue.Created, nil
+}
+
+// AddCreated adds i to the "created" field.
+func (m *LedgerEventMutation) AddCreated(i int64) {
+	if m.addcreated != nil {
+		*m.addcreated += i
+	} else {
+		m.addcreated = &i
+	}
+}
+
+// AddedCreated returns the value that was added to the "created" field in this mutation.
+func (m *LedgerEventMutation) AddedCreated() (r int64, exists bool) {
+	v := m.addcreated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreated resets all changes to the "created" field.
+func (m *LedgerEventMutation) ResetCreated() {
+	m.created = nil
+	m.addcreated = nil
+}
+
+// SetUpdated sets the "updated" field.
+func (m *LedgerEventMutation) SetUpdated(i int64) {
+	m.updated = &i
+	m.addupdated = nil
+}
+
+// Updated returns the value of the "updated" field in the mutation.
+func (m *LedgerEventMutation) Updated() (r int64, exists bool) {
+	v := m.updated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdated returns the old "updated" field's value of the LedgerEvent entity.
+// If the LedgerEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerEventMutation) OldUpdated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdated: %w", err)
+	}
+	return oldValue.Updated, nil
+}
+
+// AddUpdated adds i to the "updated" field.
+func (m *LedgerEventMutation) AddUpdated(i int64) {
+	if m.addupdated != nil {
+		*m.addupdated += i
+	} else {
+		m.addupdated = &i
+	}
+}
+
+// AddedUpdated returns the value that was added to the "updated" field in this mutation.
+func (m *LedgerEventMutation) AddedUpdated() (r int64, exists bool) {
+	v := m.addupdated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdated resets all changes to the "updated" field.
+func (m *LedgerEventMutation) ResetUpdated() {
+	m.updated = nil
+	m.addupdated = nil
+}
+
+// Where appends a list predicates to the LedgerEventMutation builder.
+func (m *LedgerEventMutation) Where(ps ...predicate.LedgerEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerEvent).
+func (m *LedgerEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerEventMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.wallet_id != nil {
+		fields = append(fields, ledgerevent.FieldWalletID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, ledgerevent.FieldAccountID)
+	}
+	if m.kind != nil {
+		fields = append(fields, ledgerevent.FieldKind)
+	}
+	if m.amount_usd != nil {
+		fields = append(fields, ledgerevent.FieldAmountUsd)
+	}
+	if m.occurred_at != nil {
+		fields = append(fields, ledgerevent.FieldOccurredAt)
+	}
+	if m.source != nil {
+		fields = append(fields, ledgerevent.FieldSource)
+	}
+	if m.external_id != nil {
+		fields = append(fields, ledgerevent.FieldExternalID)
+	}
+	if m.status != nil {
+		fields = append(fields, ledgerevent.FieldStatus)
+	}
+	if m.note != nil {
+		fields = append(fields, ledgerevent.FieldNote)
+	}
+	if m.created != nil {
+		fields = append(fields, ledgerevent.FieldCreated)
+	}
+	if m.updated != nil {
+		fields = append(fields, ledgerevent.FieldUpdated)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		return m.WalletID()
+	case ledgerevent.FieldAccountID:
+		return m.AccountID()
+	case ledgerevent.FieldKind:
+		return m.Kind()
+	case ledgerevent.FieldAmountUsd:
+		return m.AmountUsd()
+	case ledgerevent.FieldOccurredAt:
+		return m.OccurredAt()
+	case ledgerevent.FieldSource:
+		return m.Source()
+	case ledgerevent.FieldExternalID:
+		return m.ExternalID()
+	case ledgerevent.FieldStatus:
+		return m.Status()
+	case ledgerevent.FieldNote:
+		return m.Note()
+	case ledgerevent.FieldCreated:
+		return m.Created()
+	case ledgerevent.FieldUpdated:
+		return m.Updated()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		return m.OldWalletID(ctx)
+	case ledgerevent.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgerevent.FieldKind:
+		return m.OldKind(ctx)
+	case ledgerevent.FieldAmountUsd:
+		return m.OldAmountUsd(ctx)
+	case ledgerevent.FieldOccurredAt:
+		return m.OldOccurredAt(ctx)
+	case ledgerevent.FieldSource:
+		return m.OldSource(ctx)
+	case ledgerevent.FieldExternalID:
+		return m.OldExternalID(ctx)
+	case ledgerevent.FieldStatus:
+		return m.OldStatus(ctx)
+	case ledgerevent.FieldNote:
+		return m.OldNote(ctx)
+	case ledgerevent.FieldCreated:
+		return m.OldCreated(ctx)
+	case ledgerevent.FieldUpdated:
+		return m.OldUpdated(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletID(v)
+		return nil
+	case ledgerevent.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgerevent.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case ledgerevent.FieldAmountUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountUsd(v)
+		return nil
+	case ledgerevent.FieldOccurredAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurredAt(v)
+		return nil
+	case ledgerevent.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case ledgerevent.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
+		return nil
+	case ledgerevent.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case ledgerevent.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case ledgerevent.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreated(v)
+		return nil
+	case ledgerevent.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addwallet_id != nil {
+		fields = append(fields, ledgerevent.FieldWalletID)
+	}
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgerevent.FieldAccountID)
+	}
+	if m.addamount_usd != nil {
+		fields = append(fields, ledgerevent.FieldAmountUsd)
+	}
+	if m.addoccurred_at != nil {
+		fields = append(fields, ledgerevent.FieldOccurredAt)
+	}
+	if m.addcreated != nil {
+		fields = append(fields, ledgerevent.FieldCreated)
+	}
+	if m.addupdated != nil {
+		fields = append(fields, ledgerevent.FieldUpdated)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		return m.AddedWalletID()
+	case ledgerevent.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgerevent.FieldAmountUsd:
+		return m.AddedAmountUsd()
+	case ledgerevent.FieldOccurredAt:
+		return m.AddedOccurredAt()
+	case ledgerevent.FieldCreated:
+		return m.AddedCreated()
+	case ledgerevent.FieldUpdated:
+		return m.AddedUpdated()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletID(v)
+		return nil
+	case ledgerevent.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgerevent.FieldAmountUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountUsd(v)
+		return nil
+	case ledgerevent.FieldOccurredAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOccurredAt(v)
+		return nil
+	case ledgerevent.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreated(v)
+		return nil
+	case ledgerevent.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgerevent.FieldAccountID) {
+		fields = append(fields, ledgerevent.FieldAccountID)
+	}
+	if m.FieldCleared(ledgerevent.FieldExternalID) {
+		fields = append(fields, ledgerevent.FieldExternalID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerEventMutation) ClearField(name string) error {
+	switch name {
+	case ledgerevent.FieldAccountID:
+		m.ClearAccountID()
+		return nil
+	case ledgerevent.FieldExternalID:
+		m.ClearExternalID()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerEventMutation) ResetField(name string) error {
+	switch name {
+	case ledgerevent.FieldWalletID:
+		m.ResetWalletID()
+		return nil
+	case ledgerevent.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgerevent.FieldKind:
+		m.ResetKind()
+		return nil
+	case ledgerevent.FieldAmountUsd:
+		m.ResetAmountUsd()
+		return nil
+	case ledgerevent.FieldOccurredAt:
+		m.ResetOccurredAt()
+		return nil
+	case ledgerevent.FieldSource:
+		m.ResetSource()
+		return nil
+	case ledgerevent.FieldExternalID:
+		m.ResetExternalID()
+		return nil
+	case ledgerevent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case ledgerevent.FieldNote:
+		m.ResetNote()
+		return nil
+	case ledgerevent.FieldCreated:
+		m.ResetCreated()
+		return nil
+	case ledgerevent.FieldUpdated:
+		m.ResetUpdated()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerEventMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerEventMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerEventMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerEventMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerEvent edge %s", name)
+}
+
+// LedgerHourMutation represents an operation that mutates the LedgerHour nodes in the graph.
+type LedgerHourMutation struct {
+	config
+	op                                Op
+	typ                               string
+	id                                *int
+	account_id                        *int64
+	addaccount_id                     *int64
+	bucket                            *int64
+	addbucket                         *int64
+	requests                          *int64
+	addrequests                       *int64
+	revenue_usd                       *float64
+	addrevenue_usd                    *float64
+	expected_balance_cost_usd         *float64
+	addexpected_balance_cost_usd      *float64
+	expected_subscription_cost_usd    *float64
+	addexpected_subscription_cost_usd *float64
+	actual_cost_usd                   *float64
+	addactual_cost_usd                *float64
+	actual_source                     *string
+	updated                           *int64
+	addupdated                        *int64
+	clearedFields                     map[string]struct{}
+	done                              bool
+	oldValue                          func(context.Context) (*LedgerHour, error)
+	predicates                        []predicate.LedgerHour
+}
+
+var _ ent.Mutation = (*LedgerHourMutation)(nil)
+
+// ledgerhourOption allows management of the mutation configuration using functional options.
+type ledgerhourOption func(*LedgerHourMutation)
+
+// newLedgerHourMutation creates new mutation for the LedgerHour entity.
+func newLedgerHourMutation(c config, op Op, opts ...ledgerhourOption) *LedgerHourMutation {
+	m := &LedgerHourMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerHour,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerHourID sets the ID field of the mutation.
+func withLedgerHourID(id int) ledgerhourOption {
+	return func(m *LedgerHourMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerHour
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerHour, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerHour.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerHour sets the old LedgerHour of the mutation.
+func withLedgerHour(node *LedgerHour) ledgerhourOption {
+	return func(m *LedgerHourMutation) {
+		m.oldValue = func(context.Context) (*LedgerHour, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerHourMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerHourMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerHourMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerHourMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerHour.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerHourMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerHourMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerHourMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerHourMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerHourMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetBucket sets the "bucket" field.
+func (m *LedgerHourMutation) SetBucket(i int64) {
+	m.bucket = &i
+	m.addbucket = nil
+}
+
+// Bucket returns the value of the "bucket" field in the mutation.
+func (m *LedgerHourMutation) Bucket() (r int64, exists bool) {
+	v := m.bucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBucket returns the old "bucket" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldBucket(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBucket is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBucket requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBucket: %w", err)
+	}
+	return oldValue.Bucket, nil
+}
+
+// AddBucket adds i to the "bucket" field.
+func (m *LedgerHourMutation) AddBucket(i int64) {
+	if m.addbucket != nil {
+		*m.addbucket += i
+	} else {
+		m.addbucket = &i
+	}
+}
+
+// AddedBucket returns the value that was added to the "bucket" field in this mutation.
+func (m *LedgerHourMutation) AddedBucket() (r int64, exists bool) {
+	v := m.addbucket
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBucket resets all changes to the "bucket" field.
+func (m *LedgerHourMutation) ResetBucket() {
+	m.bucket = nil
+	m.addbucket = nil
+}
+
+// SetRequests sets the "requests" field.
+func (m *LedgerHourMutation) SetRequests(i int64) {
+	m.requests = &i
+	m.addrequests = nil
+}
+
+// Requests returns the value of the "requests" field in the mutation.
+func (m *LedgerHourMutation) Requests() (r int64, exists bool) {
+	v := m.requests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequests returns the old "requests" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldRequests(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequests is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequests requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequests: %w", err)
+	}
+	return oldValue.Requests, nil
+}
+
+// AddRequests adds i to the "requests" field.
+func (m *LedgerHourMutation) AddRequests(i int64) {
+	if m.addrequests != nil {
+		*m.addrequests += i
+	} else {
+		m.addrequests = &i
+	}
+}
+
+// AddedRequests returns the value that was added to the "requests" field in this mutation.
+func (m *LedgerHourMutation) AddedRequests() (r int64, exists bool) {
+	v := m.addrequests
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequests resets all changes to the "requests" field.
+func (m *LedgerHourMutation) ResetRequests() {
+	m.requests = nil
+	m.addrequests = nil
+}
+
+// SetRevenueUsd sets the "revenue_usd" field.
+func (m *LedgerHourMutation) SetRevenueUsd(f float64) {
+	m.revenue_usd = &f
+	m.addrevenue_usd = nil
+}
+
+// RevenueUsd returns the value of the "revenue_usd" field in the mutation.
+func (m *LedgerHourMutation) RevenueUsd() (r float64, exists bool) {
+	v := m.revenue_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevenueUsd returns the old "revenue_usd" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldRevenueUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevenueUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevenueUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevenueUsd: %w", err)
+	}
+	return oldValue.RevenueUsd, nil
+}
+
+// AddRevenueUsd adds f to the "revenue_usd" field.
+func (m *LedgerHourMutation) AddRevenueUsd(f float64) {
+	if m.addrevenue_usd != nil {
+		*m.addrevenue_usd += f
+	} else {
+		m.addrevenue_usd = &f
+	}
+}
+
+// AddedRevenueUsd returns the value that was added to the "revenue_usd" field in this mutation.
+func (m *LedgerHourMutation) AddedRevenueUsd() (r float64, exists bool) {
+	v := m.addrevenue_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRevenueUsd resets all changes to the "revenue_usd" field.
+func (m *LedgerHourMutation) ResetRevenueUsd() {
+	m.revenue_usd = nil
+	m.addrevenue_usd = nil
+}
+
+// SetExpectedBalanceCostUsd sets the "expected_balance_cost_usd" field.
+func (m *LedgerHourMutation) SetExpectedBalanceCostUsd(f float64) {
+	m.expected_balance_cost_usd = &f
+	m.addexpected_balance_cost_usd = nil
+}
+
+// ExpectedBalanceCostUsd returns the value of the "expected_balance_cost_usd" field in the mutation.
+func (m *LedgerHourMutation) ExpectedBalanceCostUsd() (r float64, exists bool) {
+	v := m.expected_balance_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedBalanceCostUsd returns the old "expected_balance_cost_usd" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldExpectedBalanceCostUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedBalanceCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedBalanceCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedBalanceCostUsd: %w", err)
+	}
+	return oldValue.ExpectedBalanceCostUsd, nil
+}
+
+// AddExpectedBalanceCostUsd adds f to the "expected_balance_cost_usd" field.
+func (m *LedgerHourMutation) AddExpectedBalanceCostUsd(f float64) {
+	if m.addexpected_balance_cost_usd != nil {
+		*m.addexpected_balance_cost_usd += f
+	} else {
+		m.addexpected_balance_cost_usd = &f
+	}
+}
+
+// AddedExpectedBalanceCostUsd returns the value that was added to the "expected_balance_cost_usd" field in this mutation.
+func (m *LedgerHourMutation) AddedExpectedBalanceCostUsd() (r float64, exists bool) {
+	v := m.addexpected_balance_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExpectedBalanceCostUsd resets all changes to the "expected_balance_cost_usd" field.
+func (m *LedgerHourMutation) ResetExpectedBalanceCostUsd() {
+	m.expected_balance_cost_usd = nil
+	m.addexpected_balance_cost_usd = nil
+}
+
+// SetExpectedSubscriptionCostUsd sets the "expected_subscription_cost_usd" field.
+func (m *LedgerHourMutation) SetExpectedSubscriptionCostUsd(f float64) {
+	m.expected_subscription_cost_usd = &f
+	m.addexpected_subscription_cost_usd = nil
+}
+
+// ExpectedSubscriptionCostUsd returns the value of the "expected_subscription_cost_usd" field in the mutation.
+func (m *LedgerHourMutation) ExpectedSubscriptionCostUsd() (r float64, exists bool) {
+	v := m.expected_subscription_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedSubscriptionCostUsd returns the old "expected_subscription_cost_usd" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldExpectedSubscriptionCostUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedSubscriptionCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedSubscriptionCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedSubscriptionCostUsd: %w", err)
+	}
+	return oldValue.ExpectedSubscriptionCostUsd, nil
+}
+
+// AddExpectedSubscriptionCostUsd adds f to the "expected_subscription_cost_usd" field.
+func (m *LedgerHourMutation) AddExpectedSubscriptionCostUsd(f float64) {
+	if m.addexpected_subscription_cost_usd != nil {
+		*m.addexpected_subscription_cost_usd += f
+	} else {
+		m.addexpected_subscription_cost_usd = &f
+	}
+}
+
+// AddedExpectedSubscriptionCostUsd returns the value that was added to the "expected_subscription_cost_usd" field in this mutation.
+func (m *LedgerHourMutation) AddedExpectedSubscriptionCostUsd() (r float64, exists bool) {
+	v := m.addexpected_subscription_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExpectedSubscriptionCostUsd resets all changes to the "expected_subscription_cost_usd" field.
+func (m *LedgerHourMutation) ResetExpectedSubscriptionCostUsd() {
+	m.expected_subscription_cost_usd = nil
+	m.addexpected_subscription_cost_usd = nil
+}
+
+// SetActualCostUsd sets the "actual_cost_usd" field.
+func (m *LedgerHourMutation) SetActualCostUsd(f float64) {
+	m.actual_cost_usd = &f
+	m.addactual_cost_usd = nil
+}
+
+// ActualCostUsd returns the value of the "actual_cost_usd" field in the mutation.
+func (m *LedgerHourMutation) ActualCostUsd() (r float64, exists bool) {
+	v := m.actual_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActualCostUsd returns the old "actual_cost_usd" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldActualCostUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActualCostUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActualCostUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActualCostUsd: %w", err)
+	}
+	return oldValue.ActualCostUsd, nil
+}
+
+// AddActualCostUsd adds f to the "actual_cost_usd" field.
+func (m *LedgerHourMutation) AddActualCostUsd(f float64) {
+	if m.addactual_cost_usd != nil {
+		*m.addactual_cost_usd += f
+	} else {
+		m.addactual_cost_usd = &f
+	}
+}
+
+// AddedActualCostUsd returns the value that was added to the "actual_cost_usd" field in this mutation.
+func (m *LedgerHourMutation) AddedActualCostUsd() (r float64, exists bool) {
+	v := m.addactual_cost_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActualCostUsd clears the value of the "actual_cost_usd" field.
+func (m *LedgerHourMutation) ClearActualCostUsd() {
+	m.actual_cost_usd = nil
+	m.addactual_cost_usd = nil
+	m.clearedFields[ledgerhour.FieldActualCostUsd] = struct{}{}
+}
+
+// ActualCostUsdCleared returns if the "actual_cost_usd" field was cleared in this mutation.
+func (m *LedgerHourMutation) ActualCostUsdCleared() bool {
+	_, ok := m.clearedFields[ledgerhour.FieldActualCostUsd]
+	return ok
+}
+
+// ResetActualCostUsd resets all changes to the "actual_cost_usd" field.
+func (m *LedgerHourMutation) ResetActualCostUsd() {
+	m.actual_cost_usd = nil
+	m.addactual_cost_usd = nil
+	delete(m.clearedFields, ledgerhour.FieldActualCostUsd)
+}
+
+// SetActualSource sets the "actual_source" field.
+func (m *LedgerHourMutation) SetActualSource(s string) {
+	m.actual_source = &s
+}
+
+// ActualSource returns the value of the "actual_source" field in the mutation.
+func (m *LedgerHourMutation) ActualSource() (r string, exists bool) {
+	v := m.actual_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActualSource returns the old "actual_source" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldActualSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActualSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActualSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActualSource: %w", err)
+	}
+	return oldValue.ActualSource, nil
+}
+
+// ResetActualSource resets all changes to the "actual_source" field.
+func (m *LedgerHourMutation) ResetActualSource() {
+	m.actual_source = nil
+}
+
+// SetUpdated sets the "updated" field.
+func (m *LedgerHourMutation) SetUpdated(i int64) {
+	m.updated = &i
+	m.addupdated = nil
+}
+
+// Updated returns the value of the "updated" field in the mutation.
+func (m *LedgerHourMutation) Updated() (r int64, exists bool) {
+	v := m.updated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdated returns the old "updated" field's value of the LedgerHour entity.
+// If the LedgerHour object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerHourMutation) OldUpdated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdated: %w", err)
+	}
+	return oldValue.Updated, nil
+}
+
+// AddUpdated adds i to the "updated" field.
+func (m *LedgerHourMutation) AddUpdated(i int64) {
+	if m.addupdated != nil {
+		*m.addupdated += i
+	} else {
+		m.addupdated = &i
+	}
+}
+
+// AddedUpdated returns the value that was added to the "updated" field in this mutation.
+func (m *LedgerHourMutation) AddedUpdated() (r int64, exists bool) {
+	v := m.addupdated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdated resets all changes to the "updated" field.
+func (m *LedgerHourMutation) ResetUpdated() {
+	m.updated = nil
+	m.addupdated = nil
+}
+
+// Where appends a list predicates to the LedgerHourMutation builder.
+func (m *LedgerHourMutation) Where(ps ...predicate.LedgerHour) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerHourMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerHourMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerHour, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerHourMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerHourMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerHour).
+func (m *LedgerHourMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerHourMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.account_id != nil {
+		fields = append(fields, ledgerhour.FieldAccountID)
+	}
+	if m.bucket != nil {
+		fields = append(fields, ledgerhour.FieldBucket)
+	}
+	if m.requests != nil {
+		fields = append(fields, ledgerhour.FieldRequests)
+	}
+	if m.revenue_usd != nil {
+		fields = append(fields, ledgerhour.FieldRevenueUsd)
+	}
+	if m.expected_balance_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldExpectedBalanceCostUsd)
+	}
+	if m.expected_subscription_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldExpectedSubscriptionCostUsd)
+	}
+	if m.actual_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldActualCostUsd)
+	}
+	if m.actual_source != nil {
+		fields = append(fields, ledgerhour.FieldActualSource)
+	}
+	if m.updated != nil {
+		fields = append(fields, ledgerhour.FieldUpdated)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerHourMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		return m.AccountID()
+	case ledgerhour.FieldBucket:
+		return m.Bucket()
+	case ledgerhour.FieldRequests:
+		return m.Requests()
+	case ledgerhour.FieldRevenueUsd:
+		return m.RevenueUsd()
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		return m.ExpectedBalanceCostUsd()
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		return m.ExpectedSubscriptionCostUsd()
+	case ledgerhour.FieldActualCostUsd:
+		return m.ActualCostUsd()
+	case ledgerhour.FieldActualSource:
+		return m.ActualSource()
+	case ledgerhour.FieldUpdated:
+		return m.Updated()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerHourMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgerhour.FieldBucket:
+		return m.OldBucket(ctx)
+	case ledgerhour.FieldRequests:
+		return m.OldRequests(ctx)
+	case ledgerhour.FieldRevenueUsd:
+		return m.OldRevenueUsd(ctx)
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		return m.OldExpectedBalanceCostUsd(ctx)
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		return m.OldExpectedSubscriptionCostUsd(ctx)
+	case ledgerhour.FieldActualCostUsd:
+		return m.OldActualCostUsd(ctx)
+	case ledgerhour.FieldActualSource:
+		return m.OldActualSource(ctx)
+	case ledgerhour.FieldUpdated:
+		return m.OldUpdated(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerHour field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerHourMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgerhour.FieldBucket:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBucket(v)
+		return nil
+	case ledgerhour.FieldRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequests(v)
+		return nil
+	case ledgerhour.FieldRevenueUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevenueUsd(v)
+		return nil
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedBalanceCostUsd(v)
+		return nil
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedSubscriptionCostUsd(v)
+		return nil
+	case ledgerhour.FieldActualCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActualCostUsd(v)
+		return nil
+	case ledgerhour.FieldActualSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActualSource(v)
+		return nil
+	case ledgerhour.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerHour field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerHourMutation) AddedFields() []string {
+	var fields []string
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgerhour.FieldAccountID)
+	}
+	if m.addbucket != nil {
+		fields = append(fields, ledgerhour.FieldBucket)
+	}
+	if m.addrequests != nil {
+		fields = append(fields, ledgerhour.FieldRequests)
+	}
+	if m.addrevenue_usd != nil {
+		fields = append(fields, ledgerhour.FieldRevenueUsd)
+	}
+	if m.addexpected_balance_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldExpectedBalanceCostUsd)
+	}
+	if m.addexpected_subscription_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldExpectedSubscriptionCostUsd)
+	}
+	if m.addactual_cost_usd != nil {
+		fields = append(fields, ledgerhour.FieldActualCostUsd)
+	}
+	if m.addupdated != nil {
+		fields = append(fields, ledgerhour.FieldUpdated)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerHourMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgerhour.FieldBucket:
+		return m.AddedBucket()
+	case ledgerhour.FieldRequests:
+		return m.AddedRequests()
+	case ledgerhour.FieldRevenueUsd:
+		return m.AddedRevenueUsd()
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		return m.AddedExpectedBalanceCostUsd()
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		return m.AddedExpectedSubscriptionCostUsd()
+	case ledgerhour.FieldActualCostUsd:
+		return m.AddedActualCostUsd()
+	case ledgerhour.FieldUpdated:
+		return m.AddedUpdated()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerHourMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgerhour.FieldBucket:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBucket(v)
+		return nil
+	case ledgerhour.FieldRequests:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequests(v)
+		return nil
+	case ledgerhour.FieldRevenueUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevenueUsd(v)
+		return nil
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedBalanceCostUsd(v)
+		return nil
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedSubscriptionCostUsd(v)
+		return nil
+	case ledgerhour.FieldActualCostUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActualCostUsd(v)
+		return nil
+	case ledgerhour.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerHour numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerHourMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgerhour.FieldActualCostUsd) {
+		fields = append(fields, ledgerhour.FieldActualCostUsd)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerHourMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerHourMutation) ClearField(name string) error {
+	switch name {
+	case ledgerhour.FieldActualCostUsd:
+		m.ClearActualCostUsd()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerHour nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerHourMutation) ResetField(name string) error {
+	switch name {
+	case ledgerhour.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgerhour.FieldBucket:
+		m.ResetBucket()
+		return nil
+	case ledgerhour.FieldRequests:
+		m.ResetRequests()
+		return nil
+	case ledgerhour.FieldRevenueUsd:
+		m.ResetRevenueUsd()
+		return nil
+	case ledgerhour.FieldExpectedBalanceCostUsd:
+		m.ResetExpectedBalanceCostUsd()
+		return nil
+	case ledgerhour.FieldExpectedSubscriptionCostUsd:
+		m.ResetExpectedSubscriptionCostUsd()
+		return nil
+	case ledgerhour.FieldActualCostUsd:
+		m.ResetActualCostUsd()
+		return nil
+	case ledgerhour.FieldActualSource:
+		m.ResetActualSource()
+		return nil
+	case ledgerhour.FieldUpdated:
+		m.ResetUpdated()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerHour field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerHourMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerHourMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerHourMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerHourMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerHourMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerHourMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerHourMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerHour unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerHourMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerHour edge %s", name)
+}
+
+// LedgerSampleMutation represents an operation that mutates the LedgerSample nodes in the graph.
+type LedgerSampleMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	wallet_id          *int64
+	addwallet_id       *int64
+	account_id         *int64
+	addaccount_id      *int64
+	first_seen         *int64
+	addfirst_seen      *int64
+	last_seen          *int64
+	addlast_seen       *int64
+	balance_usd        *float64
+	addbalance_usd     *float64
+	key_used_usd       *float64
+	addkey_used_usd    *float64
+	wallet_used_usd    *float64
+	addwallet_used_usd *float64
+	multiplier         *float64
+	addmultiplier      *float64
+	kind               *string
+	currency           *string
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*LedgerSample, error)
+	predicates         []predicate.LedgerSample
+}
+
+var _ ent.Mutation = (*LedgerSampleMutation)(nil)
+
+// ledgersampleOption allows management of the mutation configuration using functional options.
+type ledgersampleOption func(*LedgerSampleMutation)
+
+// newLedgerSampleMutation creates new mutation for the LedgerSample entity.
+func newLedgerSampleMutation(c config, op Op, opts ...ledgersampleOption) *LedgerSampleMutation {
+	m := &LedgerSampleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerSample,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerSampleID sets the ID field of the mutation.
+func withLedgerSampleID(id int) ledgersampleOption {
+	return func(m *LedgerSampleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerSample
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerSample, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerSample.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerSample sets the old LedgerSample of the mutation.
+func withLedgerSample(node *LedgerSample) ledgersampleOption {
+	return func(m *LedgerSampleMutation) {
+		m.oldValue = func(context.Context) (*LedgerSample, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerSampleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerSampleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerSampleMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerSampleMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerSample.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetWalletID sets the "wallet_id" field.
+func (m *LedgerSampleMutation) SetWalletID(i int64) {
+	m.wallet_id = &i
+	m.addwallet_id = nil
+}
+
+// WalletID returns the value of the "wallet_id" field in the mutation.
+func (m *LedgerSampleMutation) WalletID() (r int64, exists bool) {
+	v := m.wallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletID returns the old "wallet_id" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldWalletID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletID: %w", err)
+	}
+	return oldValue.WalletID, nil
+}
+
+// AddWalletID adds i to the "wallet_id" field.
+func (m *LedgerSampleMutation) AddWalletID(i int64) {
+	if m.addwallet_id != nil {
+		*m.addwallet_id += i
+	} else {
+		m.addwallet_id = &i
+	}
+}
+
+// AddedWalletID returns the value that was added to the "wallet_id" field in this mutation.
+func (m *LedgerSampleMutation) AddedWalletID() (r int64, exists bool) {
+	v := m.addwallet_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWalletID resets all changes to the "wallet_id" field.
+func (m *LedgerSampleMutation) ResetWalletID() {
+	m.wallet_id = nil
+	m.addwallet_id = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *LedgerSampleMutation) SetAccountID(i int64) {
+	m.account_id = &i
+	m.addaccount_id = nil
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *LedgerSampleMutation) AccountID() (r int64, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldAccountID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// AddAccountID adds i to the "account_id" field.
+func (m *LedgerSampleMutation) AddAccountID(i int64) {
+	if m.addaccount_id != nil {
+		*m.addaccount_id += i
+	} else {
+		m.addaccount_id = &i
+	}
+}
+
+// AddedAccountID returns the value that was added to the "account_id" field in this mutation.
+func (m *LedgerSampleMutation) AddedAccountID() (r int64, exists bool) {
+	v := m.addaccount_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *LedgerSampleMutation) ResetAccountID() {
+	m.account_id = nil
+	m.addaccount_id = nil
+}
+
+// SetFirstSeen sets the "first_seen" field.
+func (m *LedgerSampleMutation) SetFirstSeen(i int64) {
+	m.first_seen = &i
+	m.addfirst_seen = nil
+}
+
+// FirstSeen returns the value of the "first_seen" field in the mutation.
+func (m *LedgerSampleMutation) FirstSeen() (r int64, exists bool) {
+	v := m.first_seen
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstSeen returns the old "first_seen" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldFirstSeen(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstSeen is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstSeen requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstSeen: %w", err)
+	}
+	return oldValue.FirstSeen, nil
+}
+
+// AddFirstSeen adds i to the "first_seen" field.
+func (m *LedgerSampleMutation) AddFirstSeen(i int64) {
+	if m.addfirst_seen != nil {
+		*m.addfirst_seen += i
+	} else {
+		m.addfirst_seen = &i
+	}
+}
+
+// AddedFirstSeen returns the value that was added to the "first_seen" field in this mutation.
+func (m *LedgerSampleMutation) AddedFirstSeen() (r int64, exists bool) {
+	v := m.addfirst_seen
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFirstSeen resets all changes to the "first_seen" field.
+func (m *LedgerSampleMutation) ResetFirstSeen() {
+	m.first_seen = nil
+	m.addfirst_seen = nil
+}
+
+// SetLastSeen sets the "last_seen" field.
+func (m *LedgerSampleMutation) SetLastSeen(i int64) {
+	m.last_seen = &i
+	m.addlast_seen = nil
+}
+
+// LastSeen returns the value of the "last_seen" field in the mutation.
+func (m *LedgerSampleMutation) LastSeen() (r int64, exists bool) {
+	v := m.last_seen
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeen returns the old "last_seen" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldLastSeen(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeen is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeen requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeen: %w", err)
+	}
+	return oldValue.LastSeen, nil
+}
+
+// AddLastSeen adds i to the "last_seen" field.
+func (m *LedgerSampleMutation) AddLastSeen(i int64) {
+	if m.addlast_seen != nil {
+		*m.addlast_seen += i
+	} else {
+		m.addlast_seen = &i
+	}
+}
+
+// AddedLastSeen returns the value that was added to the "last_seen" field in this mutation.
+func (m *LedgerSampleMutation) AddedLastSeen() (r int64, exists bool) {
+	v := m.addlast_seen
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLastSeen resets all changes to the "last_seen" field.
+func (m *LedgerSampleMutation) ResetLastSeen() {
+	m.last_seen = nil
+	m.addlast_seen = nil
+}
+
+// SetBalanceUsd sets the "balance_usd" field.
+func (m *LedgerSampleMutation) SetBalanceUsd(f float64) {
+	m.balance_usd = &f
+	m.addbalance_usd = nil
+}
+
+// BalanceUsd returns the value of the "balance_usd" field in the mutation.
+func (m *LedgerSampleMutation) BalanceUsd() (r float64, exists bool) {
+	v := m.balance_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceUsd returns the old "balance_usd" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldBalanceUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceUsd: %w", err)
+	}
+	return oldValue.BalanceUsd, nil
+}
+
+// AddBalanceUsd adds f to the "balance_usd" field.
+func (m *LedgerSampleMutation) AddBalanceUsd(f float64) {
+	if m.addbalance_usd != nil {
+		*m.addbalance_usd += f
+	} else {
+		m.addbalance_usd = &f
+	}
+}
+
+// AddedBalanceUsd returns the value that was added to the "balance_usd" field in this mutation.
+func (m *LedgerSampleMutation) AddedBalanceUsd() (r float64, exists bool) {
+	v := m.addbalance_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBalanceUsd clears the value of the "balance_usd" field.
+func (m *LedgerSampleMutation) ClearBalanceUsd() {
+	m.balance_usd = nil
+	m.addbalance_usd = nil
+	m.clearedFields[ledgersample.FieldBalanceUsd] = struct{}{}
+}
+
+// BalanceUsdCleared returns if the "balance_usd" field was cleared in this mutation.
+func (m *LedgerSampleMutation) BalanceUsdCleared() bool {
+	_, ok := m.clearedFields[ledgersample.FieldBalanceUsd]
+	return ok
+}
+
+// ResetBalanceUsd resets all changes to the "balance_usd" field.
+func (m *LedgerSampleMutation) ResetBalanceUsd() {
+	m.balance_usd = nil
+	m.addbalance_usd = nil
+	delete(m.clearedFields, ledgersample.FieldBalanceUsd)
+}
+
+// SetKeyUsedUsd sets the "key_used_usd" field.
+func (m *LedgerSampleMutation) SetKeyUsedUsd(f float64) {
+	m.key_used_usd = &f
+	m.addkey_used_usd = nil
+}
+
+// KeyUsedUsd returns the value of the "key_used_usd" field in the mutation.
+func (m *LedgerSampleMutation) KeyUsedUsd() (r float64, exists bool) {
+	v := m.key_used_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeyUsedUsd returns the old "key_used_usd" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldKeyUsedUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeyUsedUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeyUsedUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeyUsedUsd: %w", err)
+	}
+	return oldValue.KeyUsedUsd, nil
+}
+
+// AddKeyUsedUsd adds f to the "key_used_usd" field.
+func (m *LedgerSampleMutation) AddKeyUsedUsd(f float64) {
+	if m.addkey_used_usd != nil {
+		*m.addkey_used_usd += f
+	} else {
+		m.addkey_used_usd = &f
+	}
+}
+
+// AddedKeyUsedUsd returns the value that was added to the "key_used_usd" field in this mutation.
+func (m *LedgerSampleMutation) AddedKeyUsedUsd() (r float64, exists bool) {
+	v := m.addkey_used_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearKeyUsedUsd clears the value of the "key_used_usd" field.
+func (m *LedgerSampleMutation) ClearKeyUsedUsd() {
+	m.key_used_usd = nil
+	m.addkey_used_usd = nil
+	m.clearedFields[ledgersample.FieldKeyUsedUsd] = struct{}{}
+}
+
+// KeyUsedUsdCleared returns if the "key_used_usd" field was cleared in this mutation.
+func (m *LedgerSampleMutation) KeyUsedUsdCleared() bool {
+	_, ok := m.clearedFields[ledgersample.FieldKeyUsedUsd]
+	return ok
+}
+
+// ResetKeyUsedUsd resets all changes to the "key_used_usd" field.
+func (m *LedgerSampleMutation) ResetKeyUsedUsd() {
+	m.key_used_usd = nil
+	m.addkey_used_usd = nil
+	delete(m.clearedFields, ledgersample.FieldKeyUsedUsd)
+}
+
+// SetWalletUsedUsd sets the "wallet_used_usd" field.
+func (m *LedgerSampleMutation) SetWalletUsedUsd(f float64) {
+	m.wallet_used_usd = &f
+	m.addwallet_used_usd = nil
+}
+
+// WalletUsedUsd returns the value of the "wallet_used_usd" field in the mutation.
+func (m *LedgerSampleMutation) WalletUsedUsd() (r float64, exists bool) {
+	v := m.wallet_used_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletUsedUsd returns the old "wallet_used_usd" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldWalletUsedUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletUsedUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletUsedUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletUsedUsd: %w", err)
+	}
+	return oldValue.WalletUsedUsd, nil
+}
+
+// AddWalletUsedUsd adds f to the "wallet_used_usd" field.
+func (m *LedgerSampleMutation) AddWalletUsedUsd(f float64) {
+	if m.addwallet_used_usd != nil {
+		*m.addwallet_used_usd += f
+	} else {
+		m.addwallet_used_usd = &f
+	}
+}
+
+// AddedWalletUsedUsd returns the value that was added to the "wallet_used_usd" field in this mutation.
+func (m *LedgerSampleMutation) AddedWalletUsedUsd() (r float64, exists bool) {
+	v := m.addwallet_used_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWalletUsedUsd clears the value of the "wallet_used_usd" field.
+func (m *LedgerSampleMutation) ClearWalletUsedUsd() {
+	m.wallet_used_usd = nil
+	m.addwallet_used_usd = nil
+	m.clearedFields[ledgersample.FieldWalletUsedUsd] = struct{}{}
+}
+
+// WalletUsedUsdCleared returns if the "wallet_used_usd" field was cleared in this mutation.
+func (m *LedgerSampleMutation) WalletUsedUsdCleared() bool {
+	_, ok := m.clearedFields[ledgersample.FieldWalletUsedUsd]
+	return ok
+}
+
+// ResetWalletUsedUsd resets all changes to the "wallet_used_usd" field.
+func (m *LedgerSampleMutation) ResetWalletUsedUsd() {
+	m.wallet_used_usd = nil
+	m.addwallet_used_usd = nil
+	delete(m.clearedFields, ledgersample.FieldWalletUsedUsd)
+}
+
+// SetMultiplier sets the "multiplier" field.
+func (m *LedgerSampleMutation) SetMultiplier(f float64) {
+	m.multiplier = &f
+	m.addmultiplier = nil
+}
+
+// Multiplier returns the value of the "multiplier" field in the mutation.
+func (m *LedgerSampleMutation) Multiplier() (r float64, exists bool) {
+	v := m.multiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMultiplier returns the old "multiplier" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldMultiplier(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMultiplier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMultiplier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMultiplier: %w", err)
+	}
+	return oldValue.Multiplier, nil
+}
+
+// AddMultiplier adds f to the "multiplier" field.
+func (m *LedgerSampleMutation) AddMultiplier(f float64) {
+	if m.addmultiplier != nil {
+		*m.addmultiplier += f
+	} else {
+		m.addmultiplier = &f
+	}
+}
+
+// AddedMultiplier returns the value that was added to the "multiplier" field in this mutation.
+func (m *LedgerSampleMutation) AddedMultiplier() (r float64, exists bool) {
+	v := m.addmultiplier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearMultiplier clears the value of the "multiplier" field.
+func (m *LedgerSampleMutation) ClearMultiplier() {
+	m.multiplier = nil
+	m.addmultiplier = nil
+	m.clearedFields[ledgersample.FieldMultiplier] = struct{}{}
+}
+
+// MultiplierCleared returns if the "multiplier" field was cleared in this mutation.
+func (m *LedgerSampleMutation) MultiplierCleared() bool {
+	_, ok := m.clearedFields[ledgersample.FieldMultiplier]
+	return ok
+}
+
+// ResetMultiplier resets all changes to the "multiplier" field.
+func (m *LedgerSampleMutation) ResetMultiplier() {
+	m.multiplier = nil
+	m.addmultiplier = nil
+	delete(m.clearedFields, ledgersample.FieldMultiplier)
+}
+
+// SetKind sets the "kind" field.
+func (m *LedgerSampleMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *LedgerSampleMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *LedgerSampleMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *LedgerSampleMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *LedgerSampleMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the LedgerSample entity.
+// If the LedgerSample object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerSampleMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *LedgerSampleMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// Where appends a list predicates to the LedgerSampleMutation builder.
+func (m *LedgerSampleMutation) Where(ps ...predicate.LedgerSample) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerSampleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerSampleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerSample, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerSampleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerSampleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerSample).
+func (m *LedgerSampleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerSampleMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.wallet_id != nil {
+		fields = append(fields, ledgersample.FieldWalletID)
+	}
+	if m.account_id != nil {
+		fields = append(fields, ledgersample.FieldAccountID)
+	}
+	if m.first_seen != nil {
+		fields = append(fields, ledgersample.FieldFirstSeen)
+	}
+	if m.last_seen != nil {
+		fields = append(fields, ledgersample.FieldLastSeen)
+	}
+	if m.balance_usd != nil {
+		fields = append(fields, ledgersample.FieldBalanceUsd)
+	}
+	if m.key_used_usd != nil {
+		fields = append(fields, ledgersample.FieldKeyUsedUsd)
+	}
+	if m.wallet_used_usd != nil {
+		fields = append(fields, ledgersample.FieldWalletUsedUsd)
+	}
+	if m.multiplier != nil {
+		fields = append(fields, ledgersample.FieldMultiplier)
+	}
+	if m.kind != nil {
+		fields = append(fields, ledgersample.FieldKind)
+	}
+	if m.currency != nil {
+		fields = append(fields, ledgersample.FieldCurrency)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerSampleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgersample.FieldWalletID:
+		return m.WalletID()
+	case ledgersample.FieldAccountID:
+		return m.AccountID()
+	case ledgersample.FieldFirstSeen:
+		return m.FirstSeen()
+	case ledgersample.FieldLastSeen:
+		return m.LastSeen()
+	case ledgersample.FieldBalanceUsd:
+		return m.BalanceUsd()
+	case ledgersample.FieldKeyUsedUsd:
+		return m.KeyUsedUsd()
+	case ledgersample.FieldWalletUsedUsd:
+		return m.WalletUsedUsd()
+	case ledgersample.FieldMultiplier:
+		return m.Multiplier()
+	case ledgersample.FieldKind:
+		return m.Kind()
+	case ledgersample.FieldCurrency:
+		return m.Currency()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerSampleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgersample.FieldWalletID:
+		return m.OldWalletID(ctx)
+	case ledgersample.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case ledgersample.FieldFirstSeen:
+		return m.OldFirstSeen(ctx)
+	case ledgersample.FieldLastSeen:
+		return m.OldLastSeen(ctx)
+	case ledgersample.FieldBalanceUsd:
+		return m.OldBalanceUsd(ctx)
+	case ledgersample.FieldKeyUsedUsd:
+		return m.OldKeyUsedUsd(ctx)
+	case ledgersample.FieldWalletUsedUsd:
+		return m.OldWalletUsedUsd(ctx)
+	case ledgersample.FieldMultiplier:
+		return m.OldMultiplier(ctx)
+	case ledgersample.FieldKind:
+		return m.OldKind(ctx)
+	case ledgersample.FieldCurrency:
+		return m.OldCurrency(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerSample field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerSampleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgersample.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletID(v)
+		return nil
+	case ledgersample.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case ledgersample.FieldFirstSeen:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstSeen(v)
+		return nil
+	case ledgersample.FieldLastSeen:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeen(v)
+		return nil
+	case ledgersample.FieldBalanceUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceUsd(v)
+		return nil
+	case ledgersample.FieldKeyUsedUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeyUsedUsd(v)
+		return nil
+	case ledgersample.FieldWalletUsedUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletUsedUsd(v)
+		return nil
+	case ledgersample.FieldMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMultiplier(v)
+		return nil
+	case ledgersample.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case ledgersample.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerSample field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerSampleMutation) AddedFields() []string {
+	var fields []string
+	if m.addwallet_id != nil {
+		fields = append(fields, ledgersample.FieldWalletID)
+	}
+	if m.addaccount_id != nil {
+		fields = append(fields, ledgersample.FieldAccountID)
+	}
+	if m.addfirst_seen != nil {
+		fields = append(fields, ledgersample.FieldFirstSeen)
+	}
+	if m.addlast_seen != nil {
+		fields = append(fields, ledgersample.FieldLastSeen)
+	}
+	if m.addbalance_usd != nil {
+		fields = append(fields, ledgersample.FieldBalanceUsd)
+	}
+	if m.addkey_used_usd != nil {
+		fields = append(fields, ledgersample.FieldKeyUsedUsd)
+	}
+	if m.addwallet_used_usd != nil {
+		fields = append(fields, ledgersample.FieldWalletUsedUsd)
+	}
+	if m.addmultiplier != nil {
+		fields = append(fields, ledgersample.FieldMultiplier)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerSampleMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgersample.FieldWalletID:
+		return m.AddedWalletID()
+	case ledgersample.FieldAccountID:
+		return m.AddedAccountID()
+	case ledgersample.FieldFirstSeen:
+		return m.AddedFirstSeen()
+	case ledgersample.FieldLastSeen:
+		return m.AddedLastSeen()
+	case ledgersample.FieldBalanceUsd:
+		return m.AddedBalanceUsd()
+	case ledgersample.FieldKeyUsedUsd:
+		return m.AddedKeyUsedUsd()
+	case ledgersample.FieldWalletUsedUsd:
+		return m.AddedWalletUsedUsd()
+	case ledgersample.FieldMultiplier:
+		return m.AddedMultiplier()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerSampleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgersample.FieldWalletID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletID(v)
+		return nil
+	case ledgersample.FieldAccountID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAccountID(v)
+		return nil
+	case ledgersample.FieldFirstSeen:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstSeen(v)
+		return nil
+	case ledgersample.FieldLastSeen:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastSeen(v)
+		return nil
+	case ledgersample.FieldBalanceUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceUsd(v)
+		return nil
+	case ledgersample.FieldKeyUsedUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeyUsedUsd(v)
+		return nil
+	case ledgersample.FieldWalletUsedUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletUsedUsd(v)
+		return nil
+	case ledgersample.FieldMultiplier:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMultiplier(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerSample numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerSampleMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ledgersample.FieldBalanceUsd) {
+		fields = append(fields, ledgersample.FieldBalanceUsd)
+	}
+	if m.FieldCleared(ledgersample.FieldKeyUsedUsd) {
+		fields = append(fields, ledgersample.FieldKeyUsedUsd)
+	}
+	if m.FieldCleared(ledgersample.FieldWalletUsedUsd) {
+		fields = append(fields, ledgersample.FieldWalletUsedUsd)
+	}
+	if m.FieldCleared(ledgersample.FieldMultiplier) {
+		fields = append(fields, ledgersample.FieldMultiplier)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerSampleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerSampleMutation) ClearField(name string) error {
+	switch name {
+	case ledgersample.FieldBalanceUsd:
+		m.ClearBalanceUsd()
+		return nil
+	case ledgersample.FieldKeyUsedUsd:
+		m.ClearKeyUsedUsd()
+		return nil
+	case ledgersample.FieldWalletUsedUsd:
+		m.ClearWalletUsedUsd()
+		return nil
+	case ledgersample.FieldMultiplier:
+		m.ClearMultiplier()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerSample nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerSampleMutation) ResetField(name string) error {
+	switch name {
+	case ledgersample.FieldWalletID:
+		m.ResetWalletID()
+		return nil
+	case ledgersample.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case ledgersample.FieldFirstSeen:
+		m.ResetFirstSeen()
+		return nil
+	case ledgersample.FieldLastSeen:
+		m.ResetLastSeen()
+		return nil
+	case ledgersample.FieldBalanceUsd:
+		m.ResetBalanceUsd()
+		return nil
+	case ledgersample.FieldKeyUsedUsd:
+		m.ResetKeyUsedUsd()
+		return nil
+	case ledgersample.FieldWalletUsedUsd:
+		m.ResetWalletUsedUsd()
+		return nil
+	case ledgersample.FieldMultiplier:
+		m.ResetMultiplier()
+		return nil
+	case ledgersample.FieldKind:
+		m.ResetKind()
+		return nil
+	case ledgersample.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerSample field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerSampleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerSampleMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerSampleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerSampleMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerSampleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerSampleMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerSampleMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerSample unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerSampleMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerSample edge %s", name)
+}
+
+// LedgerWalletMutation represents an operation that mutates the LedgerWallet nodes in the graph.
+type LedgerWalletMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	identity            *string
+	provider            *string
+	origin              *string
+	quota_per_usd       *float64
+	addquota_per_usd    *float64
+	upstream_user_id    *int64
+	addupstream_user_id *int64
+	auto_recharge       *bool
+	created             *int64
+	addcreated          *int64
+	updated             *int64
+	addupdated          *int64
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*LedgerWallet, error)
+	predicates          []predicate.LedgerWallet
+}
+
+var _ ent.Mutation = (*LedgerWalletMutation)(nil)
+
+// ledgerwalletOption allows management of the mutation configuration using functional options.
+type ledgerwalletOption func(*LedgerWalletMutation)
+
+// newLedgerWalletMutation creates new mutation for the LedgerWallet entity.
+func newLedgerWalletMutation(c config, op Op, opts ...ledgerwalletOption) *LedgerWalletMutation {
+	m := &LedgerWalletMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLedgerWallet,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLedgerWalletID sets the ID field of the mutation.
+func withLedgerWalletID(id int) ledgerwalletOption {
+	return func(m *LedgerWalletMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LedgerWallet
+		)
+		m.oldValue = func(ctx context.Context) (*LedgerWallet, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LedgerWallet.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLedgerWallet sets the old LedgerWallet of the mutation.
+func withLedgerWallet(node *LedgerWallet) ledgerwalletOption {
+	return func(m *LedgerWalletMutation) {
+		m.oldValue = func(context.Context) (*LedgerWallet, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LedgerWalletMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LedgerWalletMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LedgerWalletMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LedgerWalletMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LedgerWallet.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetIdentity sets the "identity" field.
+func (m *LedgerWalletMutation) SetIdentity(s string) {
+	m.identity = &s
+}
+
+// Identity returns the value of the "identity" field in the mutation.
+func (m *LedgerWalletMutation) Identity() (r string, exists bool) {
+	v := m.identity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIdentity returns the old "identity" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldIdentity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIdentity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIdentity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIdentity: %w", err)
+	}
+	return oldValue.Identity, nil
+}
+
+// ResetIdentity resets all changes to the "identity" field.
+func (m *LedgerWalletMutation) ResetIdentity() {
+	m.identity = nil
+}
+
+// SetProvider sets the "provider" field.
+func (m *LedgerWalletMutation) SetProvider(s string) {
+	m.provider = &s
+}
+
+// Provider returns the value of the "provider" field in the mutation.
+func (m *LedgerWalletMutation) Provider() (r string, exists bool) {
+	v := m.provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProvider returns the old "provider" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProvider: %w", err)
+	}
+	return oldValue.Provider, nil
+}
+
+// ResetProvider resets all changes to the "provider" field.
+func (m *LedgerWalletMutation) ResetProvider() {
+	m.provider = nil
+}
+
+// SetOrigin sets the "origin" field.
+func (m *LedgerWalletMutation) SetOrigin(s string) {
+	m.origin = &s
+}
+
+// Origin returns the value of the "origin" field in the mutation.
+func (m *LedgerWalletMutation) Origin() (r string, exists bool) {
+	v := m.origin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrigin returns the old "origin" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldOrigin(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrigin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrigin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrigin: %w", err)
+	}
+	return oldValue.Origin, nil
+}
+
+// ResetOrigin resets all changes to the "origin" field.
+func (m *LedgerWalletMutation) ResetOrigin() {
+	m.origin = nil
+}
+
+// SetQuotaPerUsd sets the "quota_per_usd" field.
+func (m *LedgerWalletMutation) SetQuotaPerUsd(f float64) {
+	m.quota_per_usd = &f
+	m.addquota_per_usd = nil
+}
+
+// QuotaPerUsd returns the value of the "quota_per_usd" field in the mutation.
+func (m *LedgerWalletMutation) QuotaPerUsd() (r float64, exists bool) {
+	v := m.quota_per_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaPerUsd returns the old "quota_per_usd" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldQuotaPerUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaPerUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaPerUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaPerUsd: %w", err)
+	}
+	return oldValue.QuotaPerUsd, nil
+}
+
+// AddQuotaPerUsd adds f to the "quota_per_usd" field.
+func (m *LedgerWalletMutation) AddQuotaPerUsd(f float64) {
+	if m.addquota_per_usd != nil {
+		*m.addquota_per_usd += f
+	} else {
+		m.addquota_per_usd = &f
+	}
+}
+
+// AddedQuotaPerUsd returns the value that was added to the "quota_per_usd" field in this mutation.
+func (m *LedgerWalletMutation) AddedQuotaPerUsd() (r float64, exists bool) {
+	v := m.addquota_per_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuotaPerUsd resets all changes to the "quota_per_usd" field.
+func (m *LedgerWalletMutation) ResetQuotaPerUsd() {
+	m.quota_per_usd = nil
+	m.addquota_per_usd = nil
+}
+
+// SetUpstreamUserID sets the "upstream_user_id" field.
+func (m *LedgerWalletMutation) SetUpstreamUserID(i int64) {
+	m.upstream_user_id = &i
+	m.addupstream_user_id = nil
+}
+
+// UpstreamUserID returns the value of the "upstream_user_id" field in the mutation.
+func (m *LedgerWalletMutation) UpstreamUserID() (r int64, exists bool) {
+	v := m.upstream_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamUserID returns the old "upstream_user_id" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldUpstreamUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamUserID: %w", err)
+	}
+	return oldValue.UpstreamUserID, nil
+}
+
+// AddUpstreamUserID adds i to the "upstream_user_id" field.
+func (m *LedgerWalletMutation) AddUpstreamUserID(i int64) {
+	if m.addupstream_user_id != nil {
+		*m.addupstream_user_id += i
+	} else {
+		m.addupstream_user_id = &i
+	}
+}
+
+// AddedUpstreamUserID returns the value that was added to the "upstream_user_id" field in this mutation.
+func (m *LedgerWalletMutation) AddedUpstreamUserID() (r int64, exists bool) {
+	v := m.addupstream_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpstreamUserID resets all changes to the "upstream_user_id" field.
+func (m *LedgerWalletMutation) ResetUpstreamUserID() {
+	m.upstream_user_id = nil
+	m.addupstream_user_id = nil
+}
+
+// SetAutoRecharge sets the "auto_recharge" field.
+func (m *LedgerWalletMutation) SetAutoRecharge(b bool) {
+	m.auto_recharge = &b
+}
+
+// AutoRecharge returns the value of the "auto_recharge" field in the mutation.
+func (m *LedgerWalletMutation) AutoRecharge() (r bool, exists bool) {
+	v := m.auto_recharge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoRecharge returns the old "auto_recharge" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldAutoRecharge(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoRecharge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoRecharge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoRecharge: %w", err)
+	}
+	return oldValue.AutoRecharge, nil
+}
+
+// ResetAutoRecharge resets all changes to the "auto_recharge" field.
+func (m *LedgerWalletMutation) ResetAutoRecharge() {
+	m.auto_recharge = nil
+}
+
+// SetCreated sets the "created" field.
+func (m *LedgerWalletMutation) SetCreated(i int64) {
+	m.created = &i
+	m.addcreated = nil
+}
+
+// Created returns the value of the "created" field in the mutation.
+func (m *LedgerWalletMutation) Created() (r int64, exists bool) {
+	v := m.created
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreated returns the old "created" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldCreated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreated: %w", err)
+	}
+	return oldValue.Created, nil
+}
+
+// AddCreated adds i to the "created" field.
+func (m *LedgerWalletMutation) AddCreated(i int64) {
+	if m.addcreated != nil {
+		*m.addcreated += i
+	} else {
+		m.addcreated = &i
+	}
+}
+
+// AddedCreated returns the value that was added to the "created" field in this mutation.
+func (m *LedgerWalletMutation) AddedCreated() (r int64, exists bool) {
+	v := m.addcreated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreated resets all changes to the "created" field.
+func (m *LedgerWalletMutation) ResetCreated() {
+	m.created = nil
+	m.addcreated = nil
+}
+
+// SetUpdated sets the "updated" field.
+func (m *LedgerWalletMutation) SetUpdated(i int64) {
+	m.updated = &i
+	m.addupdated = nil
+}
+
+// Updated returns the value of the "updated" field in the mutation.
+func (m *LedgerWalletMutation) Updated() (r int64, exists bool) {
+	v := m.updated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdated returns the old "updated" field's value of the LedgerWallet entity.
+// If the LedgerWallet object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LedgerWalletMutation) OldUpdated(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdated is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdated requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdated: %w", err)
+	}
+	return oldValue.Updated, nil
+}
+
+// AddUpdated adds i to the "updated" field.
+func (m *LedgerWalletMutation) AddUpdated(i int64) {
+	if m.addupdated != nil {
+		*m.addupdated += i
+	} else {
+		m.addupdated = &i
+	}
+}
+
+// AddedUpdated returns the value that was added to the "updated" field in this mutation.
+func (m *LedgerWalletMutation) AddedUpdated() (r int64, exists bool) {
+	v := m.addupdated
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdated resets all changes to the "updated" field.
+func (m *LedgerWalletMutation) ResetUpdated() {
+	m.updated = nil
+	m.addupdated = nil
+}
+
+// Where appends a list predicates to the LedgerWalletMutation builder.
+func (m *LedgerWalletMutation) Where(ps ...predicate.LedgerWallet) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LedgerWalletMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LedgerWalletMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LedgerWallet, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LedgerWalletMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LedgerWalletMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LedgerWallet).
+func (m *LedgerWalletMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LedgerWalletMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.identity != nil {
+		fields = append(fields, ledgerwallet.FieldIdentity)
+	}
+	if m.provider != nil {
+		fields = append(fields, ledgerwallet.FieldProvider)
+	}
+	if m.origin != nil {
+		fields = append(fields, ledgerwallet.FieldOrigin)
+	}
+	if m.quota_per_usd != nil {
+		fields = append(fields, ledgerwallet.FieldQuotaPerUsd)
+	}
+	if m.upstream_user_id != nil {
+		fields = append(fields, ledgerwallet.FieldUpstreamUserID)
+	}
+	if m.auto_recharge != nil {
+		fields = append(fields, ledgerwallet.FieldAutoRecharge)
+	}
+	if m.created != nil {
+		fields = append(fields, ledgerwallet.FieldCreated)
+	}
+	if m.updated != nil {
+		fields = append(fields, ledgerwallet.FieldUpdated)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LedgerWalletMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerwallet.FieldIdentity:
+		return m.Identity()
+	case ledgerwallet.FieldProvider:
+		return m.Provider()
+	case ledgerwallet.FieldOrigin:
+		return m.Origin()
+	case ledgerwallet.FieldQuotaPerUsd:
+		return m.QuotaPerUsd()
+	case ledgerwallet.FieldUpstreamUserID:
+		return m.UpstreamUserID()
+	case ledgerwallet.FieldAutoRecharge:
+		return m.AutoRecharge()
+	case ledgerwallet.FieldCreated:
+		return m.Created()
+	case ledgerwallet.FieldUpdated:
+		return m.Updated()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LedgerWalletMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ledgerwallet.FieldIdentity:
+		return m.OldIdentity(ctx)
+	case ledgerwallet.FieldProvider:
+		return m.OldProvider(ctx)
+	case ledgerwallet.FieldOrigin:
+		return m.OldOrigin(ctx)
+	case ledgerwallet.FieldQuotaPerUsd:
+		return m.OldQuotaPerUsd(ctx)
+	case ledgerwallet.FieldUpstreamUserID:
+		return m.OldUpstreamUserID(ctx)
+	case ledgerwallet.FieldAutoRecharge:
+		return m.OldAutoRecharge(ctx)
+	case ledgerwallet.FieldCreated:
+		return m.OldCreated(ctx)
+	case ledgerwallet.FieldUpdated:
+		return m.OldUpdated(ctx)
+	}
+	return nil, fmt.Errorf("unknown LedgerWallet field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerWalletMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ledgerwallet.FieldIdentity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIdentity(v)
+		return nil
+	case ledgerwallet.FieldProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProvider(v)
+		return nil
+	case ledgerwallet.FieldOrigin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrigin(v)
+		return nil
+	case ledgerwallet.FieldQuotaPerUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaPerUsd(v)
+		return nil
+	case ledgerwallet.FieldUpstreamUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamUserID(v)
+		return nil
+	case ledgerwallet.FieldAutoRecharge:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoRecharge(v)
+		return nil
+	case ledgerwallet.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreated(v)
+		return nil
+	case ledgerwallet.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerWallet field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LedgerWalletMutation) AddedFields() []string {
+	var fields []string
+	if m.addquota_per_usd != nil {
+		fields = append(fields, ledgerwallet.FieldQuotaPerUsd)
+	}
+	if m.addupstream_user_id != nil {
+		fields = append(fields, ledgerwallet.FieldUpstreamUserID)
+	}
+	if m.addcreated != nil {
+		fields = append(fields, ledgerwallet.FieldCreated)
+	}
+	if m.addupdated != nil {
+		fields = append(fields, ledgerwallet.FieldUpdated)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LedgerWalletMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ledgerwallet.FieldQuotaPerUsd:
+		return m.AddedQuotaPerUsd()
+	case ledgerwallet.FieldUpstreamUserID:
+		return m.AddedUpstreamUserID()
+	case ledgerwallet.FieldCreated:
+		return m.AddedCreated()
+	case ledgerwallet.FieldUpdated:
+		return m.AddedUpdated()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LedgerWalletMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ledgerwallet.FieldQuotaPerUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotaPerUsd(v)
+		return nil
+	case ledgerwallet.FieldUpstreamUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpstreamUserID(v)
+		return nil
+	case ledgerwallet.FieldCreated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreated(v)
+		return nil
+	case ledgerwallet.FieldUpdated:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdated(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerWallet numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LedgerWalletMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LedgerWalletMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LedgerWalletMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown LedgerWallet nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LedgerWalletMutation) ResetField(name string) error {
+	switch name {
+	case ledgerwallet.FieldIdentity:
+		m.ResetIdentity()
+		return nil
+	case ledgerwallet.FieldProvider:
+		m.ResetProvider()
+		return nil
+	case ledgerwallet.FieldOrigin:
+		m.ResetOrigin()
+		return nil
+	case ledgerwallet.FieldQuotaPerUsd:
+		m.ResetQuotaPerUsd()
+		return nil
+	case ledgerwallet.FieldUpstreamUserID:
+		m.ResetUpstreamUserID()
+		return nil
+	case ledgerwallet.FieldAutoRecharge:
+		m.ResetAutoRecharge()
+		return nil
+	case ledgerwallet.FieldCreated:
+		m.ResetCreated()
+		return nil
+	case ledgerwallet.FieldUpdated:
+		m.ResetUpdated()
+		return nil
+	}
+	return fmt.Errorf("unknown LedgerWallet field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LedgerWalletMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LedgerWalletMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LedgerWalletMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LedgerWalletMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LedgerWalletMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LedgerWalletMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LedgerWalletMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LedgerWallet unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LedgerWalletMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LedgerWallet edge %s", name)
 }
 
 // PatrolPolicyMutation represents an operation that mutates the PatrolPolicy nodes in the graph.

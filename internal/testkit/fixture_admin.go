@@ -432,6 +432,9 @@ func (f *fixture) serveAdminExtended(w http.ResponseWriter, r *http.Request, pat
 	case path == "/admin/redeem-codes/create-and-redeem":
 		officialSuccess(w, map[string]any{"secret": fixtureLeak})
 		return true
+	case path == "/admin/redeem-codes/51" && r.Method == "DELETE":
+		officialSuccess(w, map[string]any{})
+		return true
 	case path == "/admin/redeem-codes/51/expire":
 		officialSuccess(w, map[string]any{"id": 51, "code": fixtureLeak + "-9988", "type": "balance", "value": 20.0, "status": "expired", "created_at": "2026-11-20T09:00:00Z"})
 		return true

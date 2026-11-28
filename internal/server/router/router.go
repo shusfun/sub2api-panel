@@ -20,6 +20,7 @@ func WireHubs(s *core.Server) {
 	s.UsageHub.Commit = observe.CommitUsageSnapshot(s)
 	s.OpsHub = core.NewOpsStreamHub(observe.BuildOpsStreamSnapshot(s))
 	s.AccountHub = core.NewOpsStreamHub(pool.BuildAccountActivitySnapshot(s))
+	billing.WireLedger(s)
 }
 
 func StartRuntime(ctx context.Context, s *core.Server) {
@@ -27,6 +28,7 @@ func StartRuntime(ctx context.Context, s *core.Server) {
 	observe.StartPatrolScheduler(ctx, s)
 	s.StartBalanceMonitor(ctx)
 	WireHubs(s)
+	billing.StartLedgerRollup(ctx, s)
 }
 
 func NewHandler(s *core.Server, static http.Handler) http.Handler {

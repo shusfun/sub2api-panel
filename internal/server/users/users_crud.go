@@ -131,6 +131,7 @@ func (h *handler) registerUserAdminRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "POST /api/admin/subscriptions/{id}/reset-quota", true, h.subAction("reset-quota"))
 	h.s.Route(mux, "POST /api/admin/subscriptions/{id}/revoke", true, h.subAction("revoke"))
 	h.s.Route(mux, "POST /api/admin/subscriptions/{id}/restore", true, h.subAction("restore"))
+	h.registerAffiliateAdminRoutes(mux)
 }
 
 func (h *handler) adminUsersList(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {

@@ -16,22 +16,25 @@ import {
   InsetRow,
   MeterBar,
   MiniPills,
+  MoreActions,
   Resource,
   Tabs,
   toast,
 } from "@/ui";
 import {AddAccountDialog} from "./account-add-dialog";
-import {AccountBalanceSettings, AccountConfigForm} from "./account-config";
+import {AccountConfigForm} from "./account-config";
+import {AccountPrivacyAction, ShadowAccountAction} from "./account-privacy";
+import {AccountLedger} from "./account-ledger";
 import {AccountGuardForm} from "./account-guard";
 import {canRefreshBalance, isQuotaCapable} from "./account-helpers";
 import {AccountProbeSection, AccountScheduledTests} from "./account-probe";
 
-type AccountDetailTab = "health" | "routing" | "guard";
+type AccountDetailTab = "health" | "routing" | "guard" | "ledger";
 
 export function AccountDetailWorkspace({id, queryString}: {id: number; queryString: string}) {
   const [revision, revise] = useState(0);
   const params = Object.fromEntries(new URLSearchParams(queryString));
-  const tab: AccountDetailTab = params.tab === "routing" || params.tab === "config" ? "routing" : params.tab === "guard" ? "guard" : "health";
+  const tab: AccountDetailTab = params.tab === "routing" || params.tab === "config" ? "routing" : params.tab === "guard" ? "guard" : params.tab === "ledger" ? "ledger" : "health";
   const back = () => {
     const listParams = {...params};
     delete listParams.tab;
@@ -92,7 +95,13 @@ function AccountInspector({
         ];
         return (
           <>
-            <h2 className="stage-heading">{acc.name}</h2>
+            <InlineStack>
+              <h2 className="stage-heading">{acc.name}</h2>
+              <MoreActions keepMounted label={`${acc.name} 的更多操作`}>
+                <AccountPrivacyAction accountId={acc.id} onChanged={onChanged} />
+                <ShadowAccountAction accountId={acc.id} platform={acc.platform} type={acc.type} onChanged={onChanged} />
+              </MoreActions>
+            </InlineStack>
             <Tabs
               label="账号详情分页"
               value={subTab}
@@ -100,6 +109,7 @@ function AccountInspector({
                 {value: "health", label: "健康、配额与验真探测"},
                 {value: "routing", label: "路由、凭据与模型映射"},
                 {value: "guard", label: "防封控量与生命周期"},
+                {value: "ledger", label: "账本"},
               ]}
               onChange={v => onTabChange(v as AccountDetailTab)}
             />
@@ -257,7 +267,6 @@ function AccountInspector({
               </>
             ) : subTab === "routing" ? (
               <>
-                {acc.type === "apikey" && <AccountBalanceSettings account={acc} revision={revision} onRefreshed={onChanged} />}
                 <AccountScheduledTests accountID={acc.id} />
                 <AccountConfigForm
                   acc={acc}
@@ -269,6 +278,8 @@ function AccountInspector({
                   onRequestDelete={() => setConfirmDelete(true)}
                 />
               </>
+            ) : subTab === "ledger" ? (
+              <AccountLedger account={acc} revision={revision} onChanged={onChanged} />
             ) : (
               <AccountGuardForm
                 acc={acc}

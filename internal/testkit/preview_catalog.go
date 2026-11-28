@@ -38,6 +38,7 @@ type previewCatalog struct {
 	Accounts      []previewCatalogEntry `json:"accounts"`
 	Codes         []previewCatalogEntry `json:"codes"`
 	Announcements []previewCatalogEntry `json:"announcements"`
+	Subscriptions []previewCatalogEntry `json:"subscriptions"`
 }
 
 type previewUsageRoute struct {
@@ -101,14 +102,14 @@ func (f *fixture) loadPreviewCatalog(path string) error {
 	if decoder.Decode(&catalog) != nil || decoder.Decode(new(any)) != io.EOF {
 		return fmt.Errorf("invalid preview catalog")
 	}
-	for _, list := range [][]previewCatalogEntry{catalog.Keys, catalog.Groups, catalog.Accounts, catalog.Codes, catalog.Announcements} {
+	for _, list := range [][]previewCatalogEntry{catalog.Keys, catalog.Groups, catalog.Accounts, catalog.Codes, catalog.Announcements, catalog.Subscriptions} {
 		if len(list) > 1000 {
 			return fmt.Errorf("preview catalog entry limit exceeded")
 		}
 		for _, entry := range list {
 			if !previewValue(entry.Platform, "", "openai", "anthropic", "gemini", "grok", "deepseek", "antigravity", "openrouter", "composite") ||
 				!previewValue(entry.Type, "", "standard", "subscription", "oauth", "apikey", "setup-token", "upstream", "balance", "concurrency", "invitation") ||
-				!previewValue(entry.Status, "active", "inactive", "error", "suspended", "expired", "used", "unused", "draft") ||
+				!previewValue(entry.Status, "active", "inactive", "error", "suspended", "expired", "used", "unused", "draft", "revoked") ||
 				entry.Rate != nil && *entry.Rate < 0 || entry.Priority != nil && *entry.Priority < 0 ||
 				entry.Value != nil && *entry.Value < 0 {
 				return fmt.Errorf("invalid preview catalog entry")
@@ -219,10 +220,10 @@ func (f *fixture) servePreview(w http.ResponseWriter, r *http.Request, path, rol
 		}
 		officialSuccess(w, stats)
 	case "/admin/subscriptions":
-		if f.previewSubscribed.Load() {
+		if f.previewSubscribed.Load() && len(f.preview.Subscriptions) == 0 {
 			return false
 		}
-		writePreviewPage(w, r, []map[string]any{})
+		writePreviewPage(w, r, f.previewSubscriptions())
 	default:
 		return f.servePreviewCatalogDetail(w, path)
 	}
@@ -314,7 +315,43 @@ func (f *fixture) previewUser(id int64) map[string]any {
 	f.previewMu.Unlock()
 	return map[string]any{
 		"id": id, "email": email, "username": name, "role": role, "status": "active", "balance": 12.5, "concurrency": 5, "allowed_groups": groups,
+		"created_at": "2026-11-01T08:00:00Z",
 	}
+}
+
+// previewSubscriptions 按目录状态生成官方格式的订阅行：用户轮流取预览用户，分组轮流取订阅类分组。
+func (f *fixture) previewSubscriptions() []map[string]any {
+	var groups []int
+	for i, group := range f.preview.Groups {
+		if group.Type == "subscription" {
+			groups = append(groups, i)
+		}
+	}
+	if len(groups) == 0 && len(f.preview.Groups) > 0 {
+		groups = []int{0}
+	}
+	rows := make([]map[string]any, 0, len(f.preview.Subscriptions))
+	if len(groups) == 0 {
+		return rows
+	}
+	for i, entry := range f.preview.Subscriptions {
+		user := int64(i%maxPreviewUser) + 1
+		index := groups[i%len(groups)]
+		group := f.preview.Groups[index]
+		groupID := int64(previewGroupBase + index)
+		expires := "2027-01-15T00:00:00Z"
+		if entry.Status == "expired" {
+			expires = "2026-11-10T00:00:00Z"
+		}
+		rows = append(rows, map[string]any{
+			"id": int64(201 + i), "user_id": user, "group_id": groupID, "status": entry.Status,
+			"expires_at": expires, "created_at": "2026-10-15T08:00:00Z",
+			"daily_usage_usd": float64(i%5) * 0.8, "weekly_usage_usd": float64(i%5) * 4.2, "monthly_usage_usd": float64(i%5) * 15.5,
+			"user":  map[string]any{"id": user, "email": previewEmail(user)},
+			"group": map[string]any{"id": groupID, "name": previewCatalogName(group.Platform, "分组", index), "platform": group.Platform},
+		})
+	}
+	return rows
 }
 
 func writePreviewPage(w http.ResponseWriter, r *http.Request, rows []map[string]any) {
@@ -322,8 +359,10 @@ func writePreviewPage(w http.ResponseWriter, r *http.Request, rows []map[string]
 	search := strings.ToLower(strings.TrimSpace(q.Get("search")))
 	filtered := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		name := strings.ToLower(fmt.Sprint(row["name"], row["email"], row["title"], row["code"]))
+		owner, _ := row["user"].(map[string]any)
+		name := strings.ToLower(fmt.Sprint(row["name"], row["email"], row["title"], row["code"], owner["email"]))
 		if !strings.Contains(name, search) ||
+			q.Get("group_id") != "" && q.Get("group_id") != fmt.Sprint(row["group_id"]) ||
 			q.Get("status") != "" && q.Get("status") != row["status"] ||
 			q.Get("role") != "" && q.Get("role") != row["role"] ||
 			q.Get("type") != "" && q.Get("type") != row["type"] ||

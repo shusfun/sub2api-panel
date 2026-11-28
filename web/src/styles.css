@@ -8,6 +8,10 @@
 @import "./ui/styles/forms.css";
 @import "./ui/styles/entities.css";
 @import "./ui/styles/telemetry.css";
+@import "./ui/styles/accounts.css";
+@import "./ui/styles/notifications.css";
+@import "./ui/styles/rules.css";
+@import "./ui/styles/shell.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -197,30 +201,11 @@ strong { font-weight: var(--weir-weight-medium); }
   :is(.official-link, .login-links a):is(:hover, :focus-visible) svg { translate: 1px -1px; }
 }
 
-.rail-footer {
-  padding: var(--weir-space-2) var(--weir-gap-3) 0;
-  border-top: 1px solid var(--weir-line-soft);
-  min-width: 0;
-}
-.rail-identity {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--weir-gap-5);
-  min-width: 0;
-}
-.rail-footer-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--weir-gap-1);
-  flex-shrink: 0;
-}
 .official-link { display: inline-flex; align-items: center; gap: var(--weir-gap-3); color: var(--weir-ink-3); }
 .official-link:hover { color: var(--weir-ink); text-decoration: none; }
 .official-link svg { width: var(--weir-icon-sm); height: var(--weir-icon-sm); }
 
-.mobile-toggle,
-.mobile-search-btn { display: none; }
+.mobile-toggle { display: none; }
 
 .main-content {
   width: 100%;
@@ -271,8 +256,7 @@ strong { font-weight: var(--weir-weight-medium); }
   .rail[data-open="true"] { display: flex; }
   .rail .rail-head { display: none; }
   .rail nav a { height: var(--weir-tap-touch); }
-  .mobile-toggle,
-  .mobile-search-btn { display: inline-flex; }
+  .mobile-toggle { display: inline-flex; }
 }
 
 /* ---- 设置页：左侧分区、右侧内容 ---- */

@@ -77,6 +77,15 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.GroupIDCleared() {
 		_spec.ClearField(usagelog.FieldGroupID, field.TypeInt64)
 	}
+	if _u.mutation.AccountRateMultiplierCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if _u.mutation.AccountStatsCostCleared() {
+		_spec.ClearField(usagelog.FieldAccountStatsCost, field.TypeFloat64)
+	}
+	if _u.mutation.DurationMsCleared() {
+		_spec.ClearField(usagelog.FieldDurationMs, field.TypeInt)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{usagelog.Label}
@@ -176,6 +185,15 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.GroupIDCleared() {
 		_spec.ClearField(usagelog.FieldGroupID, field.TypeInt64)
+	}
+	if _u.mutation.AccountRateMultiplierCleared() {
+		_spec.ClearField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64)
+	}
+	if _u.mutation.AccountStatsCostCleared() {
+		_spec.ClearField(usagelog.FieldAccountStatsCost, field.TypeFloat64)
+	}
+	if _u.mutation.DurationMsCleared() {
+		_spec.ClearField(usagelog.FieldDurationMs, field.TypeInt)
 	}
 	_node = &UsageLog{config: _u.config}
 	_spec.Assign = _node.assignValues

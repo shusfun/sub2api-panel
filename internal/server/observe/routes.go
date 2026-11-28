@@ -18,6 +18,9 @@ func RegisterRoutes(mux *http.ServeMux, s *core.Server) {
 	s.Route(mux, "GET /api/admin/usage/keys", true, adminDashboardKeys(s))
 	s.Route(mux, "GET /api/admin/usage/summary", true, adminUsageSummaryHandler(s))
 	s.Route(mux, "GET /api/admin/usage/stream", true, adminUsageStream(s))
+	s.Route(mux, "GET /api/admin/usage/cleanup-tasks", true, listUsageCleanupTasks(s))
+	s.Route(mux, "POST /api/admin/usage/cleanup-tasks", true, createUsageCleanupTask(s))
+	s.Route(mux, "POST /api/admin/usage/cleanup-tasks/{id}/cancel", true, cancelUsageCleanupTask(s))
 	s.Route(mux, "GET /api/admin/users/{user}/usage", true, adminUsage(s))
 
 	// Admin Overview

@@ -1,8 +1,8 @@
-import {useEffect, useMemo, useState} from "react";
+import {useMemo, useState} from "react";
 import {ArrowDown, ArrowUp, Plus} from "lucide-react";
 import {z} from "zod";
 import {api} from "@/lib/http";
-import {adminGroupRow, channelRowSchema, empty} from "@/schemas";
+import {adminGroupRow, empty} from "@/schemas";
 import {count, smartMoney} from "@/lib/format";
 import {useAction, useDebouncedValue, useResource} from "@/lib/requests";
 import {navigateTo} from "@/app/route";
@@ -10,11 +10,9 @@ import {
   Badge,
   Button,
   EmptyState,
-  EntityLink,
   FilterBar,
   FilterSlot,
   InlineStack,
-  Inspector,
   MeterBar,
   PlatformBadge,
   PlatformSelect,
@@ -24,29 +22,19 @@ import {
   RowActions,
   SearchInput,
   SegmentBar,
-  Segmented,
   Status,
   WorkspaceStage,
   toast,
   type Column,
 } from "@/ui";
-import {groupBriefSchema, type ChannelRow, type GroupRow} from "@/features/pool/shared";
-import {ChannelInspector} from "./channel-inspector";
-import {CreateChannelDialog, CreateGroupDialog} from "./group-dialogs";
+import {groupBriefSchema, type GroupRow} from "@/features/pool/shared";
+import {CreateGroupDialog} from "./group-dialogs";
 import {GroupDetailWorkspace} from "./group-detail";
 
-type GroupView = "groups" | "pricing";
-
 export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
-  const initial = useMemo(() => new URLSearchParams(queryString), [queryString]);
-  const [view, setView] = useState<GroupView>(() => initial.get("view") === "pricing" ? "pricing" : "groups");
   const [platform, setPlatform] = useState("");
   const [search, setSearch] = useState("");
   const [revision, revise] = useState(0);
-  const [inspect, setInspect] = useState<{kind: "group" | "channel"; id: number} | undefined>(() => {
-    const id = Number(initial.get("inspect") ?? 0);
-    return id > 0 ? {kind: initial.get("view") === "pricing" ? "channel" : "group", id} : undefined;
-  });
   const [groupRows, setGroupRows] = useState<GroupRow[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -55,19 +43,8 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
   const reorderOp = useAction();
 
   const inspectGroupFromURL = useMemo(() => {
-    const params = new URLSearchParams(queryString);
-    if (params.get("view") === "pricing") return 0;
-    const id = Number(params.get("inspect") ?? 0);
+    const id = Number(new URLSearchParams(queryString).get("inspect") ?? 0);
     return id > 0 ? id : 0;
-  }, [queryString]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(queryString);
-    const id = Number(params.get("inspect") ?? 0);
-    if (id > 0 && params.get("view") === "pricing") {
-      setView("pricing");
-      setInspect({kind: "channel", id});
-    }
   }, [queryString]);
 
   const allGroups = useResource(() => api("/admin/groups/all", z.array(groupBriefSchema)), "group-names", true, revision);
@@ -190,116 +167,41 @@ export function GroupsWorkspace({queryString = ""}: {queryString?: string}) {
     },
   ];
 
-  const channelCols: Column<ChannelRow>[] = [
-    {
-      id: "name",
-      title: "调价模板",
-      render: row => (
-        <div>
-          <strong className="compact-text" title={row.name}>{row.name}</strong>
-          {row.description && <div className="muted text-fine">{row.description}</div>}
-        </div>
-      ),
-    },
-    {
-      id: "groups",
-      title: "作用分组",
-      hideWhenNarrow: true,
-      grow: true,
-      render: row => (
-        <InlineStack density="compact" wrap>
-          {row.group_ids.length ? row.group_ids.map(gid => {
-            const g = allGroups?.value?.find(item => item.id === gid);
-            return <EntityLink key={gid} kind="group" id={gid} label={g?.name ?? `#${gid}`} onClick={() => navigateTo("groups", {inspect: gid})} />;
-          }) : <span className="muted">全部分组</span>}
-        </InlineStack>
-      ),
-    },
-    {id: "rules", title: "自定义价目", align: "number", render: row => `${row.model_pricing.length} 组`},
-    {id: "source", title: "计费模型", render: row => <Badge variant="tag">{row.billing_model_source === "upstream" ? "上游模型" : "请求模型"}</Badge>},
-    {id: "status", title: "状态", align: "center", render: row => <Status value={row.status} />},
-  ];
-
   return (
     <>
-      <WorkspaceStage
-        flush
-        inspectorOpen={!!inspect}
-        inspector={
-          <Inspector
-            open={!!inspect}
-            title="调价模板"
-            subtitle={inspect ? `调价模板 · #${inspect.id}` : undefined}
-            onClose={() => setInspect(undefined)}
-          >
-            {inspect && (
-              <ChannelInspector key={`chn-${inspect.id}`} id={inspect.id} revision={revision} onChanged={refresh}
-                onDeleted={() => { setInspect(undefined); refresh(); }} />
-            )}
-          </Inspector>
-        }
-      >
+      <WorkspaceStage flush>
         <FilterBar sticky>
           <div className="obs-filter-row">
-            <Segmented label="分组视图" value={view} options={[["groups", "分组"], ["pricing", "模型调价"]] as const}
-              onChange={next => { setView(next); setInspect(undefined); }} />
-            <SearchInput value={search} onChange={setSearch} placeholder="搜索名称" ariaLabel={view === "groups" ? "搜索分组" : "搜索调价模板"} />
-            {view === "groups" && <FilterSlot><PlatformSelect value={platform} includeComposite onChange={setPlatform} /></FilterSlot>}
+            <SearchInput value={search} onChange={setSearch} placeholder="搜索名称" ariaLabel="搜索分组" />
+            <FilterSlot><PlatformSelect value={platform} includeComposite onChange={setPlatform} /></FilterSlot>
             <div className="obs-filter-spacer">
               <RefreshButton iconOnly size="default" variant="ghost" label="刷新" onClick={refresh} />
-              <Button onClick={() => setCreateOpen(true)}><Plus aria-hidden />{view === "groups" ? "新建分组" : "新建调价模板"}</Button>
+              <Button onClick={() => setCreateOpen(true)}><Plus aria-hidden />新建分组</Button>
             </div>
           </div>
         </FilterBar>
 
         <div className="swift-pane-table">
-          {view === "groups" ? (
-            <RemoteTable
-              key={groupQuery}
-              path={groupQuery}
-              schema={adminGroupRow}
-              columns={groupCols}
-              rowID={row => row.id}
-              label="调度分组"
-              revision={revision}
-              onRowClick={row => navigateTo("groups", {inspect: row.id})}
-              onItemsLoaded={setGroupRows}
-              empty={<EmptyState title="还没有调度分组" action={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus aria-hidden />新建分组</Button>} />}
-            />
-          ) : (
-            <RemoteTable
-              key={debouncedSearch}
-              path={"/admin/channels" + (debouncedSearch ? "?search=" + encodeURIComponent(debouncedSearch) : "")}
-              schema={channelRowSchema}
-              columns={channelCols}
-              rowID={row => row.id}
-              label="调价模板"
-              revision={revision}
-              activeRowID={inspect?.id}
-              onRowClick={row => setInspect({kind: "channel", id: row.id})}
-              empty={
-                <EmptyState
-                  title="没有调价模板"
-                  description="不建模板时按分组倍率和官方单价计费。"
-                  action={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus aria-hidden />新建调价模板</Button>}
-                />
-              }
-            />
-          )}
+          <RemoteTable
+            key={groupQuery}
+            path={groupQuery}
+            schema={adminGroupRow}
+            columns={groupCols}
+            rowID={row => row.id}
+            label="调度分组"
+            revision={revision}
+            onRowClick={row => navigateTo("groups", {inspect: row.id})}
+            onItemsLoaded={setGroupRows}
+            empty={<EmptyState title="还没有调度分组" action={<Button size="sm" onClick={() => setCreateOpen(true)}><Plus aria-hidden />新建分组</Button>} />}
+          />
         </div>
       </WorkspaceStage>
 
       <CreateGroupDialog
-        open={createOpen && view === "groups"}
+        open={createOpen}
         revision={revision}
         onClose={() => setCreateOpen(false)}
         onCreated={grp => { setCreateOpen(false); refresh(); navigateTo("groups", {inspect: grp.id}); }}
-      />
-      <CreateChannelDialog
-        open={createOpen && view === "pricing"}
-        revision={revision}
-        onClose={() => setCreateOpen(false)}
-        onCreated={ch => { setCreateOpen(false); refresh(); setInspect({kind: "channel", id: ch.id}); }}
       />
     </>
   );

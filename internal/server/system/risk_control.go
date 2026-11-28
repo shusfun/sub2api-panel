@@ -58,6 +58,10 @@ func (h *handler) riskRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "PUT /api/admin/risk-control/config", true, h.riskConfiguration)
 	h.s.Route(mux, "GET /api/admin/risk-control/logs", true, h.riskEntries)
 	h.s.Route(mux, "POST /api/admin/risk-control/users/{id}/unban", true, h.riskUnban)
+	h.s.Route(mux, "GET /api/admin/risk-control/status", true, h.riskStatus)
+	h.s.Route(mux, "POST /api/admin/risk-control/api-keys/test", true, h.riskKeyTest)
+	h.s.Route(mux, "DELETE /api/admin/risk-control/hashes", true, h.riskHashDelete)
+	h.s.Route(mux, "DELETE /api/admin/risk-control/hashes/all", true, h.riskHashClear)
 }
 
 func (h *handler) riskConfiguration(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
@@ -128,4 +132,116 @@ func (h *handler) riskUnban(w http.ResponseWriter, r *http.Request, a core.Sessi
 	}
 	result, err := platform.Upstream[struct{}](r.Context(), h.s.Upstream, http.MethodPost, fmt.Sprintf("/admin/risk-control/users/%d/unban", id), a.Tokens.Access, "", "", nil)
 	return platform.Send(w, http.StatusOK, result, err)
+}
+
+type RiskKeyStatusView struct {
+	Index          int        `json:"index"`
+	KeyHash        string     `json:"key_hash"`
+	Masked         string     `json:"masked"`
+	Status         string     `json:"status"`
+	FailureCount   int        `json:"failure_count"`
+	SuccessCount   int64      `json:"success_count"`
+	LastCheckedAt  *time.Time `json:"last_checked_at,omitempty"`
+	FrozenUntil    *time.Time `json:"frozen_until,omitempty"`
+	LastLatencyMS  int        `json:"last_latency_ms"`
+	LastHTTPStatus int        `json:"last_http_status"`
+}
+
+type RiskStatusView struct {
+	Engine            string              `json:"engine"`
+	Enabled           bool                `json:"enabled"`
+	RiskEnabled       bool                `json:"risk_control_enabled"`
+	Mode              string              `json:"mode"`
+	WorkerCount       int                 `json:"worker_count"`
+	ActiveWorkers     int                 `json:"active_workers"`
+	QueueSize         int                 `json:"queue_size"`
+	QueueLength       int                 `json:"queue_length"`
+	QueueUsage        float64             `json:"queue_usage_percent"`
+	Dropped           int64               `json:"dropped"`
+	Processed         int64               `json:"processed"`
+	Errors            int64               `json:"errors"`
+	PreBlockChecked   int64               `json:"pre_block_checked"`
+	PreBlockBlocked   int64               `json:"pre_block_blocked"`
+	PreBlockErrors    int64               `json:"pre_block_errors"`
+	PreBlockLatencyMS int64               `json:"pre_block_avg_latency_ms"`
+	FlaggedHashCount  int64               `json:"flagged_hash_count"`
+	LastCleanupAt     *time.Time          `json:"last_cleanup_at,omitempty"`
+	Keys              []RiskKeyStatusView `json:"api_key_statuses"`
+}
+
+func (h *handler) riskStatus(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	row, err := platform.Upstream[RiskStatusView](r.Context(), h.s.Upstream, http.MethodGet, "/admin/risk-control/status", a.Tokens.Access, "", "", nil)
+	if row.Keys == nil {
+		row.Keys = []RiskKeyStatusView{}
+	}
+	return platform.Send(w, http.StatusOK, row, err)
+}
+
+type riskKeyTestInput struct {
+	Engine  string   `json:"engine,omitempty"`
+	Keys    []string `json:"api_keys,omitempty"`
+	BaseURL string   `json:"base_url,omitempty"`
+	Model   string   `json:"model,omitempty"`
+	Timeout int      `json:"timeout_ms,omitempty"`
+	Prompt  string   `json:"prompt,omitempty"`
+}
+
+func (h *handler) riskKeyTest(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[riskKeyTestInput](r)
+	if err != nil {
+		return err
+	}
+	if input.Engine != "" && input.Engine != "openai" && input.Engine != "typesafe" || len(input.Keys) > 50 ||
+		len(input.BaseURL) > 500 || len(input.Model) > 200 || len(input.Prompt) > 4000 || input.Timeout < 0 {
+		return platform.Fail(http.StatusBadRequest, "invalid_input")
+	}
+	row, err := platform.Upstream[struct {
+		Items []RiskKeyStatusView `json:"items"`
+		Audit *struct {
+			Flagged        bool               `json:"flagged"`
+			Category       string             `json:"highest_category"`
+			Score          float64            `json:"highest_score"`
+			Composite      float64            `json:"composite_score"`
+			CategoryScores map[string]float64 `json:"category_scores"`
+			Thresholds     map[string]float64 `json:"thresholds"`
+		} `json:"audit_result,omitempty"`
+	}](r.Context(), h.s.Upstream, http.MethodPost, "/admin/risk-control/api-keys/test", a.Tokens.Access, "", "", input)
+	if row.Items == nil {
+		row.Items = []RiskKeyStatusView{}
+	}
+	return platform.Send(w, http.StatusOK, row, err)
+}
+
+func (h *handler) riskHashDelete(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[struct {
+		InputHash string `json:"input_hash"`
+		backupAuthorization
+	}](r)
+	if err != nil {
+		return err
+	}
+	if input.InputHash == "" || len(input.InputHash) > 128 {
+		return platform.Fail(http.StatusBadRequest, "invalid_input")
+	}
+	if err := h.backupStepUp(r, a, input.backupAuthorization); err != nil {
+		return err
+	}
+	row, err := platform.Upstream[struct {
+		Deleted bool `json:"deleted"`
+	}](r.Context(), h.s.Upstream, http.MethodDelete, "/admin/risk-control/hashes", a.Tokens.Access, "", "", map[string]string{"input_hash": input.InputHash})
+	return platform.Send(w, http.StatusOK, row, err)
+}
+
+func (h *handler) riskHashClear(w http.ResponseWriter, r *http.Request, a core.SessionAuth) error {
+	input, err := platform.DecodeBody[backupAuthorization](r)
+	if err != nil {
+		return err
+	}
+	if err := h.backupStepUp(r, a, input); err != nil {
+		return err
+	}
+	row, err := platform.Upstream[struct {
+		Deleted int64 `json:"deleted"`
+	}](r.Context(), h.s.Upstream, http.MethodDelete, "/admin/risk-control/hashes/all", a.Tokens.Access, "", "", nil)
+	return platform.Send(w, http.StatusOK, row, err)
 }

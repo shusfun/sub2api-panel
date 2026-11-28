@@ -133,7 +133,7 @@ export function QuickPills<Value extends string>({
 }: {
   label: string;
   value: Value;
-  options: readonly {value: Value; label: string; tone?: "neutral" | "ok" | "warn" | "bad"}[];
+  options: readonly {value: Value; label: string; tone?: "neutral" | "muted" | "ok" | "warn" | "bad"}[];
   onChange: (value: Value) => void;
 }) {
   return (

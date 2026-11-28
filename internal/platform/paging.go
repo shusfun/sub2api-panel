@@ -16,9 +16,10 @@ type NamedItem struct {
 }
 
 type PageResult[T any] struct {
-	Items []T  `json:"items"`
-	More  bool `json:"more"`
-	Pages int  `json:"pages,omitempty"`
+	Items []T    `json:"items"`
+	More  bool   `json:"more"`
+	Pages int    `json:"pages,omitempty"`
+	Total *int64 `json:"total,omitempty"` // 上游给出总条数时才返回，供列表页展示筛选结果总量
 }
 
 type WirePage[T any] struct {
@@ -74,17 +75,20 @@ func QueryPage[T any, V any](ctx context.Context, c ServiceClient, token, path s
 	if err != nil {
 		return PageResult[V]{}, err
 	}
+	if input.Total != nil && *input.Total < 0 {
+		return PageResult[V]{}, Fail(502, "invalid_upstream")
+	}
 	pages := -1
 	if input.Pages != nil {
 		pages = *input.Pages
-	} else if input.Total != nil && *input.Total >= 0 {
+	} else if input.Total != nil {
 		pages = int((*input.Total + int64(PageSize) - 1) / int64(PageSize))
 	}
 	if pages < 0 || len(input.Items) > PageSize {
 		return PageResult[V]{}, Fail(502, "invalid_upstream")
 	}
 	items, err := ProjectList(input.Items, project)
-	return PageResult[V]{Items: items, More: page < pages, Pages: pages}, err
+	return PageResult[V]{Items: items, More: page < pages, Pages: pages, Total: input.Total}, err
 }
 
 func ProjectList[T any, V any](input []T, project func(T) (V, error)) ([]V, error) {

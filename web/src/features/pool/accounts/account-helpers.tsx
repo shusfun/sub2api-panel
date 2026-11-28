@@ -23,7 +23,7 @@ export const sortOptions = [
   {value: "activity", label: "按活动排序"},
 ] as const;
 
-export const viewKey = "panel-accounts-view";
+export const viewKey = "panel-accounts-view-grid";
 export const quotaDisplayKey = "panel-accounts-quota-mode";
 export const balancePlatforms = new Set(["deepseek", "kimi"]);
 

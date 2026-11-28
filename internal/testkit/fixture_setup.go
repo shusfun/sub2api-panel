@@ -104,7 +104,8 @@ func (f *fixture) serveUpstream(t testing.TB, w http.ResponseWriter, r *http.Req
 		t.Errorf("uncorrelated upstream %s", path)
 	}
 	if r.Header.Get("X-API-Key") == "" && (f.servePreview(w, r, path, role, user) ||
-		f.serveAdminExtended(w, r, path, role) || f.servePreviewExtra(w, r, path, role, user) ||
+		f.serveAdminExtended(w, r, path, role) || f.serveCleanupAndImage(w, r, path, role) || f.serveWhitelistSamples(w, r, path, role) || f.servePreviewGaps(w, r, path, role) || f.servePreviewLedger(w, r, path, role) ||
+		f.servePreviewExtra(w, r, path, role, user) ||
 		f.preview != nil && f.servePreviewPayment(w, r, path, user, token)) {
 		return
 	}

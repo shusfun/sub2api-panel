@@ -18,6 +18,7 @@ export function RemoteTable<Schema extends z.ZodTypeAny, ID extends string | num
   sort,
   onSort,
   onItemsLoaded,
+  onTotalLoaded,
   empty,
   fallback,
   pinActions,
@@ -38,6 +39,8 @@ export function RemoteTable<Schema extends z.ZodTypeAny, ID extends string | num
   sort?: TableSort;
   onSort?: (next: TableSort | undefined) => void;
   onItemsLoaded?: (items: z.output<Schema>[]) => void;
+  /** 当前筛选条件下的总条数；上游没给总数时为 undefined。 */
+  onTotalLoaded?: (total: number | undefined) => void;
   empty?: ReactNode;
   fallback?: ReactNode;
   pinActions?: boolean;
@@ -72,6 +75,10 @@ export function RemoteTable<Schema extends z.ZodTypeAny, ID extends string | num
   useEffect(() => {
     if (state?.value?.items && !state.stale) onItemsLoaded?.(state.value.items);
   }, [state?.stale, state?.value?.items, onItemsLoaded]);
+  const loadedTotal = state?.value && !state.stale ? state.value.total : null;
+  useEffect(() => {
+    if (loadedTotal !== null) onTotalLoaded?.(loadedTotal);
+  }, [loadedTotal, onTotalLoaded]);
 
   return (
     <PagedTable

@@ -1,5 +1,5 @@
 import {type ReactNode} from "react";
-import {count, percent, smartMoney} from "@/lib/format";
+import {count, currencyMoney, percent, smartMoney} from "@/lib/format";
 import {
   Badge,
   EntityLink,
@@ -23,7 +23,14 @@ import {
   type BalanceInfo,
 } from "./account-helpers";
 
+function runwayShort(hours: number | null | undefined) {
+  if (hours == null || !Number.isFinite(hours)) return "";
+  if (hours < 48) return `可撑 ${Math.max(1, Math.round(hours))} 小时`;
+  return `可撑 ${Math.round(hours / 24)} 天`;
+}
+
 export function buildAccountColumns({
+  inspectorOpen = false,
   results,
   balanceMap,
   groupsOf,
@@ -32,6 +39,7 @@ export function buildAccountColumns({
   rowActions,
   rowMore,
 }: {
+  inspectorOpen?: boolean;
   results: Record<number, EntityCardResult>;
   balanceMap: Record<number, BalanceInfo>;
   groupsOf: (row: AccountRow) => {id: number; name: string}[];
@@ -40,13 +48,13 @@ export function buildAccountColumns({
   rowActions: (row: AccountRow, card?: boolean) => ReactNode;
   rowMore: (row: AccountRow, card?: boolean) => ReactNode;
 }): Column<AccountRow>[] {
-  return [
+  const columns: Column<AccountRow>[] = [
     {
       id: "name",
       title: "上游账号",
       render: row => (
         <div>
-          <strong className="compact-text" title={row.name}>{row.name}</strong>
+          <strong className="compact-text" title={row.name}><span className="acct-plat-dot" data-platform={row.platform} aria-hidden />{row.name}</strong>
           <EntityResult result={results[row.id]} fallback={row.notes} />
         </div>
       ),
@@ -91,6 +99,45 @@ export function buildAccountColumns({
         ),
     },
     {
+      id: "balance",
+      title: "余额 / 可撑",
+      hideWhenNarrow: true,
+      align: "number",
+      render: row => {
+        const ledger = row.ledger;
+        const bal = row.balance?.kind ? row.balance : balanceMap[row.id] ?? row.balance;
+        const value = ledger?.balance_usd ?? (bal && bal.kind !== "subscription" ? bal.balance : null);
+        if (value == null) return <span className="muted">—</span>;
+        const currency = ledger?.balance_usd != null ? "USD" : bal?.currency ?? "USD";
+        const runway = runwayShort(ledger?.runway_hours);
+        return (
+          <span className="weir-digits" data-stale={ledger?.stale || bal?.stale || undefined}>
+            {currencyMoney(value, currency)}{runway && <span className="muted"> · {runway}</span>}
+          </span>
+        );
+      },
+    },
+    {
+      id: "reconcile",
+      title: "今日成本 / 偏差",
+      hideWhenNarrow: true,
+      align: "number",
+      render: row => {
+        const ledger = row.ledger;
+        if (!ledger?.reconcile) return <span className="muted">—</span>;
+        const actual = ledger.actual_today_usd;
+        const dev = ledger.deviation_pct;
+        return (
+          <span className="weir-digits" data-estimated={ledger.estimated || undefined}>
+            {actual != null ? smartMoney(actual) : "未知"}
+            {dev != null && (
+              <Badge variant="soft" tone={Math.abs(dev) >= 10 ? "bad" : "neutral"}>{(dev > 0 ? "+" : "") + dev.toFixed(0)}%</Badge>
+            )}
+          </span>
+        );
+      },
+    },
+    {
       id: "watermark",
       title: "配额水位 (5h / 7d)",
       hideWhenNarrow: true,
@@ -128,4 +175,6 @@ export function buildAccountColumns({
     {id: "sched", title: "调度", hideWhenNarrow: true, render: row => <span onClick={event => event.stopPropagation()}>{scheduleSwitch(row)}</span>},
     {id: "ops", title: "", align: "end", render: row => <RowActions>{rowActions(row)}{rowMore(row)}</RowActions>},
   ];
+  // 检查器打开时表格变窄，收起次要列。
+  return inspectorOpen ? columns.filter(column => column.id !== "relations" && column.id !== "conc") : columns;
 }

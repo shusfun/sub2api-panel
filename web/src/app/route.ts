@@ -25,7 +25,12 @@ export type WorkspaceID =
   | "batch-image"
   | "risk-control"
   | "backups"
-  | "payment-orders";
+  | "payment-orders"
+  | "subscriptions"
+  | "channels"
+  | "upstream-rules"
+  | "affiliates"
+  | "site-settings";
 
 export type PublicPageID =
   | "home"
@@ -43,12 +48,13 @@ const adminPages: readonly WorkspaceID[] = [
   "ops", "patrol", "usage", "accounts", "groups", "proxies", "users", "codes",
   "plugins", "keys", "settings", "announcements", "manage-announcements", "affiliate",
   "model-plaza", "audit-logs", "mcp", "purchase", "batch-image", "risk-control",
-  "backups", "payment-orders",
+  "backups", "payment-orders", "subscriptions", "channels", "upstream-rules",
+  "affiliates", "site-settings",
 ];
 
 const userPages: readonly WorkspaceID[] = [
-  "keys", "usage", "patrol", "settings", "announcements", "affiliate",
-  "model-plaza", "mcp", "purchase", "batch-image",
+  "keys", "usage", "patrol", "batch-image", "model-plaza", "purchase",
+  "settings", "affiliate", "mcp", "announcements",
 ];
 
 const publicPaths: Record<PublicPageID, string> = {
@@ -87,6 +93,11 @@ const workspacePaths: Record<WorkspaceID, string> = {
   "risk-control": "/admin/risk-control",
   backups: "/admin/backups",
   "payment-orders": "/admin/orders",
+  subscriptions: "/admin/subscriptions",
+  channels: "/admin/channels",
+  "upstream-rules": "/admin/upstream-rules",
+  affiliates: "/admin/affiliates",
+  "site-settings": "/admin/settings",
 };
 
 const routesWithEntity = new Set<WorkspaceID>(["accounts", "users", "groups", "proxies", "keys"]);

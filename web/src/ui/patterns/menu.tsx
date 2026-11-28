@@ -3,16 +3,17 @@ import {Menu as MenuPrimitive} from "@base-ui/react/menu";
 import {Ellipsis} from "lucide-react";
 import {Button} from "../primitives/button";
 
-export function Menu({trigger, children, align = "end", onOpenChange}: {
+export function Menu({trigger, children, align = "end", keepMounted, onOpenChange}: {
   trigger: ReactElement;
   children: ReactNode;
   align?: "start" | "center" | "end";
+  keepMounted?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
   return (
     <MenuPrimitive.Root onOpenChange={onOpenChange}>
       <MenuPrimitive.Trigger render={trigger} />
-      <MenuPrimitive.Portal>
+      <MenuPrimitive.Portal keepMounted={keepMounted}>
         <MenuPrimitive.Positioner className="menu-positioner" align={align} sideOffset={5}>
           <MenuPrimitive.Popup className="menu-popup">{children}</MenuPrimitive.Popup>
         </MenuPrimitive.Positioner>
@@ -30,14 +31,15 @@ export function MenuItem({children, onSelect, disabled, tone}: {
   return <MenuPrimitive.Item className="menu-item" data-tone={tone} disabled={disabled} onClick={onSelect}>{children}</MenuPrimitive.Item>;
 }
 
-export function MoreActions({label, busy, children, onOpenChange}: {
+export function MoreActions({label, busy, children, keepMounted, onOpenChange}: {
   label: string;
   busy?: boolean;
   children: ReactNode;
+  keepMounted?: boolean;
   onOpenChange?: (open: boolean, trigger: HTMLButtonElement | null) => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
-  return <Menu onOpenChange={open => onOpenChange?.(open, trigger.current)} trigger={
+  return <Menu keepMounted={keepMounted} onOpenChange={open => onOpenChange?.(open, trigger.current)} trigger={
     <Button ref={trigger} size="icon-sm" variant="ghost" title="更多" aria-label={label} busy={busy}><Ellipsis aria-hidden /></Button>
   }>{children}</Menu>;
 }

@@ -71,10 +71,12 @@ export function MiniPills<T extends string>({
 // 通用对象卡片：头部（勾选、状态、名称、开关）→ 徽章行 → 行内异常恢复条 → 可切换遥测主视区 → 单行紧凑元信息 → 反馈位 → 底部操作。
 // 整张可点打开速览；头部控件、遥测切换、元信息交互与底部操作各自拦截点击。
 export function EntityCard({
-  name, lead, toggle, selected, onSelect, active, dim, onOpen,
+  name, platform, hold, lead, toggle, selected, onSelect, active, dim, onOpen,
   badges, banner, bannerTone, panelHead, panelBody, panelSize, metrics, meters, meta, relations, result, reserveResult, actions, more,
 }: {
   name: string;
+  platform?: string;
+  hold?: "warn" | "bad";
   lead?: ReactNode;
   toggle?: ReactNode;
   selected?: boolean;
@@ -102,6 +104,8 @@ export function EntityCard({
       className="entity-card"
       data-active={active || undefined}
       data-dim={dim || undefined}
+      data-platform={platform}
+      data-hold={hold}
       tabIndex={0}
       aria-label={name}
       onClick={onOpen}

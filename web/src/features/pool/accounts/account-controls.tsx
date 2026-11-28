@@ -3,7 +3,8 @@ import {Boxes, Copy as DuplicateIcon, PanelRight, Plus, Trash2, Wrench, Zap} fro
 import {z} from "zod";
 import {api} from "@/lib/http";
 import {empty, type adminOverview} from "@/schemas";
-import {count} from "@/lib/format";
+import {count, smartMoney} from "@/lib/format";
+import {type LedgerSummary} from "@/schemas/ledger";
 import {navigateTo} from "@/app/route";
 import {
   BatchBar,
@@ -30,6 +31,7 @@ import {
   type ViewMode,
 } from "@/ui";
 import {type AccountRow} from "@/features/pool/shared";
+import {AccountPrivacyAction, ShadowAccountAction} from "./account-privacy";
 
 const accountStatusPills = [
   {value: "", label: "全部"},
@@ -67,6 +69,10 @@ type OverviewAccounts = z.infer<typeof adminOverview>["accounts"];
 
 export function AccountWorkspaceHeader({
   totals,
+  ledgerTotals,
+  showProfit = false,
+  attentionOnly = false,
+  onToggleAttention,
   platform,
   providerPills,
   status,
@@ -101,6 +107,10 @@ export function AccountWorkspaceHeader({
   onDeleteBatch,
 }: {
   totals?: OverviewAccounts;
+  ledgerTotals?: LedgerSummary["totals"];
+  showProfit?: boolean;
+  attentionOnly?: boolean;
+  onToggleAttention: () => void;
   platform: string;
   providerPills: {value: string; label: string}[];
   status: string;
@@ -150,12 +160,23 @@ export function AccountWorkspaceHeader({
             : [
                 {id: "health", label: "异常与限流", value: totals ? "无异常" : null, hint: totals ? "限流 · 报错 · 过载均为 0" : undefined, tone: "ok" as const},
               ]),
+          ...(ledgerTotals
+            ? [
+                {id: "balance", label: "总余额", value: smartMoney(ledgerTotals.balance_usd)},
+                {id: "upstream-cost", label: "今日上游花费", value: smartMoney(ledgerTotals.upstream_cost_today_usd)},
+                ...(showProfit && ledgerTotals.profit_today_usd != null
+                  ? [{id: "profit", label: "今日毛利", value: smartMoney(ledgerTotals.profit_today_usd), tone: (ledgerTotals.profit_today_usd < 0 ? "bad" : "ok") as "bad" | "ok"}]
+                  : []),
+                {id: "attention", label: "需处理账号", value: count.format(ledgerTotals.attention_accounts), tone: (ledgerTotals.attention_accounts ? "warn" : "neutral") as "warn" | "neutral", onClick: onToggleAttention},
+              ]
+            : []),
         ]}
       />
       <FilterBar sticky>
         <div className="obs-filter-row">
           <QuickPills label="上游平台" value={platform} options={providerPills} onChange={value => onUpdateQuery({platform: value})} />
           <QuickPills label="状态筛选" value={status} options={accountStatusPills} onChange={value => onUpdateQuery({status: value})} />
+          <Button size="sm" variant={attentionOnly ? "outline" : "ghost"} aria-pressed={attentionOnly} onClick={onToggleAttention}>需要处理</Button>
           <div className="obs-filter-spacer">
             {view === "card" && (
               <>
@@ -259,6 +280,7 @@ export function createAccountRowControls({
   refreshCardTelemetry,
   recoverAccount,
   onRequestDelete,
+  onChanged,
 }: {
   busyID?: number;
   deletionTrigger: MutableRefObject<HTMLElement | null>;
@@ -271,6 +293,7 @@ export function createAccountRowControls({
   refreshCardTelemetry: (row: AccountRow) => Promise<void>;
   recoverAccount: (row: AccountRow) => void;
   onRequestDelete: (row: AccountRow) => void;
+  onChanged?: () => void;
 }) {
   const scheduleSwitch = (row: AccountRow) => (
     <Switch
@@ -330,7 +353,7 @@ export function createAccountRowControls({
     return (
       <>
         {card ? detail : <SecondaryTableAction>{detail}</SecondaryTableAction>}
-        <MoreActions onOpenChange={(open, trigger) => {
+        <MoreActions keepMounted onOpenChange={(open, trigger) => {
           setRowMenuOpen(open);
           if (open) deletionTrigger.current = trigger;
         }} label={`${row.name} 的更多操作`}>
@@ -347,6 +370,8 @@ export function createAccountRowControls({
           <MenuItem onSelect={() => void act(row, "已复制为新账号", () => post(row, "duplicate"))}><DuplicateIcon aria-hidden />复制账号</MenuItem>
           <MenuItem onSelect={() => void act(row, "已清除限流", () => post(row, "clear-rate-limit"))}>清除限流</MenuItem>
           <MenuItem onSelect={() => void act(row, "已重置配额", () => post(row, "reset-quota"))}>重置配额</MenuItem>
+          <AccountPrivacyAction accountId={row.id} onChanged={onChanged} />
+          <ShadowAccountAction accountId={row.id} platform={row.platform} type={row.type} onChanged={onChanged} />
           <MenuSeparator />
           <MenuItem tone="bad" onSelect={() => onRequestDelete(row)}><Trash2 aria-hidden />删除账号</MenuItem>
         </MoreActions>

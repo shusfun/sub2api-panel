@@ -2,7 +2,12 @@ import {z} from "zod";
 
 export const empty = z.object({});
 export const page = <T extends z.ZodTypeAny>(row: T) =>
-  z.object({items: z.array(row), more: z.boolean(), pages: z.number().int().nonnegative().optional()});
+  z.object({
+    items: z.array(row),
+    more: z.boolean(),
+    pages: z.number().int().nonnegative().optional(),
+    total: z.number().int().nonnegative().optional(),
+  });
 export const id = z.number().int().positive();
 export const tokenCount = z.number().int().nonnegative();
 export const instant = z.string().datetime({offset: true});

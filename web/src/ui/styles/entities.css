@@ -174,6 +174,17 @@
 .entity-card:hover { box-shadow: 0 0 0 1px var(--weir-line), 0 3px 9px var(--weir-shade-faint); }
 .entity-card[data-active] { box-shadow: 0 0 0 var(--weir-selection-ring) var(--weir-accent); }
 .entity-card[data-dim] > :not(.entity-card-head, .entity-card-foot) { opacity: 0.61; }
+.entity-card[data-platform] { position: relative; overflow: hidden; --plat: var(--weir-ink-4); }
+.entity-card[data-platform="openai"] { --plat: var(--weir-plat-openai); }
+.entity-card[data-platform="anthropic"] { --plat: var(--weir-plat-anthropic); }
+.entity-card[data-platform="gemini"] { --plat: var(--weir-plat-gemini); }
+.entity-card[data-platform="deepseek"] { --plat: var(--weir-plat-deepseek); }
+.entity-card[data-platform="grok"] { --plat: var(--weir-plat-grok); }
+.entity-card[data-platform]::before { content: ""; position: absolute; inset: 0 0 auto; block-size: 3px; background: linear-gradient(90deg, var(--plat), transparent 71%); opacity: 0.75; pointer-events: none; }
+.entity-card[data-hold] { position: relative; overflow: hidden; }
+.entity-card[data-hold="warn"] { --hold: var(--weir-warn); }
+.entity-card[data-hold="bad"] { --hold: var(--weir-bad); }
+.entity-card[data-hold]::after { content: ""; position: absolute; inset: 0 auto 0 0; inline-size: 3px; background: var(--hold); pointer-events: none; }
 .entity-card-head { display: flex; align-items: center; gap: var(--weir-gap-7); min-height: var(--weir-tap-sm); min-width: 0; }
 .entity-card-name { font-size: var(--weir-text-heading); flex: 1 1 auto; min-width: 0; font-weight: var(--weir-weight-semibold); }
 .entity-card-badges { display: flex; align-items: center; gap: var(--weir-gap-5); min-width: 0; block-size: var(--weir-tap-xs); overflow-x: auto; scrollbar-width: none; }

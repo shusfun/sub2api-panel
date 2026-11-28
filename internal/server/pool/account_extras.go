@@ -266,6 +266,7 @@ func (h *handler) withDayStats(ctx context.Context, token string, items []Accoun
 	for _, item := range items {
 		ids = append(ids, item.ID)
 	}
+	h.withLedgerExtras(ctx, items, ids)
 	fromDB := false
 	if h.s.OfficialDB != nil {
 		if stats, err := h.accountDayStats(ctx, ids); err == nil {
@@ -312,4 +313,36 @@ func (h *handler) withDayStats(ctx context.Context, token string, items []Accoun
 			items[i].TodayCost = &cost
 		}
 	}
+}
+
+type accountRecentStat struct {
+	RPM5m        float64
+	AvgLatencyMS *float64
+}
+
+// accountRecentStats 用官方只读库 usage_logs 近 5 分钟的 COUNT 与 AVG(duration_ms)，按批量账号一次查询。
+// 没接只读库时返回空表，调用方据此不输出 rpm_5m 与 avg_latency_ms。
+func (h *handler) accountRecentStats(ctx context.Context, ids []int64) (map[int64]accountRecentStat, error) {
+	stats := map[int64]accountRecentStat{}
+	if h.s.OfficialDB == nil || len(ids) == 0 {
+		return stats, nil
+	}
+	const window = 5
+	since := time.Now().Add(-window * time.Minute)
+	var rows []struct {
+		Account int64    `json:"account_id"`
+		Count   int64    `json:"count"`
+		Mean    *float64 `json:"mean"`
+	}
+	if err := h.s.OfficialDB.UsageLog.Query().
+		Where(usagelog.AccountIDIn(ids...), usagelog.CreatedAtGTE(since)).
+		GroupBy(usagelog.FieldAccountID).
+		Aggregate(officialent.Count(), officialent.Mean(usagelog.FieldDurationMs)).
+		Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		stats[row.Account] = accountRecentStat{RPM5m: float64(row.Count) / window, AvgLatencyMS: row.Mean}
+	}
+	return stats, nil
 }

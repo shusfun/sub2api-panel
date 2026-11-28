@@ -9,12 +9,13 @@ import {
   Badge, Button, ConfirmDialog, DetailHeader, EmptyState, ErrorLine, GroupDialog, IdentityBadge,
   InsetGroup, InsetRow, RemoteTable, Resource, Status, Tabs, Toolbar, toast, useGroups,
 } from "@/ui";
+import {AffiliateUserPane} from "../affiliates";
 import {AssignSubscriptionDialog} from "./user-dialogs";
 import {UserAttributes} from "./user-attributes";
 import {UserQuotas} from "./user-quotas";
 import {GrantEditor, ReplaceUserGroup, UserChangeDialog, UserKeysPane, UserSubscriptionsPane} from "./user-panes";
 
-type DetailTab = "overview" | "subs" | "keys" | "balance" | "extras";
+type DetailTab = "overview" | "subs" | "keys" | "balance" | "extras" | "affiliate";
 
 export function UserDetailWorkspace({
   userID,
@@ -26,7 +27,7 @@ export function UserDetailWorkspace({
   onBack: () => void;
 }) {
   const [tab, setTab] = useState<DetailTab>(() => {
-    if (initialTab === "subs" || initialTab === "keys" || initialTab === "balance" || initialTab === "extras") return initialTab;
+    if (initialTab === "subs" || initialTab === "keys" || initialTab === "balance" || initialTab === "extras" || initialTab === "affiliate") return initialTab;
     if (initialTab === "grant") return "extras";
     return "overview";
   });
@@ -80,6 +81,7 @@ export function UserDetailWorkspace({
               {value: "keys", label: "API Key 代管"},
               {value: "balance", label: "余额与流水"},
               {value: "extras", label: "扩展属性与发码授权"},
+              {value: "affiliate", label: "推广"},
             ]}
           />
 
@@ -145,6 +147,8 @@ export function UserDetailWorkspace({
               />
             </>
           )}
+
+          {tab === "affiliate" && <AffiliateUserPane userId={usr.id} />}
 
           {tab === "extras" && (
             <>

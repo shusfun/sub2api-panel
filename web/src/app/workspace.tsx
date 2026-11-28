@@ -1,18 +1,19 @@
 import {z} from "zod";
-import {lazy, Suspense, useEffect, useState} from "react";
+import {lazy, Suspense, useCallback, useEffect, useState} from "react";
 import {
-  Activity, Bell, Boxes, ClipboardList, Compass, DatabaseBackup, Gauge, Gift, Images,
-  KeyRound, Layers3, LogOut, Megaphone, Network, Plug, Puzzle, Search, Server,
-  Settings, ShieldCheck, Ticket, UsersRound, Wallet,
+  Activity, Bell, Boxes, ClipboardList, Compass, CreditCard, DatabaseBackup, Gauge, Gift, Images,
+  KeyRound, Layers3, Megaphone, Network, Plug, Puzzle, Search, Server, Settings,
+  ShieldCheck, Share2, SlidersHorizontal, Tag, Ticket, UsersRound, Waypoints, Wallet,
 } from "lucide-react";
 import {api} from "@/lib/http";
 import {useAction, useResource} from "@/lib/requests";
 import {customMenuItem, empty, type Config, type SessionInfo} from "@/schemas";
 import {buildHref, customPageSlug, navigatePath, useRoute, type WorkspaceID} from "./route";
 import {
-  Brand, Button, CommandPalette, EmptyState, ErrorLine, Feedback, Field, Form,
-  IdentityBadge, InsetGroup, InsetRow, Input, MenuToggle, StageHeader, ThemeControl,
+  AccountMenu, Brand, Button, CommandPalette, EmptyState, ErrorLine, Feedback, Field, Form,
+  InsetGroup, InsetRow, Input, MenuToggle, StageHeader,
   WorkspaceContent, WorkspaceErrorBoundary,
+  type AccountMenuLink,
 } from "@/ui";
 
 const customMenuList = z.array(customMenuItem);
@@ -67,6 +68,11 @@ const PaymentOrders = lazy(() => import("@/features/billing/payment").then(m => 
 const BatchImages = lazy(() => import("@/features/workspace/batch-images").then(m => ({default: m.BatchImages})));
 const RiskControl = lazy(() => import("@/features/system/risk-control").then(m => ({default: m.RiskControl})));
 const BackupWorkspace = lazy(() => import("@/features/system/backups").then(m => ({default: m.BackupWorkspace})));
+const SubscriptionsWorkspace = lazy(() => import("@/features/users/subscriptions").then(m => ({default: m.SubscriptionsWorkspace})));
+const ChannelsWorkspace = lazy(() => import("@/features/pool/channels").then(m => ({default: m.ChannelsWorkspace})));
+const UpstreamRulesWorkspace = lazy(() => import("@/features/pool/upstream-rules").then(m => ({default: m.UpstreamRulesWorkspace})));
+const AffiliatesWorkspace = lazy(() => import("@/features/users/affiliates").then(m => ({default: m.AffiliatesWorkspace})));
+const LedgerAlertBell = lazy(() => import("@/features/pool/accounts/ledger-bell").then(m => ({default: m.LedgerAlertBell})));
 
 type NavItem = {
   id: WorkspaceID;
@@ -75,11 +81,15 @@ type NavItem = {
   group: string;
 };
 
+// 账户菜单里的个人入口：不进侧栏，只在 allNav 里用于标题和高亮。
 const announcementsUserNav: NavItem = {id: "announcements", label: "站点公告", icon: Bell, group: "个人"};
 const affiliateNav: NavItem = {id: "affiliate", label: "邀请返利", icon: Gift, group: "个人"};
 const plazaNav: NavItem = {id: "model-plaza", label: "模型广场", icon: Boxes, group: "个人"};
 const mcpNav: NavItem = {id: "mcp", label: "MCP 授权", icon: Plug, group: "个人"};
 const purchaseNav: NavItem = {id: "purchase", label: "购买与订单", icon: Wallet, group: "个人"};
+const keysNav: NavItem = {id: "keys", label: "我的密钥", icon: KeyRound, group: "个人"};
+const batchImageNav: NavItem = {id: "batch-image", label: "批量生图", icon: Images, group: "个人"};
+const settingsNav: NavItem = {id: "settings", label: "账户设置", icon: Settings, group: "个人"};
 const orderNav: NavItem = {id: "payment-orders", label: "支付订单", icon: Wallet, group: "用户"};
 
 const adminNavBase: readonly NavItem[] = [
@@ -88,17 +98,19 @@ const adminNavBase: readonly NavItem[] = [
   {id: "usage", label: "用量分析", icon: Activity, group: "观测"},
   {id: "accounts", label: "上游账号", icon: Server, group: "号池"},
   {id: "groups", label: "调度分组", icon: Layers3, group: "号池"},
+  {id: "channels", label: "渠道定价", icon: Tag, group: "号池"},
   {id: "proxies", label: "代理节点", icon: Network, group: "号池"},
+  {id: "upstream-rules", label: "上游规则", icon: Waypoints, group: "号池"},
   {id: "users", label: "用户", icon: UsersRound, group: "用户"},
+  {id: "subscriptions", label: "订阅", icon: CreditCard, group: "用户"},
   {id: "codes", label: "卡密与优惠", icon: Ticket, group: "用户"},
+  {id: "affiliates", label: "推广返利", icon: Share2, group: "用户"},
   {id: "manage-announcements", label: "站点公告", icon: Megaphone, group: "系统"},
+  {id: "risk-control", label: "风控与审计", icon: ShieldCheck, group: "系统"},
   {id: "audit-logs", label: "操作审计", icon: ClipboardList, group: "系统"},
-  {id: "risk-control", label: "风控", icon: ShieldCheck, group: "系统"},
   {id: "backups", label: "备份与恢复", icon: DatabaseBackup, group: "系统"},
   {id: "plugins", label: "插件生态", icon: Puzzle, group: "系统"},
-  {id: "keys", label: "我的密钥", icon: KeyRound, group: "个人"},
-  {id: "batch-image", label: "批量生图", icon: Images, group: "个人"},
-  {id: "settings", label: "设置", icon: Settings, group: "个人"},
+  {id: "site-settings", label: "站点设置", icon: SlidersHorizontal, group: "系统"},
 ];
 
 export function Workspace({
@@ -115,6 +127,11 @@ export function Workspace({
   const route = useRoute(session.admin);
   const [mobile, openMobile] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("panel-rail-collapsed-v1") === "1");
+  const toggleRail = useCallback(() => setCollapsed(prev => {
+    localStorage.setItem("panel-rail-collapsed-v1", prev ? "0" : "1");
+    return !prev;
+  }), []);
   const action = useAction();
   const [confirmationRevision, refreshConfirmation] = useState(0);
   const confirmation = useResource(() => api("/admin/compliance", adminCompliance), "admin-compliance", session.admin, confirmationRevision);
@@ -134,29 +151,39 @@ export function Workspace({
 
   const showPlaza = config.model_plaza_enabled || config.available_channels_enabled;
   const userNav: readonly NavItem[] = [
-    {id: "keys", label: "我的密钥", icon: KeyRound, group: "个人"},
-    {id: "batch-image", label: "批量生图", icon: Images, group: "个人"},
+    keysNav,
     {id: "usage", label: "用量分析", icon: Activity, group: "个人"},
     ...(config.patrol_user_visible || config.channel_monitor_enabled ? [{id: "patrol" as const, label: "渠道健康", icon: ShieldCheck, group: "个人"}] : []),
-    announcementsUserNav,
+    batchImageNav,
     ...(showPlaza ? [plazaNav] : []),
     ...(config.purchase_enabled ? [purchaseNav] : []),
-    ...(config.affiliate ? [affiliateNav] : []),
-    ...(config.mcp_enabled ? [mcpNav] : []),
-    {id: "settings", label: "设置", icon: Settings, group: "个人"},
   ];
 
   const ordered: readonly NavItem[] = session.admin
+    ? [...adminNavBase.slice(0, 12), ...(config.purchase_enabled ? [orderNav] : []), ...adminNavBase.slice(12)]
+    : userNav;
+
+  // 账户菜单的个人链接：管理员把原先侧栏里的个人项收到这里。
+  const accountItems: readonly NavItem[] = session.admin
     ? [
-        ...adminNavBase,
-        ...(config.purchase_enabled ? [orderNav, purchaseNav] : []),
+        keysNav,
+        batchImageNav,
+        ...(config.purchase_enabled ? [purchaseNav] : []),
         ...(showPlaza ? [plazaNav] : []),
         ...(config.affiliate ? [affiliateNav] : []),
         ...(config.mcp_enabled ? [mcpNav] : []),
+        announcementsUserNav,
+        settingsNav,
       ]
-    : userNav;
+    : [
+        settingsNav,
+        ...(config.affiliate ? [affiliateNav] : []),
+        ...(config.mcp_enabled ? [mcpNav] : []),
+        announcementsUserNav,
+      ];
+  const accountLinks: readonly AccountMenuLink[] = accountItems.map(item => ({id: item.id, label: item.label, href: buildHref(item.id), icon: item.icon}));
 
-  const allNav = [...ordered, announcementsUserNav, affiliateNav, plazaNav, mcpNav, purchaseNav, orderNav];
+  const allNav = [...ordered, ...accountItems, announcementsUserNav, affiliateNav, plazaNav, mcpNav, purchaseNav, orderNav, keysNav, batchImageNav, settingsNav];
   const active = allNav.find(item => item.id === route.page) ?? ordered[0];
   const accountDetail = route.page === "accounts" ? route.params.get("detail") : null;
   const groups = [...new Set(ordered.map(item => item.group))];
@@ -173,18 +200,25 @@ export function Workspace({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setPaletteOpen(prev => !prev);
+        return;
+      }
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if (event.key === "[" && !event.metaKey && !event.ctrlKey && !event.altKey && !typing) {
+        event.preventDefault();
+        toggleRail();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [toggleRail]);
 
   if (route.forbidden) {
     return <main className="main-content" role="status">无权访问该页面 <a href={buildHref("keys")}>返回我的密钥</a></main>;
   }
 
   return (
-    <div className="workspace">
+    <div className="workspace" data-collapsed={collapsed || undefined}>
       <aside className="rail" data-open={mobile} id="panel-nav">
         <div className="rail-head">
           <Brand name={siteName} logo={config.site_logo || undefined} />
@@ -211,11 +245,12 @@ export function Workspace({
                   <a
                     key={id}
                     href={buildHref(id)}
+                    title={collapsed ? label : undefined}
                     aria-current={!slug && active.id === id ? "page" : undefined}
                     onClick={() => openMobile(false)}
                   >
                     <Icon className="rail-icon" aria-hidden />
-                    <span>{label}</span>
+                    <span className="rail-label">{label}</span>
                   </a>
                 ))}
               </nav>
@@ -234,45 +269,6 @@ export function Workspace({
               </nav>
             </div>
           )}
-        </div>
-
-        <div className="rail-footer">
-          <div className="rail-identity">
-            <IdentityBadge
-              name={session.admin ? "管理员" : "普通用户"}
-              meta={onOpenPublicHome ? "调度控制台" : undefined}
-              badge={session.admin ? "AD" : "US"}
-              tone={session.admin ? "accent" : "neutral"}
-            />
-            <div className="rail-footer-actions">
-              {onOpenPublicHome && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="站点首页"
-                  aria-label="站点首页"
-                  onClick={onOpenPublicHome}
-                >
-                  <Compass aria-hidden />
-                </Button>
-              )}
-              <ThemeControl />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                busy={action.busy}
-                title="退出登录"
-                aria-label="退出登录"
-                onClick={() => void action.run(async () => {
-                  await api("/session/logout", empty, "POST");
-                  navigatePath("/", true);
-                  logout();
-                })}
-              >
-                <LogOut aria-hidden />
-              </Button>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -296,16 +292,33 @@ export function Workspace({
             }
             meta={!slug ? <span>{active.group}</span> : undefined}
             actions={
-              <Button
-                className="mobile-search-btn"
-                variant="ghost"
-                size="icon-sm"
-                title="快速搜索跳转 (Ctrl/⌘+K)"
-                aria-label="快速搜索跳转"
-                onClick={() => setPaletteOpen(true)}
-              >
-                <Search aria-hidden />
-              </Button>
+              <>
+                <Button
+                  className="stage-search-btn"
+                  variant="ghost"
+                  size="icon-sm"
+                  title="快速搜索跳转 (Ctrl/⌘+K)"
+                  aria-label="快速搜索跳转"
+                  onClick={() => setPaletteOpen(true)}
+                >
+                  <Search aria-hidden />
+                </Button>
+                {session.admin && <Suspense fallback={null}><LedgerAlertBell /></Suspense>}
+                <AccountMenu
+                  name={session.admin ? "管理员" : "普通用户"}
+                  meta={onOpenPublicHome ? "调度控制台" : undefined}
+                  badge={session.admin ? "AD" : "US"}
+                  tone={session.admin ? "accent" : "neutral"}
+                  links={accountLinks}
+                  onOpenPublicHome={onOpenPublicHome}
+                  logoutBusy={action.busy}
+                  onLogout={() => void action.run(async () => {
+                    await api("/session/logout", empty, "POST");
+                    navigatePath("/", true);
+                    logout();
+                  })}
+                />
+              </>
             }
           />
 
@@ -369,9 +382,13 @@ export function Workspace({
                   {active.id === "batch-image" && <BatchImages gateway={config.official} />}
                   {active.id === "risk-control" && session.admin && <RiskControl />}
                   {active.id === "keys" && <KeysWorkspace config={config} admin={session.admin} queryString={route.queryString} />}
-                  {active.id === "settings" && (
+                  {active.id === "subscriptions" && session.admin && <SubscriptionsWorkspace queryString={route.queryString} />}
+                  {active.id === "channels" && session.admin && <ChannelsWorkspace queryString={route.queryString} />}
+                  {active.id === "upstream-rules" && session.admin && <UpstreamRulesWorkspace queryString={route.queryString} />}
+                  {active.id === "affiliates" && session.admin && <AffiliatesWorkspace queryString={route.queryString} />}
+                  {(active.id === "settings" || active.id === "site-settings") && (
                     <SettingsWorkspace
-                      admin={session.admin}
+                      scope={active.id === "site-settings" ? "site" : "personal"}
                       section={route.params.get("section") ?? ""}
                       onSection={section => route.setParams({section}, false)}
                     />

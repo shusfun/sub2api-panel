@@ -17,6 +17,7 @@ func RegisterRoutes(mux *http.ServeMux, s *core.Server) {
 	h.registerPaymentRoutes(mux)
 	h.registerRedeemAdminRoutes(mux)
 	h.registerRedeemAndGrantRoutes(mux)
+	h.registerLedgerRoutes(mux)
 }
 
 type handler struct {

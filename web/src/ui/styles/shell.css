@@ -1,0 +1,159 @@
+/*
+ * 外壳公共件样式：账户菜单、状态页结论（Verdict）、KPI 条（KpiStrip）。
+ * 琥珀色只出现在 --weir-accent / --weir-chart-1 等语义变量里，这里不直接写色值。
+ */
+@layer components {
+  /* ---- 账户菜单 ---- */
+  .weir-account-trigger { padding: 0; }
+  .weir-account-trigger .weir-identity-copy { display: none; }
+  .weir-account-menu { display: grid; min-width: 211px; }
+  .weir-account-head { padding: var(--weir-gap-7) var(--weir-gap-9); }
+  .weir-account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--weir-gap-9);
+    padding: var(--weir-gap-3) var(--weir-gap-5) var(--weir-gap-3) var(--weir-gap-9);
+    color: var(--weir-ink-2);
+  }
+
+  /* ---- 外壳：舱头右侧动作、侧栏降档与折叠 ---- */
+  .weir-stage-header-actions { gap: var(--weir-gap-3); }
+  .rail-group-title { font-size: var(--weir-text-fine); opacity: 0.8; }
+  .rail nav a { color: var(--weir-ink-3); }
+  .rail nav a[aria-current="page"] { color: var(--weir-nav-active-ink); }
+  .rail-icon { width: var(--weir-icon-sm); height: var(--weir-icon-sm); }
+  @media (min-width: 768px) {
+    .workspace[data-collapsed] { grid-template-columns: 57px minmax(0, 1fr); }
+    .workspace[data-collapsed] .rail { padding-inline: var(--weir-gap-7); }
+    .workspace[data-collapsed] .rail .brand-name,
+    .workspace[data-collapsed] .rail-search-label,
+    .workspace[data-collapsed] .rail-search kbd,
+    .workspace[data-collapsed] .rail-group-title,
+    .workspace[data-collapsed] .rail-label { display: none; }
+    .workspace[data-collapsed] .rail nav a { justify-content: center; padding-inline: 0; }
+    .workspace[data-collapsed] .rail-search { justify-content: center; }
+  }
+  /* 窄屏：侧栏改为悬浮底栏 */
+  @media (max-width: 767.98px) {
+    .rail[data-open="true"] {
+      top: auto;
+      inset-inline: var(--weir-gap-9);
+      bottom: var(--weir-gap-9);
+      max-height: 65dvh;
+      border-radius: var(--weir-radius-dialog);
+      corner-shape: squircle;
+      background: var(--weir-raised);
+      box-shadow: var(--weir-shadow-stage);
+    }
+  }
+
+  /* ---- 状态页首屏结论 ---- */
+  .weir-verdict {
+    --verdict-tone: var(--weir-ok);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--weir-gap-13);
+    row-gap: var(--weir-gap-5);
+    padding: var(--weir-space-5);
+    border-radius: var(--weir-radius-card);
+    corner-shape: squircle;
+    background: var(--weir-panel);
+    box-shadow: var(--weir-shadow-card);
+    min-width: 0;
+  }
+  .weir-verdict[data-tone="warn"] { --verdict-tone: var(--weir-warn); }
+  .weir-verdict[data-tone="bad"] { --verdict-tone: var(--weir-bad); }
+  .weir-verdict[data-tone="info"] { --verdict-tone: var(--weir-accent-text); }
+  .weir-verdict:not([data-tone="ok"]) { box-shadow: var(--weir-shadow-card), inset 3px 0 0 var(--verdict-tone); }
+  .dark .weir-verdict { background: linear-gradient(180deg, color-mix(in srgb, var(--weir-raised) 55%, var(--weir-panel)), var(--weir-panel)); }
+  .weir-verdict-mark {
+    grid-row: 1;
+    width: 9px;
+    height: 9px;
+    margin-inline: var(--weir-gap-7);
+    border-radius: var(--weir-radius-full);
+    background: var(--verdict-tone);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--verdict-tone) 12%, transparent);
+  }
+  .weir-verdict-title {
+    grid-column: 2;
+    font-size: var(--weir-text-title2);
+    line-height: var(--weir-leading-title2);
+    font-weight: var(--weir-weight-semibold);
+    letter-spacing: var(--weir-track-heading);
+    overflow-wrap: anywhere;
+  }
+  .weir-verdict-detail { grid-column: 2; color: var(--weir-ink-3); overflow-wrap: anywhere; }
+  .weir-verdict-actions { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--weir-gap-7); margin-top: var(--weir-gap-5); }
+
+  /* ---- KPI 条 ---- */
+  .weir-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(181px, 1fr));
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow: hidden;
+    border-radius: var(--weir-radius-card);
+    corner-shape: squircle;
+    background: var(--weir-line-soft);
+    box-shadow: var(--weir-shadow-card);
+  }
+  .weir-kpi-strip > li { display: flex; min-width: 0; }
+  .weir-kpi {
+    flex: 1;
+    --kpi-tone: var(--weir-chart-1);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "label label" "value spark" "delta spark";
+    align-items: end;
+    column-gap: var(--weir-gap-9);
+    row-gap: var(--weir-gap-3);
+    min-width: 0;
+    padding: var(--weir-space-3) var(--weir-space-4);
+    background: var(--weir-panel);
+  }
+  .weir-kpi[data-tone="neutral"] { --kpi-tone: var(--weir-ink-3); }
+  .weir-kpi[data-tone="ok"] { --kpi-tone: var(--weir-ok); }
+  .weir-kpi[data-tone="warn"] { --kpi-tone: var(--weir-warn); }
+  .weir-kpi[data-tone="bad"] { --kpi-tone: var(--weir-bad); }
+  .weir-kpi[data-tone="cyan"] { --kpi-tone: var(--weir-chart-3); }
+  .weir-kpi[data-tone="violet"] { --kpi-tone: var(--weir-chart-2); }
+  .weir-kpi-label { grid-area: label; display: block; color: var(--weir-ink-3); font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); }
+  .weir-kpi[data-action] {
+    width: 100%;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+    appearance: none;
+  }
+  .weir-kpi[data-action]:hover { background: color-mix(in srgb, var(--weir-panel), var(--weir-ink) 5%); }
+  .weir-kpi[data-action]:focus-visible { outline-offset: -3px; }
+  .weir-kpi-hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (prefers-reduced-motion: no-preference) {
+    .weir-kpi[data-action] { transition: background-color var(--weir-fast) var(--weir-ease); }
+  }
+  .weir-kpi-value {
+    grid-area: value;
+    display: block;
+    margin: 0;
+    min-width: 0;
+    font-size: var(--weir-text-title2);
+    line-height: var(--weir-leading-title2);
+    font-weight: var(--weir-weight-semibold);
+    letter-spacing: -0.035em;
+    overflow-wrap: anywhere;
+  }
+  .weir-kpi[data-tone="warn"] .weir-kpi-value { color: var(--weir-warn-ink); }
+  .weir-kpi[data-tone="bad"] .weir-kpi-value { color: var(--weir-bad-ink); }
+  .weir-kpi-delta { grid-area: delta; display: block; margin: 0; color: var(--weir-ink-3); font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); overflow-wrap: anywhere; }
+  .weir-kpi-spark { grid-area: spark; align-self: center; width: 85px; height: 27px; color: var(--kpi-tone); overflow: visible; }
+  @media (max-width: 767.98px) {
+    .weir-kpi-spark { display: none; }
+  }
+}

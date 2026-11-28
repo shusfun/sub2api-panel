@@ -23,4 +23,5 @@ func RegisterRoutes(mux *http.ServeMux, s *core.Server) {
 	h.siteContentRoutes(mux)
 	h.backupRoutes(mux)
 	h.riskRoutes(mux)
+	h.promptAuditRoutes(mux)
 }

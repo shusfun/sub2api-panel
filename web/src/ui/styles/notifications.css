@@ -1,0 +1,90 @@
+/* 线 D 归属：告警铃触发器、未读数、通知列表浮层样式。尺寸与色值只用 tokens.css 里的变量，动效遵守 prefers-reduced-motion。 */
+@layer components {
+  .weir-bell-trigger { position: relative; }
+  .weir-bell-swing { transform-box: fill-box; transform-origin: 50% 10%; transition: rotate var(--weir-mid) var(--weir-ease); }
+  .weir-bell-badge { color: var(--weir-bad); }
+  .weir-bell-trigger:not(:disabled):is(:hover, :focus-visible) .weir-bell-swing { rotate: 13deg; }
+  .weir-bell-trigger[data-popup-open] .weir-bell-swing { rotate: 0deg; }
+  .weir-bell-icon[data-unread] { color: var(--weir-accent-text); }
+  .weir-bell-count {
+    position: absolute;
+    top: 0;
+    inset-inline-end: 0;
+    min-width: var(--weir-icon-sm);
+    padding: 0 var(--weir-gap-3);
+    border-radius: var(--weir-radius-full);
+    background: var(--weir-bad);
+    color: var(--weir-accent-ink);
+    font-size: var(--weir-text-caption2);
+    line-height: var(--weir-icon-sm);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .weir-bell-positioner { z-index: 70; }
+  .weir-bell-popup {
+    width: 359px;
+    max-width: calc(100vw - var(--weir-space-4));
+    max-height: 481px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--weir-line);
+    border-radius: var(--weir-radius-card);
+    background: var(--weir-panel);
+    box-shadow: var(--weir-shadow-float);
+    overflow: hidden;
+  }
+  .weir-bell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--weir-space-2);
+    padding: var(--weir-gap-7) var(--weir-space-2) var(--weir-gap-7) var(--weir-space-3);
+    border-bottom: 1px solid var(--weir-line-soft);
+    font-size: var(--weir-text-heading);
+  }
+  .weir-bell-list { overflow-y: auto; padding: var(--weir-gap-5); }
+  .weir-bell-skeleton { height: 61px; }
+  .weir-bell-item {
+    display: flex;
+    align-items: center;
+    gap: var(--weir-gap-3);
+    border-radius: var(--weir-radius);
+  }
+  .weir-bell-item:hover, .weir-bell-item:focus-within { background: var(--weir-accent-soft); }
+  .weir-bell-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--weir-space-2);
+    padding: var(--weir-gap-7) var(--weir-space-2);
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .weir-bell-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-top: var(--weir-gap-5);
+    border-radius: var(--weir-radius-full);
+    background: var(--weir-ink-4);
+  }
+  .weir-bell-item[data-tone="warn"] .weir-bell-dot { background: var(--weir-warn); }
+  .weir-bell-item[data-tone="bad"] .weir-bell-dot { background: var(--weir-bad); }
+  .weir-bell-item[data-read] .weir-bell-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--weir-ink-4); }
+  .weir-bell-item[data-read] .weir-bell-title { color: var(--weir-ink-3); font-weight: var(--weir-weight-regular, 400); }
+  .weir-bell-text { display: flex; flex-direction: column; gap: var(--weir-gap-1); min-width: 0; }
+  .weir-bell-title { font-size: var(--weir-text-body); font-weight: var(--weir-weight-medium); overflow-wrap: anywhere; }
+  .weir-bell-meta { font-size: var(--weir-text-fine); color: var(--weir-ink-3); }
+  .weir-bell-ops { flex: none; display: flex; padding-inline-end: var(--weir-gap-3); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .weir-bell-swing { transition: none; }
+    .weir-bell-trigger:not(:disabled):is(:hover, :focus-visible) .weir-bell-swing { rotate: none; }
+  }
+}

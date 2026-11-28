@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -59,6 +60,211 @@ var (
 		Name:       "issues",
 		Columns:    IssuesColumns,
 		PrimaryKey: []*schema.Column{IssuesColumns[0]},
+	}
+	// LedgerAccountsColumns holds the columns for the "ledger_accounts" table.
+	LedgerAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_id", Type: field.TypeInt64, Unique: true},
+		{Name: "wallet_id", Type: field.TypeInt64},
+		{Name: "key_fingerprint", Type: field.TypeString, Default: ""},
+		{Name: "name", Type: field.TypeString, Default: ""},
+		{Name: "platform", Type: field.TypeString, Default: ""},
+		{Name: "deleted_at", Type: field.TypeInt64, Nullable: true},
+		{Name: "created", Type: field.TypeInt64},
+		{Name: "updated", Type: field.TypeInt64},
+	}
+	// LedgerAccountsTable holds the schema information for the "ledger_accounts" table.
+	LedgerAccountsTable = &schema.Table{
+		Name:       "ledger_accounts",
+		Columns:    LedgerAccountsColumns,
+		PrimaryKey: []*schema.Column{LedgerAccountsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgeraccount_wallet_id",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAccountsColumns[2]},
+			},
+		},
+	}
+	// LedgerAlertsColumns holds the columns for the "ledger_alerts" table.
+	LedgerAlertsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_id", Type: field.TypeInt64},
+		{Name: "wallet_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString, Default: "warn"},
+		{Name: "status", Type: field.TypeString, Default: "open"},
+		{Name: "opened_at", Type: field.TypeInt64},
+		{Name: "resolved_at", Type: field.TypeInt64, Nullable: true},
+		{Name: "value", Type: field.TypeFloat64, Default: 0},
+		{Name: "read_at", Type: field.TypeInt64, Nullable: true},
+		{Name: "dismissed_at", Type: field.TypeInt64, Nullable: true},
+	}
+	// LedgerAlertsTable holds the schema information for the "ledger_alerts" table.
+	LedgerAlertsTable = &schema.Table{
+		Name:       "ledger_alerts",
+		Columns:    LedgerAlertsColumns,
+		PrimaryKey: []*schema.Column{LedgerAlertsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgeralert_account_id_kind",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerAlertsColumns[1], LedgerAlertsColumns[3]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "status = 'open'",
+				},
+			},
+			{
+				Name:    "ledgeralert_status_opened_at",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerAlertsColumns[5], LedgerAlertsColumns[6]},
+			},
+		},
+	}
+	// LedgerDaysColumns holds the columns for the "ledger_days" table.
+	LedgerDaysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_id", Type: field.TypeInt64},
+		{Name: "bucket", Type: field.TypeInt64},
+		{Name: "requests", Type: field.TypeInt64, Default: 0},
+		{Name: "revenue_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "expected_balance_cost_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "expected_subscription_cost_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "actual_cost_usd", Type: field.TypeFloat64, Nullable: true},
+		{Name: "actual_source", Type: field.TypeString, Default: ""},
+		{Name: "updated", Type: field.TypeInt64},
+	}
+	// LedgerDaysTable holds the schema information for the "ledger_days" table.
+	LedgerDaysTable = &schema.Table{
+		Name:       "ledger_days",
+		Columns:    LedgerDaysColumns,
+		PrimaryKey: []*schema.Column{LedgerDaysColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgerday_account_id_bucket",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerDaysColumns[1], LedgerDaysColumns[2]},
+			},
+			{
+				Name:    "ledgerday_bucket",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerDaysColumns[2]},
+			},
+		},
+	}
+	// LedgerEventsColumns holds the columns for the "ledger_events" table.
+	LedgerEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "wallet_id", Type: field.TypeInt64},
+		{Name: "account_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "amount_usd", Type: field.TypeFloat64},
+		{Name: "occurred_at", Type: field.TypeInt64},
+		{Name: "source", Type: field.TypeString, Default: ""},
+		{Name: "external_id", Type: field.TypeString, Nullable: true},
+		{Name: "status", Type: field.TypeString, Default: "confirmed"},
+		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "created", Type: field.TypeInt64},
+		{Name: "updated", Type: field.TypeInt64},
+	}
+	// LedgerEventsTable holds the schema information for the "ledger_events" table.
+	LedgerEventsTable = &schema.Table{
+		Name:       "ledger_events",
+		Columns:    LedgerEventsColumns,
+		PrimaryKey: []*schema.Column{LedgerEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgerevent_wallet_id_external_id",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerEventsColumns[1], LedgerEventsColumns[7]},
+			},
+			{
+				Name:    "ledgerevent_wallet_id_occurred_at",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerEventsColumns[1], LedgerEventsColumns[5]},
+			},
+		},
+	}
+	// LedgerHoursColumns holds the columns for the "ledger_hours" table.
+	LedgerHoursColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_id", Type: field.TypeInt64},
+		{Name: "bucket", Type: field.TypeInt64},
+		{Name: "requests", Type: field.TypeInt64, Default: 0},
+		{Name: "revenue_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "expected_balance_cost_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "expected_subscription_cost_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "actual_cost_usd", Type: field.TypeFloat64, Nullable: true},
+		{Name: "actual_source", Type: field.TypeString, Default: ""},
+		{Name: "updated", Type: field.TypeInt64},
+	}
+	// LedgerHoursTable holds the schema information for the "ledger_hours" table.
+	LedgerHoursTable = &schema.Table{
+		Name:       "ledger_hours",
+		Columns:    LedgerHoursColumns,
+		PrimaryKey: []*schema.Column{LedgerHoursColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgerhour_account_id_bucket",
+				Unique:  true,
+				Columns: []*schema.Column{LedgerHoursColumns[1], LedgerHoursColumns[2]},
+			},
+			{
+				Name:    "ledgerhour_bucket",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerHoursColumns[2]},
+			},
+		},
+	}
+	// LedgerSamplesColumns holds the columns for the "ledger_samples" table.
+	LedgerSamplesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "wallet_id", Type: field.TypeInt64},
+		{Name: "account_id", Type: field.TypeInt64},
+		{Name: "first_seen", Type: field.TypeInt64},
+		{Name: "last_seen", Type: field.TypeInt64},
+		{Name: "balance_usd", Type: field.TypeFloat64, Nullable: true},
+		{Name: "key_used_usd", Type: field.TypeFloat64, Nullable: true},
+		{Name: "wallet_used_usd", Type: field.TypeFloat64, Nullable: true},
+		{Name: "multiplier", Type: field.TypeFloat64, Nullable: true},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "currency", Type: field.TypeString, Default: "USD"},
+	}
+	// LedgerSamplesTable holds the schema information for the "ledger_samples" table.
+	LedgerSamplesTable = &schema.Table{
+		Name:       "ledger_samples",
+		Columns:    LedgerSamplesColumns,
+		PrimaryKey: []*schema.Column{LedgerSamplesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ledgersample_account_id_last_seen",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerSamplesColumns[2], LedgerSamplesColumns[4]},
+			},
+			{
+				Name:    "ledgersample_last_seen",
+				Unique:  false,
+				Columns: []*schema.Column{LedgerSamplesColumns[4]},
+			},
+		},
+	}
+	// LedgerWalletsColumns holds the columns for the "ledger_wallets" table.
+	LedgerWalletsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "identity", Type: field.TypeString, Unique: true},
+		{Name: "provider", Type: field.TypeString},
+		{Name: "origin", Type: field.TypeString, Default: ""},
+		{Name: "quota_per_usd", Type: field.TypeFloat64, Default: 0},
+		{Name: "upstream_user_id", Type: field.TypeInt64, Default: 0},
+		{Name: "auto_recharge", Type: field.TypeBool, Default: true},
+		{Name: "created", Type: field.TypeInt64},
+		{Name: "updated", Type: field.TypeInt64},
+	}
+	// LedgerWalletsTable holds the schema information for the "ledger_wallets" table.
+	LedgerWalletsTable = &schema.Table{
+		Name:       "ledger_wallets",
+		Columns:    LedgerWalletsColumns,
+		PrimaryKey: []*schema.Column{LedgerWalletsColumns[0]},
 	}
 	// PatrolPoliciesColumns holds the columns for the "patrol_policies" table.
 	PatrolPoliciesColumns = []*schema.Column{
@@ -278,6 +484,13 @@ var (
 		GrantsTable,
 		GrantAuditsTable,
 		IssuesTable,
+		LedgerAccountsTable,
+		LedgerAlertsTable,
+		LedgerDaysTable,
+		LedgerEventsTable,
+		LedgerHoursTable,
+		LedgerSamplesTable,
+		LedgerWalletsTable,
 		PatrolPoliciesTable,
 		PatrolRunsTable,
 		ProbeTemplatesTable,

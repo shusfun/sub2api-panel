@@ -6,6 +6,13 @@ import (
 	"sub2api-panel/ent/grant"
 	"sub2api-panel/ent/grantaudit"
 	"sub2api-panel/ent/issue"
+	"sub2api-panel/ent/ledgeraccount"
+	"sub2api-panel/ent/ledgeralert"
+	"sub2api-panel/ent/ledgerday"
+	"sub2api-panel/ent/ledgerevent"
+	"sub2api-panel/ent/ledgerhour"
+	"sub2api-panel/ent/ledgersample"
+	"sub2api-panel/ent/ledgerwallet"
 	"sub2api-panel/ent/patrolpolicy"
 	"sub2api-panel/ent/patrolrun"
 	"sub2api-panel/ent/probetemplate"
@@ -77,6 +84,204 @@ func init() {
 	issueDescRefunded := issueFields[9].Descriptor()
 	// issue.DefaultRefunded holds the default value on creation for the refunded field.
 	issue.DefaultRefunded = issueDescRefunded.Default.(bool)
+	ledgeraccountFields := schema.LedgerAccount{}.Fields()
+	_ = ledgeraccountFields
+	// ledgeraccountDescAccountID is the schema descriptor for account_id field.
+	ledgeraccountDescAccountID := ledgeraccountFields[0].Descriptor()
+	// ledgeraccount.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	ledgeraccount.AccountIDValidator = ledgeraccountDescAccountID.Validators[0].(func(int64) error)
+	// ledgeraccountDescWalletID is the schema descriptor for wallet_id field.
+	ledgeraccountDescWalletID := ledgeraccountFields[1].Descriptor()
+	// ledgeraccount.WalletIDValidator is a validator for the "wallet_id" field. It is called by the builders before save.
+	ledgeraccount.WalletIDValidator = ledgeraccountDescWalletID.Validators[0].(func(int64) error)
+	// ledgeraccountDescKeyFingerprint is the schema descriptor for key_fingerprint field.
+	ledgeraccountDescKeyFingerprint := ledgeraccountFields[2].Descriptor()
+	// ledgeraccount.DefaultKeyFingerprint holds the default value on creation for the key_fingerprint field.
+	ledgeraccount.DefaultKeyFingerprint = ledgeraccountDescKeyFingerprint.Default.(string)
+	// ledgeraccountDescName is the schema descriptor for name field.
+	ledgeraccountDescName := ledgeraccountFields[3].Descriptor()
+	// ledgeraccount.DefaultName holds the default value on creation for the name field.
+	ledgeraccount.DefaultName = ledgeraccountDescName.Default.(string)
+	// ledgeraccountDescPlatform is the schema descriptor for platform field.
+	ledgeraccountDescPlatform := ledgeraccountFields[4].Descriptor()
+	// ledgeraccount.DefaultPlatform holds the default value on creation for the platform field.
+	ledgeraccount.DefaultPlatform = ledgeraccountDescPlatform.Default.(string)
+	// ledgeraccountDescCreated is the schema descriptor for created field.
+	ledgeraccountDescCreated := ledgeraccountFields[6].Descriptor()
+	// ledgeraccount.CreatedValidator is a validator for the "created" field. It is called by the builders before save.
+	ledgeraccount.CreatedValidator = ledgeraccountDescCreated.Validators[0].(func(int64) error)
+	// ledgeraccountDescUpdated is the schema descriptor for updated field.
+	ledgeraccountDescUpdated := ledgeraccountFields[7].Descriptor()
+	// ledgeraccount.UpdatedValidator is a validator for the "updated" field. It is called by the builders before save.
+	ledgeraccount.UpdatedValidator = ledgeraccountDescUpdated.Validators[0].(func(int64) error)
+	ledgeralertFields := schema.LedgerAlert{}.Fields()
+	_ = ledgeralertFields
+	// ledgeralertDescAccountID is the schema descriptor for account_id field.
+	ledgeralertDescAccountID := ledgeralertFields[0].Descriptor()
+	// ledgeralert.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	ledgeralert.AccountIDValidator = ledgeralertDescAccountID.Validators[0].(func(int64) error)
+	// ledgeralertDescSeverity is the schema descriptor for severity field.
+	ledgeralertDescSeverity := ledgeralertFields[3].Descriptor()
+	// ledgeralert.DefaultSeverity holds the default value on creation for the severity field.
+	ledgeralert.DefaultSeverity = ledgeralertDescSeverity.Default.(string)
+	// ledgeralertDescStatus is the schema descriptor for status field.
+	ledgeralertDescStatus := ledgeralertFields[4].Descriptor()
+	// ledgeralert.DefaultStatus holds the default value on creation for the status field.
+	ledgeralert.DefaultStatus = ledgeralertDescStatus.Default.(string)
+	// ledgeralertDescOpenedAt is the schema descriptor for opened_at field.
+	ledgeralertDescOpenedAt := ledgeralertFields[5].Descriptor()
+	// ledgeralert.OpenedAtValidator is a validator for the "opened_at" field. It is called by the builders before save.
+	ledgeralert.OpenedAtValidator = ledgeralertDescOpenedAt.Validators[0].(func(int64) error)
+	// ledgeralertDescValue is the schema descriptor for value field.
+	ledgeralertDescValue := ledgeralertFields[7].Descriptor()
+	// ledgeralert.DefaultValue holds the default value on creation for the value field.
+	ledgeralert.DefaultValue = ledgeralertDescValue.Default.(float64)
+	ledgerdayFields := schema.LedgerDay{}.Fields()
+	_ = ledgerdayFields
+	// ledgerdayDescAccountID is the schema descriptor for account_id field.
+	ledgerdayDescAccountID := ledgerdayFields[0].Descriptor()
+	// ledgerday.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	ledgerday.AccountIDValidator = ledgerdayDescAccountID.Validators[0].(func(int64) error)
+	// ledgerdayDescBucket is the schema descriptor for bucket field.
+	ledgerdayDescBucket := ledgerdayFields[1].Descriptor()
+	// ledgerday.BucketValidator is a validator for the "bucket" field. It is called by the builders before save.
+	ledgerday.BucketValidator = ledgerdayDescBucket.Validators[0].(func(int64) error)
+	// ledgerdayDescRequests is the schema descriptor for requests field.
+	ledgerdayDescRequests := ledgerdayFields[2].Descriptor()
+	// ledgerday.DefaultRequests holds the default value on creation for the requests field.
+	ledgerday.DefaultRequests = ledgerdayDescRequests.Default.(int64)
+	// ledgerdayDescRevenueUsd is the schema descriptor for revenue_usd field.
+	ledgerdayDescRevenueUsd := ledgerdayFields[3].Descriptor()
+	// ledgerday.DefaultRevenueUsd holds the default value on creation for the revenue_usd field.
+	ledgerday.DefaultRevenueUsd = ledgerdayDescRevenueUsd.Default.(float64)
+	// ledgerdayDescExpectedBalanceCostUsd is the schema descriptor for expected_balance_cost_usd field.
+	ledgerdayDescExpectedBalanceCostUsd := ledgerdayFields[4].Descriptor()
+	// ledgerday.DefaultExpectedBalanceCostUsd holds the default value on creation for the expected_balance_cost_usd field.
+	ledgerday.DefaultExpectedBalanceCostUsd = ledgerdayDescExpectedBalanceCostUsd.Default.(float64)
+	// ledgerdayDescExpectedSubscriptionCostUsd is the schema descriptor for expected_subscription_cost_usd field.
+	ledgerdayDescExpectedSubscriptionCostUsd := ledgerdayFields[5].Descriptor()
+	// ledgerday.DefaultExpectedSubscriptionCostUsd holds the default value on creation for the expected_subscription_cost_usd field.
+	ledgerday.DefaultExpectedSubscriptionCostUsd = ledgerdayDescExpectedSubscriptionCostUsd.Default.(float64)
+	// ledgerdayDescActualSource is the schema descriptor for actual_source field.
+	ledgerdayDescActualSource := ledgerdayFields[7].Descriptor()
+	// ledgerday.DefaultActualSource holds the default value on creation for the actual_source field.
+	ledgerday.DefaultActualSource = ledgerdayDescActualSource.Default.(string)
+	// ledgerdayDescUpdated is the schema descriptor for updated field.
+	ledgerdayDescUpdated := ledgerdayFields[8].Descriptor()
+	// ledgerday.UpdatedValidator is a validator for the "updated" field. It is called by the builders before save.
+	ledgerday.UpdatedValidator = ledgerdayDescUpdated.Validators[0].(func(int64) error)
+	ledgereventFields := schema.LedgerEvent{}.Fields()
+	_ = ledgereventFields
+	// ledgereventDescWalletID is the schema descriptor for wallet_id field.
+	ledgereventDescWalletID := ledgereventFields[0].Descriptor()
+	// ledgerevent.WalletIDValidator is a validator for the "wallet_id" field. It is called by the builders before save.
+	ledgerevent.WalletIDValidator = ledgereventDescWalletID.Validators[0].(func(int64) error)
+	// ledgereventDescOccurredAt is the schema descriptor for occurred_at field.
+	ledgereventDescOccurredAt := ledgereventFields[4].Descriptor()
+	// ledgerevent.OccurredAtValidator is a validator for the "occurred_at" field. It is called by the builders before save.
+	ledgerevent.OccurredAtValidator = ledgereventDescOccurredAt.Validators[0].(func(int64) error)
+	// ledgereventDescSource is the schema descriptor for source field.
+	ledgereventDescSource := ledgereventFields[5].Descriptor()
+	// ledgerevent.DefaultSource holds the default value on creation for the source field.
+	ledgerevent.DefaultSource = ledgereventDescSource.Default.(string)
+	// ledgereventDescStatus is the schema descriptor for status field.
+	ledgereventDescStatus := ledgereventFields[7].Descriptor()
+	// ledgerevent.DefaultStatus holds the default value on creation for the status field.
+	ledgerevent.DefaultStatus = ledgereventDescStatus.Default.(string)
+	// ledgereventDescNote is the schema descriptor for note field.
+	ledgereventDescNote := ledgereventFields[8].Descriptor()
+	// ledgerevent.DefaultNote holds the default value on creation for the note field.
+	ledgerevent.DefaultNote = ledgereventDescNote.Default.(string)
+	// ledgereventDescCreated is the schema descriptor for created field.
+	ledgereventDescCreated := ledgereventFields[9].Descriptor()
+	// ledgerevent.CreatedValidator is a validator for the "created" field. It is called by the builders before save.
+	ledgerevent.CreatedValidator = ledgereventDescCreated.Validators[0].(func(int64) error)
+	// ledgereventDescUpdated is the schema descriptor for updated field.
+	ledgereventDescUpdated := ledgereventFields[10].Descriptor()
+	// ledgerevent.UpdatedValidator is a validator for the "updated" field. It is called by the builders before save.
+	ledgerevent.UpdatedValidator = ledgereventDescUpdated.Validators[0].(func(int64) error)
+	ledgerhourFields := schema.LedgerHour{}.Fields()
+	_ = ledgerhourFields
+	// ledgerhourDescAccountID is the schema descriptor for account_id field.
+	ledgerhourDescAccountID := ledgerhourFields[0].Descriptor()
+	// ledgerhour.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	ledgerhour.AccountIDValidator = ledgerhourDescAccountID.Validators[0].(func(int64) error)
+	// ledgerhourDescBucket is the schema descriptor for bucket field.
+	ledgerhourDescBucket := ledgerhourFields[1].Descriptor()
+	// ledgerhour.BucketValidator is a validator for the "bucket" field. It is called by the builders before save.
+	ledgerhour.BucketValidator = ledgerhourDescBucket.Validators[0].(func(int64) error)
+	// ledgerhourDescRequests is the schema descriptor for requests field.
+	ledgerhourDescRequests := ledgerhourFields[2].Descriptor()
+	// ledgerhour.DefaultRequests holds the default value on creation for the requests field.
+	ledgerhour.DefaultRequests = ledgerhourDescRequests.Default.(int64)
+	// ledgerhourDescRevenueUsd is the schema descriptor for revenue_usd field.
+	ledgerhourDescRevenueUsd := ledgerhourFields[3].Descriptor()
+	// ledgerhour.DefaultRevenueUsd holds the default value on creation for the revenue_usd field.
+	ledgerhour.DefaultRevenueUsd = ledgerhourDescRevenueUsd.Default.(float64)
+	// ledgerhourDescExpectedBalanceCostUsd is the schema descriptor for expected_balance_cost_usd field.
+	ledgerhourDescExpectedBalanceCostUsd := ledgerhourFields[4].Descriptor()
+	// ledgerhour.DefaultExpectedBalanceCostUsd holds the default value on creation for the expected_balance_cost_usd field.
+	ledgerhour.DefaultExpectedBalanceCostUsd = ledgerhourDescExpectedBalanceCostUsd.Default.(float64)
+	// ledgerhourDescExpectedSubscriptionCostUsd is the schema descriptor for expected_subscription_cost_usd field.
+	ledgerhourDescExpectedSubscriptionCostUsd := ledgerhourFields[5].Descriptor()
+	// ledgerhour.DefaultExpectedSubscriptionCostUsd holds the default value on creation for the expected_subscription_cost_usd field.
+	ledgerhour.DefaultExpectedSubscriptionCostUsd = ledgerhourDescExpectedSubscriptionCostUsd.Default.(float64)
+	// ledgerhourDescActualSource is the schema descriptor for actual_source field.
+	ledgerhourDescActualSource := ledgerhourFields[7].Descriptor()
+	// ledgerhour.DefaultActualSource holds the default value on creation for the actual_source field.
+	ledgerhour.DefaultActualSource = ledgerhourDescActualSource.Default.(string)
+	// ledgerhourDescUpdated is the schema descriptor for updated field.
+	ledgerhourDescUpdated := ledgerhourFields[8].Descriptor()
+	// ledgerhour.UpdatedValidator is a validator for the "updated" field. It is called by the builders before save.
+	ledgerhour.UpdatedValidator = ledgerhourDescUpdated.Validators[0].(func(int64) error)
+	ledgersampleFields := schema.LedgerSample{}.Fields()
+	_ = ledgersampleFields
+	// ledgersampleDescWalletID is the schema descriptor for wallet_id field.
+	ledgersampleDescWalletID := ledgersampleFields[0].Descriptor()
+	// ledgersample.WalletIDValidator is a validator for the "wallet_id" field. It is called by the builders before save.
+	ledgersample.WalletIDValidator = ledgersampleDescWalletID.Validators[0].(func(int64) error)
+	// ledgersampleDescAccountID is the schema descriptor for account_id field.
+	ledgersampleDescAccountID := ledgersampleFields[1].Descriptor()
+	// ledgersample.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	ledgersample.AccountIDValidator = ledgersampleDescAccountID.Validators[0].(func(int64) error)
+	// ledgersampleDescFirstSeen is the schema descriptor for first_seen field.
+	ledgersampleDescFirstSeen := ledgersampleFields[2].Descriptor()
+	// ledgersample.FirstSeenValidator is a validator for the "first_seen" field. It is called by the builders before save.
+	ledgersample.FirstSeenValidator = ledgersampleDescFirstSeen.Validators[0].(func(int64) error)
+	// ledgersampleDescLastSeen is the schema descriptor for last_seen field.
+	ledgersampleDescLastSeen := ledgersampleFields[3].Descriptor()
+	// ledgersample.LastSeenValidator is a validator for the "last_seen" field. It is called by the builders before save.
+	ledgersample.LastSeenValidator = ledgersampleDescLastSeen.Validators[0].(func(int64) error)
+	// ledgersampleDescCurrency is the schema descriptor for currency field.
+	ledgersampleDescCurrency := ledgersampleFields[9].Descriptor()
+	// ledgersample.DefaultCurrency holds the default value on creation for the currency field.
+	ledgersample.DefaultCurrency = ledgersampleDescCurrency.Default.(string)
+	ledgerwalletFields := schema.LedgerWallet{}.Fields()
+	_ = ledgerwalletFields
+	// ledgerwalletDescOrigin is the schema descriptor for origin field.
+	ledgerwalletDescOrigin := ledgerwalletFields[2].Descriptor()
+	// ledgerwallet.DefaultOrigin holds the default value on creation for the origin field.
+	ledgerwallet.DefaultOrigin = ledgerwalletDescOrigin.Default.(string)
+	// ledgerwalletDescQuotaPerUsd is the schema descriptor for quota_per_usd field.
+	ledgerwalletDescQuotaPerUsd := ledgerwalletFields[3].Descriptor()
+	// ledgerwallet.DefaultQuotaPerUsd holds the default value on creation for the quota_per_usd field.
+	ledgerwallet.DefaultQuotaPerUsd = ledgerwalletDescQuotaPerUsd.Default.(float64)
+	// ledgerwalletDescUpstreamUserID is the schema descriptor for upstream_user_id field.
+	ledgerwalletDescUpstreamUserID := ledgerwalletFields[4].Descriptor()
+	// ledgerwallet.DefaultUpstreamUserID holds the default value on creation for the upstream_user_id field.
+	ledgerwallet.DefaultUpstreamUserID = ledgerwalletDescUpstreamUserID.Default.(int64)
+	// ledgerwalletDescAutoRecharge is the schema descriptor for auto_recharge field.
+	ledgerwalletDescAutoRecharge := ledgerwalletFields[5].Descriptor()
+	// ledgerwallet.DefaultAutoRecharge holds the default value on creation for the auto_recharge field.
+	ledgerwallet.DefaultAutoRecharge = ledgerwalletDescAutoRecharge.Default.(bool)
+	// ledgerwalletDescCreated is the schema descriptor for created field.
+	ledgerwalletDescCreated := ledgerwalletFields[6].Descriptor()
+	// ledgerwallet.CreatedValidator is a validator for the "created" field. It is called by the builders before save.
+	ledgerwallet.CreatedValidator = ledgerwalletDescCreated.Validators[0].(func(int64) error)
+	// ledgerwalletDescUpdated is the schema descriptor for updated field.
+	ledgerwalletDescUpdated := ledgerwalletFields[7].Descriptor()
+	// ledgerwallet.UpdatedValidator is a validator for the "updated" field. It is called by the builders before save.
+	ledgerwallet.UpdatedValidator = ledgerwalletDescUpdated.Validators[0].(func(int64) error)
 	patrolpolicyFields := schema.PatrolPolicy{}.Fields()
 	_ = patrolpolicyFields
 	// patrolpolicyDescGroupID is the schema descriptor for group_id field.

@@ -117,7 +117,7 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
   const [editing, edit] = useState<number | null>(null);
   const [reading, read] = useState<Announcement>();
   const [removing, remove] = useState<Announcement>();
-  const [loaded, setLoaded] = useState<Announcement[]>([]);
+  const [announcementTotal, setAnnouncementTotal] = useState<number>();
   const removal = useAction();
   const debounced = useDebouncedValue(search.trim());
   const base = "/admin/announcements";
@@ -141,18 +141,13 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
     </div>},
   ];
 
-  const activeCount = loaded.filter(r => r.status === "active").length;
-  const popupCount = loaded.filter(r => r.notify_mode === "popup").length;
-  const draftCount = loaded.filter(r => r.status === "draft").length;
+  const filtered = Boolean(debounced || status);
 
   return <WorkspaceStage flush>
     <MetricStrip
       flush
       items={[
-        {id: "m-total", label: "当前页公告", value: count.format(loaded.length)},
-        {id: "m-active", label: "已发布", value: count.format(activeCount), tone: "ok", onClick: () => setStatus("active")},
-        {id: "m-popup", label: "登录弹窗", value: count.format(popupCount), tone: "accent"},
-        {id: "m-draft", label: "草稿", value: count.format(draftCount), onClick: () => setStatus("draft")},
+        {id: "m-total", label: filtered ? "筛选结果" : "全部公告", value: announcementTotal === undefined ? null : count.format(announcementTotal), unit: "条"},
       ]}
     />
     <FilterBar sticky>
@@ -171,7 +166,7 @@ export function ManageAnnouncements({onChanged}: {onChanged: () => void}) {
       </div>
     </FilterBar>
     <div className="swift-pane-table">
-      <RemoteTable path={path} schema={announcement} columns={columns} rowID={row => row.id} onItemsLoaded={setLoaded} pinActions label="公告管理" revision={revision} />
+      <RemoteTable path={path} schema={announcement} columns={columns} rowID={row => row.id} onTotalLoaded={setAnnouncementTotal} pinActions label="公告管理" revision={revision} />
     </div>
     {editing !== null && <AnnouncementEditor key={editing} id={editing} onClose={() => edit(null)} onSaved={() => { edit(null); saved("公告已保存"); }} />}
     {reading && <Overlay open drawer title={reading.title + " · 阅读情况"} onClose={() => read(undefined)}>

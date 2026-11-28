@@ -31,6 +31,7 @@ type AccountExtraView struct {
 	RPMLimit                *int     `json:"rpm_limit,omitempty"`
 	CodexCLIOnly            bool     `json:"codex_cli_only,omitempty"`
 	TLSFingerprint          bool     `json:"tls_fingerprint,omitempty"`
+	TLSProfileID            *int64   `json:"tls_fingerprint_profile_id,omitempty"`
 	InterceptWarmup         bool     `json:"intercept_warmup,omitempty"`
 	ModelAllowlist          []string `json:"model_allowlist,omitempty"`
 }
@@ -44,8 +45,11 @@ type AccountExtraInput struct {
 	RPMLimit                *int      `json:"rpm_limit,omitempty"`
 	CodexCLIOnly            *bool     `json:"codex_cli_only,omitempty"`
 	TLSFingerprint          *bool     `json:"tls_fingerprint,omitempty"`
+	TLSProfileID            *int64    `json:"tls_fingerprint_profile_id,omitempty"`
 	InterceptWarmup         *bool     `json:"intercept_warmup,omitempty"`
 	ModelAllowlist          *[]string `json:"model_allowlist,omitempty"`
+	// cleared 记录显式传 null 的可清空键，见 account_extra_clear.go。
+	cleared []string `json:"-"`
 }
 
 func (in AccountExtraInput) valid() bool {
@@ -54,13 +58,17 @@ func (in AccountExtraInput) valid() bool {
 		in.DailyQuota != nil && *in.DailyQuota < 0 ||
 		in.TotalQuota != nil && *in.TotalQuota < 0 ||
 		in.MaxSessions != nil && *in.MaxSessions < 0 ||
-		in.RPMLimit != nil && *in.RPMLimit < 0 {
+		in.RPMLimit != nil && *in.RPMLimit < 0 ||
+		in.TLSProfileID != nil && *in.TLSProfileID < 1 {
 		return false
 	}
 	return true
 }
 
 func (in AccountExtraInput) applyTo(dst map[string]any) {
+	for _, key := range in.cleared {
+		delete(dst, key)
+	}
 	if in.WindowCostLimit != nil {
 		dst["window_cost_limit"] = *in.WindowCostLimit
 	}
@@ -84,6 +92,9 @@ func (in AccountExtraInput) applyTo(dst map[string]any) {
 	}
 	if in.TLSFingerprint != nil {
 		dst["tls_fingerprint"] = *in.TLSFingerprint
+	}
+	if in.TLSProfileID != nil {
+		dst["tls_fingerprint_profile_id"] = *in.TLSProfileID
 	}
 	if in.InterceptWarmup != nil {
 		dst["intercept_warmup"] = *in.InterceptWarmup
@@ -126,6 +137,7 @@ type AccountExtraWire struct {
 	RPMLimit                *int                      `json:"rpm_limit"`
 	CodexCLIOnly            bool                      `json:"codex_cli_only"`
 	TLSFingerprint          bool                      `json:"tls_fingerprint"`
+	TLSProfileID            *int64                    `json:"tls_fingerprint_profile_id"`
 	InterceptWarmup         bool                      `json:"intercept_warmup"`
 	ModelAllowlist          []string                  `json:"model_allowlist"`
 }
@@ -134,7 +146,7 @@ func projectAccountExtra(e AccountExtraWire) *AccountExtraView {
 	if e.WindowCostLimit == nil && e.WindowCostStickyReserve == nil &&
 		e.DailyQuota == nil && e.TotalQuota == nil &&
 		e.MaxSessions == nil && e.RPMLimit == nil &&
-		!e.CodexCLIOnly && !e.TLSFingerprint && !e.InterceptWarmup &&
+		!e.CodexCLIOnly && !e.TLSFingerprint && e.TLSProfileID == nil && !e.InterceptWarmup &&
 		len(e.ModelAllowlist) == 0 {
 		return nil
 	}
@@ -147,6 +159,7 @@ func projectAccountExtra(e AccountExtraWire) *AccountExtraView {
 		RPMLimit:                e.RPMLimit,
 		CodexCLIOnly:            e.CodexCLIOnly,
 		TLSFingerprint:          e.TLSFingerprint,
+		TLSProfileID:            e.TLSProfileID,
 		InterceptWarmup:         e.InterceptWarmup,
 		ModelAllowlist:          e.ModelAllowlist,
 	}
@@ -241,6 +254,9 @@ type AccountAdminView struct {
 	TodayCost              *float64                 `json:"today_cost,omitempty"`
 	TodayErrors            *int64                   `json:"today_errors,omitempty"`
 	Balance                *core.AccountBalanceView `json:"balance,omitempty"`
+	RPM5m                  *float64                 `json:"rpm_5m,omitempty"`
+	AvgLatencyMs           *float64                 `json:"avg_latency_ms,omitempty"`
+	Ledger                 *core.LedgerCardSummary  `json:"ledger,omitempty"`
 }
 
 func projectExtraBalance(plat string, extra AccountExtraWire) *core.AccountBalanceView {

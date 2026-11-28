@@ -1,0 +1,18 @@
+/* 线 D 归属：上游账号宫格卡片、对账行、账本徽标与账本标签页样式。尺寸与色值只用 tokens.css 里的变量。 */
+
+.acct-wallet { display: grid; gap: var(--weir-gap-3); min-width: 0; }
+.acct-wallet-value { font-size: var(--weir-text-heading); font-weight: var(--weir-weight-semibold); font-variant-numeric: tabular-nums; color: var(--weir-ink); }
+.acct-wallet-value[data-stale] { color: var(--weir-ink-3); }
+.acct-wallet-sub { font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); color: var(--weir-ink-3); }
+.acct-multiplier { font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); color: var(--weir-ink-3); font-variant-numeric: tabular-nums; }
+.acct-multiplier[data-drift] { color: var(--weir-warn-ink); }
+.acct-reconcile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--weir-gap-5); padding-top: var(--weir-gap-5); border-top: 1px solid var(--weir-line-soft); font-size: var(--weir-text-fine); line-height: var(--weir-leading-fine); color: var(--weir-ink-2); font-variant-numeric: tabular-nums; }
+.acct-reconcile[data-estimated] { color: var(--weir-ink-3); }
+.acct-plat-dot { display: inline-block; inline-size: 9px; block-size: 9px; margin-inline-end: var(--weir-gap-5); border-radius: 50%; background: var(--weir-ink-4); }
+.acct-plat-dot[data-platform="openai"] { background: var(--weir-plat-openai); }
+.acct-plat-dot[data-platform="anthropic"] { background: var(--weir-plat-anthropic); }
+.acct-plat-dot[data-platform="gemini"] { background: var(--weir-plat-gemini); }
+.acct-plat-dot[data-platform="deepseek"] { background: var(--weir-plat-deepseek); }
+.acct-plat-dot[data-platform="grok"] { background: var(--weir-plat-grok); }
+.acct-profit { color: var(--weir-ink-3); }
+.entity-card-meta-item[data-stale] { color: var(--weir-ink-4); }

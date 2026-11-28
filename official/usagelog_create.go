@@ -138,9 +138,79 @@ func (_c *UsageLogCreate) SetNillableCacheCreationTokens(v *int64) *UsageLogCrea
 	return _c
 }
 
+// SetTotalCost sets the "total_cost" field.
+func (_c *UsageLogCreate) SetTotalCost(v float64) *UsageLogCreate {
+	_c.mutation.SetTotalCost(v)
+	return _c
+}
+
+// SetNillableTotalCost sets the "total_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableTotalCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetTotalCost(*v)
+	}
+	return _c
+}
+
 // SetActualCost sets the "actual_cost" field.
 func (_c *UsageLogCreate) SetActualCost(v float64) *UsageLogCreate {
 	_c.mutation.SetActualCost(v)
+	return _c
+}
+
+// SetAccountRateMultiplier sets the "account_rate_multiplier" field.
+func (_c *UsageLogCreate) SetAccountRateMultiplier(v float64) *UsageLogCreate {
+	_c.mutation.SetAccountRateMultiplier(v)
+	return _c
+}
+
+// SetNillableAccountRateMultiplier sets the "account_rate_multiplier" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAccountRateMultiplier(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetAccountRateMultiplier(*v)
+	}
+	return _c
+}
+
+// SetAccountStatsCost sets the "account_stats_cost" field.
+func (_c *UsageLogCreate) SetAccountStatsCost(v float64) *UsageLogCreate {
+	_c.mutation.SetAccountStatsCost(v)
+	return _c
+}
+
+// SetNillableAccountStatsCost sets the "account_stats_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableAccountStatsCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetAccountStatsCost(*v)
+	}
+	return _c
+}
+
+// SetBillingType sets the "billing_type" field.
+func (_c *UsageLogCreate) SetBillingType(v int8) *UsageLogCreate {
+	_c.mutation.SetBillingType(v)
+	return _c
+}
+
+// SetNillableBillingType sets the "billing_type" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingType(v *int8) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingType(*v)
+	}
+	return _c
+}
+
+// SetDurationMs sets the "duration_ms" field.
+func (_c *UsageLogCreate) SetDurationMs(v int) *UsageLogCreate {
+	_c.mutation.SetDurationMs(v)
+	return _c
+}
+
+// SetNillableDurationMs sets the "duration_ms" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableDurationMs(v *int) *UsageLogCreate {
+	if v != nil {
+		_c.SetDurationMs(*v)
+	}
 	return _c
 }
 
@@ -211,6 +281,14 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultCacheCreationTokens
 		_c.mutation.SetCacheCreationTokens(v)
 	}
+	if _, ok := _c.mutation.TotalCost(); !ok {
+		v := usagelog.DefaultTotalCost
+		_c.mutation.SetTotalCost(v)
+	}
+	if _, ok := _c.mutation.BillingType(); !ok {
+		v := usagelog.DefaultBillingType
+		_c.mutation.SetBillingType(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -233,8 +311,14 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.CacheCreationTokens(); !ok {
 		return &ValidationError{Name: "cache_creation_tokens", err: errors.New(`official: missing required field "UsageLog.cache_creation_tokens"`)}
 	}
+	if _, ok := _c.mutation.TotalCost(); !ok {
+		return &ValidationError{Name: "total_cost", err: errors.New(`official: missing required field "UsageLog.total_cost"`)}
+	}
 	if _, ok := _c.mutation.ActualCost(); !ok {
 		return &ValidationError{Name: "actual_cost", err: errors.New(`official: missing required field "UsageLog.actual_cost"`)}
+	}
+	if _, ok := _c.mutation.BillingType(); !ok {
+		return &ValidationError{Name: "billing_type", err: errors.New(`official: missing required field "UsageLog.billing_type"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`official: missing required field "UsageLog.created_at"`)}
@@ -307,9 +391,29 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldCacheCreationTokens, field.TypeInt64, value)
 		_node.CacheCreationTokens = value
 	}
+	if value, ok := _c.mutation.TotalCost(); ok {
+		_spec.SetField(usagelog.FieldTotalCost, field.TypeFloat64, value)
+		_node.TotalCost = value
+	}
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(usagelog.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = value
+	}
+	if value, ok := _c.mutation.AccountRateMultiplier(); ok {
+		_spec.SetField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
+		_node.AccountRateMultiplier = &value
+	}
+	if value, ok := _c.mutation.AccountStatsCost(); ok {
+		_spec.SetField(usagelog.FieldAccountStatsCost, field.TypeFloat64, value)
+		_node.AccountStatsCost = &value
+	}
+	if value, ok := _c.mutation.BillingType(); ok {
+		_spec.SetField(usagelog.FieldBillingType, field.TypeInt8, value)
+		_node.BillingType = value
+	}
+	if value, ok := _c.mutation.DurationMs(); ok {
+		_spec.SetField(usagelog.FieldDurationMs, field.TypeInt, value)
+		_node.DurationMs = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usagelog.FieldCreatedAt, field.TypeTime, value)

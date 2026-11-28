@@ -27,50 +27,6 @@ import {
 import {type AccountRow} from "@/features/pool/shared";
 import {balancePlatforms} from "./account-helpers";
 
-const balanceSettingsSchema = z.object({enabled: z.boolean(), provider: z.string(), base_url: z.string(), configured: z.boolean()});
-
-export function AccountBalanceSettings({account: acc, revision, onRefreshed}: {account: AccountRow; revision: number; onRefreshed: () => void}) {
-  const path = "/admin/accounts/" + acc.id + "/balance-settings";
-  const settings = useResource(() => api(path, balanceSettingsSchema), path, true, revision);
-  return <Resource state={settings}>{value => <BalanceSettingsEditor key={revision} path={path} value={value} account={acc} onRefreshed={onRefreshed} />}</Resource>;
-}
-
-function BalanceSettingsEditor({value, path, account: acc, onRefreshed}: {value: z.infer<typeof balanceSettingsSchema>; path: string; account: AccountRow; onRefreshed: () => void}) {
-  const [enabled, setEnabled] = useState(value.enabled);
-  const [provider, setProvider] = useState(value.provider || (balancePlatforms.has(acc.platform) ? acc.platform : "sub2api"));
-  const [address, setAddress] = useState(value.base_url);
-  const [key, setKey] = useState("");
-  const action = useAction();
-  return <FormSection title="定时查询上游余额">
-    <Form onSubmit={() => void action.run(async () => {
-      await api(path, balanceSettingsSchema, "PUT", {enabled, provider, base_url: provider === "sub2api" ? address : "", api_key: key});
-      setKey("");
-      toast("余额查询配置已保存");
-      onRefreshed();
-    })}>
-      <InsetRow label="每 30 分钟查询"><Switch label="定时查询余额" checked={enabled} onChange={setEnabled} /></InsetRow>
-      {enabled && <>
-        <Field label="余额接口"><Select value={provider} onChange={event => setProvider(event.target.value)}>
-          {balancePlatforms.has(acc.platform) && <option value={acc.platform}>{acc.platform === "kimi" ? "Kimi" : "DeepSeek"}</option>}
-          <option value="sub2api">兼容 Sub2API</option>
-        </Select></Field>
-        {provider === "sub2api" && <Field label="上游 HTTPS 地址"><Input value={address} onChange={event => setAddress(event.target.value)} type="url" required /></Field>}
-        <Field label="余额查询密钥"><PasswordInput toggleLabel="余额查询密钥" value={key} onChange={event => setKey(event.target.value)} autoComplete="new-password"
-          required={!value.configured || provider !== value.provider || provider === "sub2api" && address !== value.base_url} placeholder={value.configured ? "已配置，留空不改" : "输入已授权的上游密钥"} /></Field>
-      </>}
-      <Toolbar>
-        <Button type="submit" size="sm" busy={action.busy}>保存查询设置</Button>
-        {value.configured && <Button type="button" variant="outline" size="sm" busy={action.busy} onClick={() => void action.run(async () => {
-          await api(path, balanceSettingsSchema, "POST", {});
-          toast("已刷新上游余额");
-          onRefreshed();
-        })}>立即查询</Button>}
-      </Toolbar>
-      <ErrorLine value={action.error} />
-    </Form>
-  </FormSection>;
-}
-
 export function AccountConfigForm({
   acc,
   revision,

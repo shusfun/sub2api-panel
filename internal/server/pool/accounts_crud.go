@@ -17,6 +17,7 @@ func RegisterRoutes(mux *http.ServeMux, s *core.Server) {
 	h.registerGroupRoutes(mux)
 	h.registerProxyRoutes(mux)
 	h.registerChannelAndPlazaRoutes(mux)
+	h.registerRuleRoutes(mux)
 }
 
 type handler struct {

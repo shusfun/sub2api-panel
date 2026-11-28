@@ -71,6 +71,7 @@ func (h *handler) backupRoutes(mux *http.ServeMux) {
 	h.s.Route(mux, "DELETE /api"+backupPath+"/{id}", true, h.backupDelete)
 	h.s.Route(mux, "POST /api"+backupPath+"/{id}/download-url", true, h.backupDownload)
 	h.s.Route(mux, "POST /api"+backupPath+"/{id}/restore", true, h.backupRestore)
+	h.imageStorageRoutes(mux)
 }
 
 type backupAuthorization struct {

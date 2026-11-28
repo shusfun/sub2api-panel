@@ -26,6 +26,7 @@ export function SaveBar({
 }) {
   return (
     <div className="weir-savebar">
+      <span className="weir-savebar-mask" aria-hidden />
       <div className="min-w-0">
         {error ? (
           <ErrorLine value={error} />

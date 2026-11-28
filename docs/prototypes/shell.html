@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外壳与导航 · Sub2API 原型</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div id="content">
+  <header class="page-head">
+    <div>
+      <h1>外壳与导航</h1>
+      <p class="summary">侧栏放<b>工作对象</b>，右上角放<b>和自己有关</b>的入口。当前视角：<b id="role-name">管理员</b></p>
+    </div>
+    <div class="page-actions">
+      <button class="btn ghost" data-action="rail"><span data-ic="rail"></span>折叠侧栏</button>
+      <button class="btn ghost" data-pop="pop-account" aria-haspopup="menu" aria-expanded="false"><span data-ic="users"></span>展开账户菜单</button>
+      <button class="btn primary" data-palette-open><span data-ic="search"></span>打开搜索跳转</button>
+    </div>
+  </header>
+
+  <div class="grid-2" style="margin-top: 0">
+    <section class="panel">
+      <div class="section-head"><h2>原版入口去哪了</h2><span class="tail muted" id="map-count"></span></div>
+      <div class="table-wrap" style="box-shadow: none; background: transparent">
+        <table class="table compact">
+          <thead><tr><th>原版位置</th><th>新面板位置</th><th>说明</th></tr></thead>
+          <tbody id="map-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><h2>右上角三件套</h2></div>
+      <ul class="rules">
+        <li><span data-ic="search"></span><span><b>搜索跳转（Ctrl K / ⌘K）</b><small>能搜到页面、账号、分组、用户和常用操作。原版藏在“更多”菜单里的功能也能按关键词找到，比如试试“透传”“指纹”“订阅”。</small></span></li>
+        <li><span data-ic="bell"></span><span><b>告警铃</b><small>只有管理员能看到。告警触发时显示条数，点开可以直接跳到对应账号或报错追踪，不用先进实时监控。</small></span></li>
+        <li><span data-ic="users"></span><span><b>账户菜单</b><small>放我的密钥、批量生图、购买与订单、邀请返利、MCP 授权、账户设置、主题和退出。侧栏底部不再放身份区。</small></span></li>
+      </ul>
+      <div class="inspector-section">
+        <h3>折叠与窄屏</h3>
+        <ul class="rules">
+          <li><span data-ic="rail"></span><span><b>侧栏可以折叠成图标条</b><small>按 [ 键切换，状态会记住。折叠后鼠标悬停显示名称。</small></span></li>
+          <li><span data-ic="menu"></span><span><b>窄屏用悬浮底栏</b><small>常用的三个页面加搜索和“我”，完整导航从左上角抽出。</small></span></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="prototype.js"></script>
+<script>
+(() => {
+  const P = Proto;
+  const role = P.store.get("role", "admin");
+  P.mount({
+    page: "",
+    title: "外壳与导航",
+    group: "原型",
+    alerts: Number(P.store.get("shell-alerts", "1")),
+    controls: `
+      <span class="seg" role="group" aria-label="视角">
+        <button data-action="role" data-role="admin" aria-pressed="${role === "admin"}">管理员</button>
+        <button data-action="role" data-role="user" aria-pressed="${role === "user"}">普通用户</button>
+      </span>
+      ${role === "admin" ? `<button class="btn sm" data-shell-alerts>切换告警</button>` : ""}`,
+  });
+
+  const admin = [
+    ["仪表盘、Ops", "观测 · 实时监控", "两页合并，首屏先给结论"],
+    ["渠道管理 · 监控", "观测 · 渠道健康", "和智能巡检放在一起"],
+    ["用量", "观测 · 用量分析", "清理任务放在工具栏"],
+    ["账号", "号池 · 上游账号", ""],
+    ["分组", "号池 · 调度分组", ""],
+    ["渠道管理 · 定价", "号池 · 渠道定价", "恢复独立入口"],
+    ["代理", "号池 · 代理节点", ""],
+    ["账号页“更多”里的错误透传、TLS 指纹", "号池 · 上游规则", "全局配置不再藏在账号页"],
+    ["用户", "用户 · 用户", ""],
+    ["订阅", "用户 · 订阅", "恢复独立入口"],
+    ["兑换码、优惠码", "用户 · 卡密与优惠", "两页合并"],
+    ["推广管理", "用户 · 推广返利", "邀请、返利、转账三类记录"],
+    ["订单管理", "用户 · 支付订单", "支付沿用现有实现"],
+    ["公告", "系统 · 站点公告", ""],
+    ["安全审计（风控、提示词审计）", "系统 · 风控", "提示词审计是其中一个视图"],
+    ["操作日志", "系统 · 操作审计", ""],
+    ["插件", "系统 · 插件生态", ""],
+    ["设置", "系统 · 站点设置", "只放全站配置"],
+    ["我的账户（密钥、个人资料等）", "右上角 · 账户菜单", "个人项不占侧栏"],
+  ];
+  const user = [
+    ["仪表盘", "我的 · 我的密钥", "余额和订阅摘要放进页头"],
+    ["API 密钥、兑换", "我的 · 我的密钥", "兑换是页头按钮"],
+    ["用量", "我的 · 用量分析", ""],
+    ["渠道状态", "我的 · 渠道健康", "按站点开关显示"],
+    ["批量图片", "我的 · 批量生图", ""],
+    ["可用渠道", "我的 · 模型广场", "两页合并"],
+    ["充值、我的订阅、我的订单", "我的 · 购买与订单", ""],
+    ["推广", "右上角 · 账户菜单 · 邀请返利", ""],
+    ["MCP", "右上角 · 账户菜单 · MCP 授权", ""],
+    ["个人资料", "右上角 · 账户菜单 · 账户设置", ""],
+  ];
+  const rows = role === "admin" ? admin : user;
+  document.getElementById("role-name").textContent = role === "admin" ? "管理员" : "普通用户";
+  document.getElementById("map-count").textContent = `${rows.length} 项`;
+  document.getElementById("map-body").innerHTML = rows.map(([from, to, note]) =>
+    `<tr><td>${from}</td><td><b>${to}</b></td><td class="muted">${note}</td></tr>`).join("");
+  P.paintIcons();
+
+  document.addEventListener("click", event => {
+    if (!event.target.closest("[data-shell-alerts]")) return;
+    const next = P.store.get("shell-alerts", "1") === "1" ? "0" : "1";
+    P.store.set("shell-alerts", next);
+    P.setAlerts(Number(next));
+    P.toast(next === "1" ? "告警铃显示 1 条触发中" : "告警已全部恢复");
+  });
+})();
+</script>
+</body>
+</html>

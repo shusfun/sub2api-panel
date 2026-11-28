@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>画板索引 · Sub2API 原型</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<main class="board">
+  <header class="board-head">
+    <div>
+      <h1>面板改版原型</h1>
+      <p>静态示意稿，数据全部是假的，不连接后端。确认方向后，再按这些样板改正式页面。</p>
+    </div>
+    <div class="page-actions">
+      <span class="seg" role="group" aria-label="暗色色板">
+        <button data-palette-choice="ember">琥珀点色</button><button data-palette-choice="warm">暖石墨</button><button data-palette-choice="current">现有暗色</button>
+      </span>
+      <button class="btn" data-action="theme"><span data-ic="theme"></span><span data-theme-label>跟随系统</span></button>
+    </div>
+  </header>
+
+  <div class="board-grid">
+    <a class="board-card" href="shell.html">
+      <h2>外壳与导航</h2>
+      <p>侧栏只放工作对象，账户相关的入口收进右上角。</p>
+      <ul>
+        <li>管理员和普通用户两套侧栏</li>
+        <li>折叠侧栏、账户菜单、告警铃、⌘K</li>
+        <li>原版入口在新面板里的位置</li>
+        <li>窄屏时用悬浮底栏</li>
+      </ul>
+    </a>
+    <a class="board-card" href="ops.html">
+      <h2>实时监控</h2>
+      <p>状态页样板：首屏一句话回答“现在要不要管”。</p>
+      <ul>
+        <li>“全站正常”和“1 项需要处理”两种状态</li>
+        <li>KPI 读数带和迷你趋势线</li>
+        <li>压低一档的图表区</li>
+      </ul>
+    </a>
+    <a class="board-card" href="accounts.html">
+      <h2>上游账号</h2>
+      <p>集合页样板，其他列表页都按这个模式来。</p>
+      <ul>
+        <li>筛选栏和快捷筛选</li>
+        <li>紧凑表格，行操作加“更多”菜单</li>
+        <li>选中后浮起的批量栏，右侧检查器</li>
+        <li>空态、加载、失败三种状态</li>
+      </ul>
+    </a>
+    <div class="board-card pending">
+      <h2>下一批</h2>
+      <p>样板确认后，按同一套规则出稿：</p>
+      <ul>
+        <li>站点设置（与账户设置拆开）</li>
+        <li>上游规则（错误透传、TLS 指纹）</li>
+        <li>订阅、渠道定价独立页</li>
+        <li>推广返利、提示词审计</li>
+      </ul>
+    </div>
+  </div>
+
+  <section class="panel" style="margin-top: 25px">
+    <div class="section-head"><h2>这一版的视觉规则</h2></div>
+    <ul class="rules">
+      <li><span data-ic="layers"></span><span><b>外壳安静，结论醒目</b><small>侧栏降一档：图标缩小、颜色变灰、可以折叠。颜色和大字只留给状态结论和异常数值。</small></span></li>
+      <li><span data-ic="compass"></span><span><b>右上角位置固定</b><small>⌘K、告警铃、账户菜单在每一页都在同一个位置，个人入口不占侧栏。</small></span></li>
+      <li><span data-ic="clipboard"></span><span><b>页头只有一种写法</b><small>标题，一行摘要，主操作固定在右边。摘要里直接写数字，例如“3 个需要处理”。</small></span></li>
+      <li><span data-ic="boxes"></span><span><b>用灰阶分层，少用边框</b><small>沿用五档物理灰阶，不做卡片套卡片；KPI 是一条连续的读数带，不拆成五张卡片。</small></span></li>
+      <li><span data-ic="zap"></span><span><b>操作不离开列表</b><small>点行打开右侧检查器，勾选后批量栏从底部浮起；原版的弹窗长表单只留给新建。</small></span></li>
+      <li><span data-ic="theme"></span><span><b>暗色往暖石墨调</b><small>用上面的色板开关和现有暗色对比。</small></span></li>
+    </ul>
+  </section>
+</main>
+<script src="prototype.js"></script>
+<script>Proto.paintIcons(); Proto.applyTheme();</script>
+</body>
+</html>

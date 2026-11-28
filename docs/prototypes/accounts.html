@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上游账号 · Sub2API 原型</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div id="content">
+  <header class="page-head">
+    <div>
+      <h1>上游账号</h1>
+      <p class="summary"><b>48</b> 个账号 · <b class="t-warn">3 个需要处理</b> · 今日 9,177 次请求，扣费 $51.62</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn ghost" data-pop="pop-data" aria-haspopup="menu" aria-expanded="false"><span data-ic="upload"></span>导入导出<span data-ic="chevDown"></span></button>
+      <button class="btn primary" data-toast="打开“添加或导入上游账号”弹窗"><span data-ic="plus"></span>添加账号</button>
+    </div>
+  </header>
+
+  <div class="filters" role="toolbar" aria-label="筛选">
+    <label class="input"><span data-ic="search"></span><input id="q" placeholder="搜索名称、ID、备注" autocomplete="off"></label>
+    <span id="quick"></span>
+    <span class="spacer"></span>
+    <button class="chip" data-toast="打开平台筛选：OpenAI、Anthropic、Gemini…">平台<b>全部</b></button>
+    <button class="chip" data-toast="打开分组筛选">分组<b>全部</b></button>
+    <span class="seg" role="group" aria-label="展示方式"><button data-layout="grid">宫格</button><button data-layout="table">列表</button></span>
+    <span class="seg" role="group" aria-label="统计口径"><button aria-pressed="true">今日</button><button>7 天</button><button>30 天</button></span>
+  </div>
+
+  <div id="error-slot"></div>
+  <div class="table-wrap" id="table-wrap"></div>
+
+  <div class="batch" id="batch" role="toolbar" aria-label="批量操作">
+    <span class="batch-count" id="batch-count"></span>
+    <button class="btn sm ghost" data-batch="测活"><span data-ic="zap"></span>测活</button>
+    <button class="btn sm ghost" data-batch="启用调度">启用调度</button>
+    <button class="btn sm ghost" data-batch="停用调度">停用调度</button>
+    <button class="btn sm ghost" data-batch="批量参数 / 分组"><span data-ic="pencil"></span>批量参数 / 分组</button>
+    <span class="batch-sep"></span>
+    <button class="btn sm danger" data-batch="删除"><span data-ic="trash"></span>删除</button>
+    <button class="icon-btn" data-batch-clear aria-label="取消选择" title="取消选择（Esc）"><span data-ic="x"></span></button>
+  </div>
+</div>
+
+<aside class="inspector" id="inspector" aria-label="账号详情"><div class="inspector-inner" id="inspector-inner"></div></aside>
+
+<div class="pop" id="pop-row" role="menu" aria-label="更多操作"></div>
+<div class="pop" id="pop-data" role="menu" aria-label="导入导出">
+  <button class="pop-item" role="menuitem" data-toast="打开 CRS 同步：先预览再确认"><span data-ic="repeat"></span>从 CRS 同步</button>
+  <button class="pop-item" role="menuitem" data-toast="打开导入配置弹窗"><span data-ic="upload"></span>导入配置</button>
+  <button class="pop-item" role="menuitem" data-toast="导出已脱敏，不含凭据"><span data-ic="external"></span>导出配置（脱敏）</button>
+  <div class="pop-sep"></div>
+  <button class="pop-item" role="menuitem" data-toast="跳到号池 · 上游规则"><span data-ic="route"></span>错误透传与 TLS 指纹<span class="tail">上游规则</span></button>
+</div>
+
+<script src="prototype.js"></script>
+<script>
+(() => {
+  const P = Proto;
+  let view = P.store.get("accounts-view", "data");
+  P.mount({
+    page: "accounts",
+    title: "上游账号",
+    group: "号池",
+    alerts: 1,
+    controls: `<span class="seg" role="group" aria-label="列表状态"><button data-view="data">有数据</button><button data-view="empty">空态</button><button data-view="loading">加载</button><button data-view="error">失败</button></span>`,
+  });
+
+  const A = [
+    {id: 3, name: "OpenAI 账号 03", plat: "OpenAI", type: "OAuth", group: "OpenAI 分组 01", proxy: "hk-02", req: 2108, cost: 12.41, q5: 92, q7: 61, conc: "3 / 5", st: "limited", sched: true, note: "429 · 预计 12 分钟后恢复"},
+    {id: 7, name: "Anthropic 账号 07", plat: "Anthropic", type: "Setup Token", group: "Anthropic 主池", proxy: "jp-01", req: 1342, cost: 9.88, q5: 47, q7: 38, conc: "2 / 4", st: "ok", sched: true},
+    {id: 11, name: "OpenAI 账号 11", plat: "OpenAI", type: "OAuth", group: "OpenAI 分组 01", proxy: "hk-02", req: 1977, cost: 10.02, q5: 58, q7: 44, conc: "1 / 5", st: "ok", sched: true},
+    {id: 12, name: "OpenAI 账号 12", plat: "OpenAI", type: "API Key", group: "OpenAI 分组 01", proxy: "直连", req: 0, cost: 0, q5: 0, q7: 0, conc: "0 / 5", st: "error", sched: false, note: "凭据失效 · 需要重新授权"},
+    {id: 15, name: "Gemini 账号 15", plat: "Gemini", type: "OAuth", group: "Gemini 分组 12", proxy: "us-03", req: 211, cost: 0.77, q5: 12, q7: 9, conc: "0 / 10", st: "ok", sched: true},
+    {id: 18, name: "DeepSeek 账号 18", plat: "DeepSeek", type: "API Key", group: "DeepSeek 分组 16", proxy: "直连", req: 120, cost: 1.62, q5: 0, q7: 0, conc: "0 / 10", st: "ok", sched: true},
+    {id: 21, name: "Grok 账号 21", plat: "Grok", type: "Cookie", group: "Grok 分组 03", proxy: "us-03", req: 713, cost: 4.21, q5: 81, q7: 72, conc: "1 / 4", st: "warn", sched: true, note: "5 小时配额已用 81%"},
+    {id: 24, name: "Anthropic 账号 24", plat: "Anthropic", type: "OAuth", group: "Anthropic 主池", proxy: "jp-01", req: 2706, cost: 12.71, q5: 66, q7: 51, conc: "2 / 4", st: "ok", sched: true},
+  ];
+  const ST = {ok: ["t-ok", "正常"], warn: ["t-warn", "配额偏高"], limited: ["t-warn", "限流中"], error: ["t-bad", "异常"]};
+  const QUICK = [["all", "全部", A.length], ["attention", "需要处理", A.filter(a => a.st !== "ok").length], ["paused", "已停调度", A.filter(a => !a.sched).length]];
+  let quick = "all";
+  let layout = P.store.get("accounts-layout", "grid");
+  const pk = a => a.plat.toLowerCase();
+  const checked = new Set();
+  let selected = Number(new URLSearchParams(location.search).get("inspect")) || 0;
+
+  const meter = v => `<span class="meter ${v >= 90 ? "bad" : v >= 75 ? "warn" : ""}"><i style="width:${v}%"></i></span>`;
+  const rows = () => {
+    const q = document.getElementById("q").value.trim().toLowerCase();
+    return A.filter(a => (quick === "all" || (quick === "attention" ? a.st !== "ok" : !a.sched))
+      && (!q || `${a.name} ${a.id} ${a.group} ${a.plat}`.toLowerCase().includes(q)));
+  };
+
+  function renderQuick() {
+    document.getElementById("quick").innerHTML = QUICK.map(([id, label, n]) =>
+      `<button class="chip" data-quick="${id}" aria-pressed="${quick === id}">${label}<b>${n}</b></button>`).join(" ");
+  }
+
+  function renderTable() {
+    const wrap = document.getElementById("table-wrap");
+    document.getElementById("error-slot").innerHTML = view === "error"
+      ? `<div class="inline-error" role="alert">${P.icon("alert")}<span>账号列表没有加载出来：官方接口 8 秒内没有响应。下面是 2 分钟前的数据。</span><button class="btn sm" data-view="data">重试</button></div>` : "";
+    document.querySelectorAll(".proto-bar [data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+
+    if (view === "empty") {
+      wrap.innerHTML = `<div class="state">${P.icon("server")}<b>还没有上游账号</b><p>添加一个账号后，分组才能开始调度请求。可以用 OAuth 授权、直接填 Token，也可以从 CRS 同步。</p><div class="inspector-actions"><button class="btn primary" data-toast="打开“添加或导入上游账号”弹窗">${P.icon("plus")}添加账号</button><button class="btn" data-toast="打开 CRS 同步">从 CRS 同步</button></div></div>`;
+      return;
+    }
+    const head = `<thead><tr><th class="check"><input type="checkbox" aria-label="全选" data-check-all></th><th>账号</th><th class="opt">分组 / 代理</th><th class="r">今日请求</th><th class="r">今日扣费</th><th>配额 5h / 7d</th><th class="r opt">并发</th><th>状态</th><th class="c">调度</th><th class="r"><span class="muted">操作</span></th></tr></thead>`;
+    document.querySelectorAll("[data-layout]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.layout === layout)));
+    wrap.classList.toggle("as-grid", layout === "grid");
+    if (layout === "grid") { renderGrid(wrap); return; }
+    if (view === "loading") {
+      const sk = w => `<span class="skeleton" style="width:${w}px"></span>`;
+      wrap.innerHTML = `<table class="table">${head}<tbody>${Array.from({length: 6}, () => `<tr><td class="check"></td><td>${sk(131)}</td><td class="opt">${sk(97)}</td><td class="r">${sk(41)}</td><td class="r">${sk(41)}</td><td>${sk(107)}</td><td class="opt">${sk(31)}</td><td>${sk(51)}</td><td></td><td></td></tr>`).join("")}</tbody></table>`;
+      return;
+    }
+    const list = rows();
+    const body = list.length ? list.map(a => {
+      const [tone, label] = ST[a.st];
+      return `<tr data-id="${a.id}" ${checked.has(a.id) ? "data-checked" : ""} aria-selected="${a.id === selected}">
+        <td class="check"><input type="checkbox" aria-label="选择 ${a.name}" data-check="${a.id}" ${checked.has(a.id) ? "checked" : ""}></td>
+        <td class="cell-main"><b><i class="plat-dot" style="--c:var(--plat-${pk(a)})"></i>${a.name}</b><small>${a.plat} · ${a.type} · #${a.id}</small></td>
+        <td class="cell-main opt"><b>${a.group}</b><small>代理 ${a.proxy}</small></td>
+        <td class="r">${a.req.toLocaleString()}</td>
+        <td class="r">$${a.cost.toFixed(2)}</td>
+        <td><span class="quota"><span><i>${a.q5}%</i><i>${a.q7}%</i></span>${meter(a.q5)}</span></td>
+        <td class="r mono opt">${a.conc}</td>
+        <td><span class="status ${tone}" title="${a.note ?? ""}"><span class="dot"></span>${label}</span></td>
+        <td class="c"><button class="switch" role="switch" aria-checked="${a.sched}" aria-label="${a.name} 参与调度" data-sched="${a.id}"></button></td>
+        <td class="r"><span class="row-actions">
+          <button class="btn sm ghost" data-test="${a.id}">${P.icon("zap")}测活</button>
+          <button class="icon-btn" data-pop="pop-row" data-row="${a.id}" aria-haspopup="menu" aria-expanded="false" aria-label="${a.name} 的更多操作">${P.icon("dots")}</button>
+        </span></td></tr>`;
+    }).join("") : `<tr><td colspan="10"><div class="state">${P.icon("search")}<b>没有符合条件的账号</b><p>换个关键词，或者清除快捷筛选。</p><div class="inspector-actions"><button class="btn" data-clear-filter>清除筛选</button></div></div></td></tr>`;
+    wrap.innerHTML = `<table class="table clickable">${head}<tbody>${body}</tbody></table>
+      <div class="table-foot"><span>第 1–${list.length} 个，共 48 个</span><span class="seg"><button aria-pressed="true">1</button><button>2</button><button>3</button><button>…</button><button>6</button></span></div>`;
+    const all = wrap.querySelector("[data-check-all]");
+    if (all) { all.checked = list.length > 0 && list.every(a => checked.has(a.id)); all.indeterminate = !all.checked && list.some(a => checked.has(a.id)); }
+  }
+
+  function renderGrid(wrap) {
+    if (view === "loading") {
+      const sk = w => `<span class="skeleton" style="width:${w}"></span>`;
+      wrap.innerHTML = `<div class="acc-grid">${Array.from({length: 6}, () => `<article class="acc-card" style="--c:var(--weir-fill)"><div class="acc-head"><span class="plat-mark"></span><span class="cell-main">${sk("61%")}${sk("41%")}</span></div>${sk("100%")}${sk("100%")}${sk("71%")}</article>`).join("")}</div>`;
+      return;
+    }
+    const list = rows();
+    if (!list.length) {
+      wrap.innerHTML = `<div class="state">${P.icon("search")}<b>没有符合条件的账号</b><p>换个关键词，或者清除快捷筛选。</p><div class="inspector-actions"><button class="btn" data-clear-filter>清除筛选</button></div></div>`;
+      return;
+    }
+    wrap.innerHTML = `<div class="acc-grid">${list.map(a => {
+      const [tone, label] = ST[a.st];
+      return `<article class="acc-card tone-${a.st}" data-id="${a.id}" style="--c:var(--plat-${pk(a)})" aria-selected="${a.id === selected}" ${checked.has(a.id) ? "data-checked" : ""}>
+        <div class="acc-head">
+          <span class="plat-mark" aria-hidden="true">${a.plat[0]}</span>
+          <span class="cell-main"><b>${a.name}</b><small>${a.plat} · ${a.type} · #${a.id}</small></span>
+          <span class="status ${tone}"><span class="dot"></span>${label}</span>
+        </div>
+        ${a.note ? `<p class="acc-note ${tone}">${a.note}</p>` : ""}
+        <div class="acc-quota"><span><i>5h</i>${meter(a.q5)}<b>${a.q5}%</b></span><span><i>7d</i>${meter(a.q7)}<b>${a.q7}%</b></span></div>
+        <dl class="acc-stats"><div><dt>今日请求</dt><dd>${a.req.toLocaleString()}</dd></div><div><dt>今日扣费</dt><dd>$${a.cost.toFixed(2)}</dd></div><div><dt>并发</dt><dd class="mono">${a.conc}</dd></div></dl>
+        <div class="acc-foot">
+          <input type="checkbox" aria-label="选择 ${a.name}" data-check="${a.id}" ${checked.has(a.id) ? "checked" : ""}>
+          <span class="acc-route" title="${a.group} · 代理 ${a.proxy}">${a.group} · ${a.proxy}</span>
+          <button class="switch" role="switch" aria-checked="${a.sched}" aria-label="${a.name} 参与调度" title="参与调度" data-sched="${a.id}"></button>
+          <button class="icon-btn" data-test="${a.id}" aria-label="测活 ${a.name}" title="测活">${P.icon("zap")}</button>
+          <button class="icon-btn" data-pop="pop-row" data-row="${a.id}" aria-haspopup="menu" aria-expanded="false" aria-label="${a.name} 的更多操作">${P.icon("dots")}</button>
+        </div>
+      </article>`;
+    }).join("")}</div>
+    <div class="table-foot"><span>第 1–${list.length} 个，共 48 个</span><span class="seg"><button aria-pressed="true">1</button><button>2</button><button>3</button><button>…</button><button>6</button></span></div>`;
+  }
+
+  function renderBatch() {
+    document.getElementById("batch-count").textContent = `已选 ${checked.size} 个账号`;
+    document.getElementById("batch").toggleAttribute("data-open", checked.size > 0 && view !== "empty" && view !== "loading");
+  }
+
+  function renderInspector() {
+    const box = document.getElementById("inspector");
+    const a = A.find(x => x.id === selected);
+    box.toggleAttribute("data-open", Boolean(a) && view !== "empty" && view !== "loading");
+    if (!a) return;
+    const [tone, label] = ST[a.st];
+    document.getElementById("inspector-inner").innerHTML = `
+      <div class="inspector-head">
+        <div><h2>${a.name}</h2><span class="status ${tone}"><span class="dot"></span>${label}${a.note ? ` · ${a.note}` : ""}</span></div>
+        <button class="icon-btn" data-close-inspector aria-label="关闭详情" title="关闭（Esc）">${P.icon("x")}</button>
+      </div>
+      <div class="inspector-actions">
+        ${a.st === "error" ? `<button class="btn primary" data-toast="打开重新授权">重新授权</button>` : ""}
+        ${a.st === "limited" ? `<button class="btn primary" data-toast="已清除限流状态">清除限流</button>` : ""}
+        <button class="btn" data-test="${a.id}">${P.icon("zap")}测活</button>
+        <button class="btn ghost" data-toast="打开独立详情页 /admin/accounts/${a.id}">完整详情${P.icon("arrow")}</button>
+      </div>
+      <div class="inspector-section"><h3>接入</h3><dl class="kv">
+        <dt>平台</dt><dd>${a.plat}</dd><dt>方式</dt><dd>${a.type}</dd><dt>分组</dt><dd>${a.group}</dd><dt>代理</dt><dd>${a.proxy}</dd><dt>并发</dt><dd class="mono">${a.conc}</dd>
+      </dl></div>
+      <div class="inspector-section"><h3>配额水位</h3>
+        <ul class="rank"><li><span>5 小时窗口</span><span>${a.q5}%</span>${meter(a.q5)}</li><li><span>7 天窗口</span><span>${a.q7}%</span>${meter(a.q7)}</li></ul>
+      </div>
+      <div class="inspector-section"><h3>今日</h3><dl class="kv">
+        <dt>请求</dt><dd>${a.req.toLocaleString()} 次</dd><dt>扣费</dt><dd>$${a.cost.toFixed(2)}</dd><dt>最近调用</dt><dd>${a.req ? "1 分钟前" : "—"}</dd>
+      </dl></div>
+      <div class="inspector-section"><h3>危险操作</h3><div class="inspector-actions"><button class="btn danger" data-toast="按住 1 秒确认删除">${P.icon("trash")}删除账号</button></div></div>`;
+  }
+
+  function renderAll() { renderQuick(); renderTable(); renderBatch(); renderInspector(); }
+
+  document.getElementById("pop-row").addEventListener("proto:open", event => {
+    const a = A.find(x => x.id === Number(event.detail.dataset.row));
+    const oauth = a.type === "OAuth";
+    event.currentTarget.innerHTML = `
+      <button class="pop-item" role="menuitem" data-toast="查看 ${a.name} 可用的模型">${P.icon("boxes")}查看模型</button>
+      <button class="pop-item" role="menuitem" data-toast="已刷新余额和凭据">${P.icon("refresh")}刷新余额 / 凭据</button>
+      <button class="pop-item" role="menuitem" data-toast="打开调用明细（用量分析，已按账号筛选）">${P.icon("activity")}调用明细</button>
+      <button class="pop-item" role="menuitem" data-toast="已复制为新账号草稿">${P.icon("copy")}复制账号</button>
+      <div class="pop-sep"></div>
+      <button class="pop-item" role="menuitem" data-toast="已清除限流状态">${P.icon("eraser")}清除限流 / 错误</button>
+      <button class="pop-item" role="menuitem" data-toast="已重置配额计数">${P.icon("repeat")}重置配额</button>
+      <button class="pop-item" role="menuitem" data-toast="打开隐私设置">${P.icon("lock")}隐私设置</button>
+      ${a.plat === "OpenAI" && oauth ? `<button class="pop-item" role="menuitem" data-toast="创建 Spark 影子账号">${P.icon("ghost")}创建 Spark 影子<span class="tail">OpenAI OAuth</span></button>` : ""}
+      ${oauth ? `<button class="pop-item" role="menuitem" data-toast="打开重新授权">${P.icon("key")}重新授权</button>` : ""}
+      <div class="pop-sep"></div>
+      <button class="pop-item bad" role="menuitem" data-toast="按住 1 秒确认删除">${P.icon("trash")}删除</button>`;
+  });
+
+  document.addEventListener("input", event => { if (event.target.id === "q") renderTable(); });
+  document.addEventListener("change", event => {
+    const t = event.target;
+    if (t.matches("[data-check]")) { const id = Number(t.dataset.check); t.checked ? checked.add(id) : checked.delete(id); renderTable(); renderBatch(); }
+    if (t.matches("[data-check-all]")) { rows().forEach(a => t.checked ? checked.add(a.id) : checked.delete(a.id)); renderTable(); renderBatch(); }
+  });
+  document.addEventListener("click", event => {
+    const t = event.target;
+    const v = t.closest("[data-view]");
+    if (v) { view = v.dataset.view; P.store.set("accounts-view", view); renderAll(); return; }
+    const q = t.closest("[data-quick]");
+    if (q) { quick = q.dataset.quick; renderQuick(); renderTable(); return; }
+    if (t.closest("[data-clear-filter]")) { quick = "all"; document.getElementById("q").value = ""; renderAll(); return; }
+    const s = t.closest("[data-sched]");
+    if (s) { const a = A.find(x => x.id === Number(s.dataset.sched)); a.sched = !a.sched; s.setAttribute("aria-checked", String(a.sched)); P.toast(`${a.name} 已${a.sched ? "加入" : "退出"}调度`); return; }
+    const test = t.closest("[data-test]");
+    if (test) { const a = A.find(x => x.id === Number(test.dataset.test)); P.toast(a.st === "error" ? `${a.name} 测活失败：凭据失效` : `${a.name} 测活通过 · 首字 412 ms`); return; }
+    const b = t.closest("[data-batch]");
+    if (b) { P.toast(`对 ${checked.size} 个账号执行「${b.dataset.batch}」`); return; }
+    if (t.closest("[data-batch-clear]")) { checked.clear(); renderTable(); renderBatch(); return; }
+    if (t.closest("[data-close-inspector]")) { selected = 0; renderTable(); renderInspector(); return; }
+    const lay = t.closest("[data-layout]");
+    if (lay) { layout = lay.dataset.layout; P.store.set("accounts-layout", layout); renderTable(); return; }
+    const row = t.closest("tr[data-id], .acc-card[data-id]");
+    if (row && !t.closest("input,button,a")) { selected = Number(row.dataset.id) === selected ? 0 : Number(row.dataset.id); renderTable(); renderInspector(); }
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || document.querySelector(".pop[data-open], .palette[data-open]")) return;
+    if (selected) { selected = 0; renderTable(); renderInspector(); }
+    else if (checked.size) { checked.clear(); renderTable(); renderBatch(); }
+  });
+
+  renderAll();
+  P.paintIcons();
+})();
+</script>
+</body>
+</html>

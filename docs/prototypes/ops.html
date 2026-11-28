@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>实时监控 · Sub2API 原型</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div id="content">
+  <header class="page-head">
+    <div>
+      <h1>实时监控</h1>
+      <p class="summary">最近 1 小时 · 每 5 秒更新 · <b>12</b> 个分组、<b>48</b> 个账号在调度</p>
+    </div>
+    <div class="page-actions">
+      <span class="seg" role="group" aria-label="时间范围" data-range>
+        <button>5m</button><button>30m</button><button aria-pressed="true">1h</button><button>6h</button><button>24h</button>
+      </span>
+      <button class="btn ghost" data-toast="已刷新"><span data-ic="refresh"></span>刷新</button>
+    </div>
+  </header>
+
+  <section class="verdict" id="verdict" aria-live="polite"></section>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid-2">
+    <section class="panel">
+      <div class="section-head"><h2>吞吐</h2><span class="tail legend">峰值 <b id="qps-peak"></b> req/s</span></div>
+      <div id="chart-qps"></div>
+      <div class="axis"><span>60 分钟前</span><span>30 分钟前</span><span>现在</span></div>
+    </section>
+    <section class="panel">
+      <div class="section-head"><h2>报错与限流</h2><span class="tail legend"><span><i></i>客户端报错</span><span><i class="warn"></i>上游 429</span><span><i class="bad"></i>上游故障</span></span></div>
+      <div id="chart-err"></div>
+      <div class="axis"><span>60 分钟前</span><span>30 分钟前</span><span>现在</span></div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="panel">
+      <div class="section-head"><h2>分组健康</h2><span class="tail"><a class="btn sm ghost" href="accounts.html">查看号池<span data-ic="arrow"></span></a></span></div>
+      <div class="table-wrap" style="box-shadow: none; background: transparent">
+        <table class="table compact">
+          <thead><tr><th>分组</th><th>平台</th><th class="r">并发</th><th>可用 / 限流 / 异常</th><th class="r">今日扣费</th></tr></thead>
+          <tbody id="groups"></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="section-head"><h2>近 7 天消费</h2><span class="tail"><button class="btn sm ghost" data-toast="跳到用量分析">完整账单<span data-ic="arrow"></span></button></span></div>
+      <ul class="rank" id="rank"></ul>
+    </section>
+  </div>
+</div>
+
+<script src="prototype.js"></script>
+<script>
+(() => {
+  const P = Proto;
+  const query = new URLSearchParams(location.search).get("state");
+  let state = query === "ok" || query === "alert" ? query : P.store.get("ops-state", "alert");
+
+  P.mount({
+    page: "ops",
+    title: "实时监控",
+    group: "观测",
+    alerts: state === "alert" ? 1 : 0,
+    controls: `<span class="seg" role="group" aria-label="页面状态"><button data-ops-state="alert">1 项需要处理</button><button data-ops-state="ok">全站正常</button></span>`,
+  });
+
+  let seed = 11;
+  const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  const qps = Array.from({length: 60}, (_, i) => 2.4 + Math.sin(i / 7) * 0.8 + rnd() * 0.9 + (i > 40 ? 0.6 : 0));
+  // 正常状态：近 60 分钟共 2 次客户端报错，与 KPI 文案一致
+  const errBase = Array.from({length: 60}, (_, i) => (i === 21 || i === 38 ? 1 : 0));
+
+  const groups = [
+    ["OpenAI 分组 01", "OpenAI", "2 / 10", [9, 2, 1], "$31.40"],
+    ["Anthropic 主池", "Anthropic", "4 / 12", [7, 0, 0], "$12.62"],
+    ["Gemini 分组 12", "Gemini", "0 / 10", [4, 0, 0], "$0.77"],
+    ["DeepSeek 分组 16", "DeepSeek", "0 / 10", [3, 0, 0], "$1.62"],
+    ["Grok 分组 03", "Grok", "1 / 4", [2, 0, 0], "$4.21"],
+  ];
+  const rank = [["OpenAI 分组 01", "8,306 次", 262.99], ["Grok 分组 03", "713 次", 19.71], ["DeepSeek 分组 16", "120 次", 11.62], ["Gemini 分组 12", "38 次", 3.77]];
+
+  function render() {
+    const alert = state === "alert";
+    P.store.set("ops-state", state);
+    P.setAlerts(alert ? 1 : 0);
+    document.querySelectorAll("[data-ops-state]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.opsState === state)));
+
+    document.getElementById("verdict").innerHTML = alert ? `
+      <span class="verdict-mark t-warn">${P.icon("alert")}</span>
+      <div><h2>1 项需要处理</h2><p>OpenAI 分组 01 的上游在 5 分钟内返回 7 次 429，其余 11 个分组正常。</p></div>
+      <div class="verdict-actions">
+        <button class="btn primary" data-href="accounts.html?inspect=3">处理限流账号</button>
+        <button class="btn ghost" data-toast="已静默 30 分钟，到时自动恢复提醒">静默 30 分钟</button>
+      </div>
+      <div class="verdict-items">
+        <div class="verdict-item">
+          <span class="t-warn">${P.icon("zap")}</span>
+          <span><b>上游 429 限流</b><small>OpenAI 账号 03 · OpenAI 分组 01 · 4 分钟前开始 · 预计 12 分钟后恢复</small></span>
+          <span class="tail"><button class="btn sm" data-href="accounts.html?inspect=3">查看账号</button><button class="btn sm ghost" data-toast="跳到报错与追踪，已筛选 429">报错追踪</button></span>
+        </div>
+      </div>` : `
+      <span class="verdict-mark t-ok">${P.icon("check")}</span>
+      <div><h2>全站正常</h2><p>12 个分组、48 个账号都在正常调度，最近 1 小时没有触发告警。</p></div>
+      <div class="verdict-actions"><button class="btn ghost" data-toast="跳到告警与策略">告警规则 12 条</button></div>`;
+
+    const errs = alert ? "9 次报错 · 429×7" : "2 次报错";
+    document.getElementById("kpis").innerHTML = `
+      <div class="kpi"><span class="kpi-label">当前吞吐</span><span class="kpi-value">3.4<small>req/s</small></span><span class="kpi-foot">峰值 ${Math.max(...qps).toFixed(1)}${P.spark(qps.slice(-20))}</span></div>
+      <button class="kpi" data-toast="跳到报错与追踪"><span class="kpi-label">成功率</span><span class="kpi-value ${alert ? "t-warn" : ""}">${alert ? "99.5" : "99.9"}<small>%</small></span><span class="kpi-foot ${alert ? "t-warn" : ""}">${errs}${P.spark(alert ? [1, 0, 1, 0, 0, 1, 2, 4, 6, 7] : [1, 0, 0, 1, 0, 0, 1, 0, 0, 0], alert ? "t-warn" : "")}</span></button>
+      <div class="kpi"><span class="kpi-label">平均响应</span><span class="kpi-value">680<small>ms</small></span><span class="kpi-foot">P95 1.9 s${P.spark([700, 640, 720, 690, 660, 700, 680, 650, 690, 680])}</span></div>
+      <div class="kpi"><span class="kpi-label">并发占用</span><span class="kpi-value">7<small>/ 46</small></span><span class="kpi-foot">无排队${P.spark([4, 5, 6, 5, 7, 8, 6, 7, 7, 7])}</span></div>
+      <div class="kpi"><span class="kpi-label">今日扣费</span><span class="kpi-value">$51.62</span><span class="kpi-foot">近 7 天 $355.12${P.spark([41, 56, 48, 62, 50, 47, 51])}</span></div>`;
+
+    document.getElementById("qps-peak").textContent = Math.max(...qps).toFixed(1);
+    document.getElementById("chart-qps").innerHTML = P.lineChart(qps, "最近 60 分钟吞吐");
+    const bars = errBase.map((v, i) => {
+      if (alert && i >= 55) return {v: [2, 1, 2, 1, 1][i - 55], tone: "warn"};
+      if (alert && i === 38) return {v: 1, tone: "bad"}; // 告警状态共 9 次：客户端 1 + 上游故障 1 + 429×7
+      return {v};
+    });
+    document.getElementById("chart-err").innerHTML = P.barChart(bars, "最近 60 分钟报错与限流");
+
+    document.getElementById("groups").innerHTML = groups.map(([name, plat, conc, [ok, lim, bad], cost]) => {
+      const okN = ok + (alert ? 0 : lim);
+      const limN = alert ? lim : 0;
+      const total = ok + lim + bad;
+      const health = `<span class="health" role="img" aria-label="可用 ${okN}，限流 ${limN}，异常 ${bad}">${[[okN, ""], [limN, "warn"], [bad, "bad"]].filter(([n]) => n).map(([n, t]) => `<i class="${t}" style="flex:${n / total}"></i>`).join("")}</span>`;
+      return `<tr><td><b>${name}</b></td><td class="muted">${plat}</td><td class="r mono">${conc}</td><td>${health}</td><td class="r">${cost}</td></tr>`;
+    }).join("");
+
+    const max = rank[0][2];
+    document.getElementById("rank").innerHTML = rank.map(([name, calls, cost]) => `
+      <li><span><b>${name}</b> <small>${calls}</small></span><span>$${cost.toFixed(2)}</span><span class="meter"><i style="width:${(cost / max * 100).toFixed(1)}%"></i></span></li>`).join("");
+  }
+
+  render();
+  P.paintIcons();
+  document.addEventListener("click", event => {
+    const choice = event.target.closest("[data-ops-state]");
+    if (choice) { state = choice.dataset.opsState; render(); return; }
+    const range = event.target.closest("[data-range] button");
+    if (range) {
+      range.parentElement.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === range)));
+      P.toast(`时间范围切换到 ${range.textContent}`);
+    }
+  });
+})();
+</script>
+</body>
+</html>
